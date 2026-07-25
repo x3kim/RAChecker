@@ -25,7 +25,11 @@
     "icon": "node scripts/make-icon.mjs",
     "app:dev": "npm run build && electron .",
     "app:dist": "npm run build && electron-builder --win",
-    "app:dir": "npm run build && electron-builder --win --dir"
+    "app:dir": "npm run build && electron-builder --win --dir",
+    "release": "node scripts/release.mjs",
+    "release:patch": "node scripts/release.mjs patch",
+    "release:minor": "node scripts/release.mjs minor",
+    "release:major": "node scripts/release.mjs major"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",
