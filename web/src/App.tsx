@@ -3,15 +3,18 @@ import type { ComponentType } from 'react';
 import {
   Gamepad2, LayoutDashboard, ScanLine, DatabaseZap, Settings as SettingsIcon,
   Cpu, HardDriveDownload, Trophy, Palette, Check, Eye, UploadCloud, Keyboard, Languages, History, Compass,
-  Sparkles, MoreHorizontal,
+  Sparkles, MoreHorizontal, ClipboardList,
 } from 'lucide-react';
 import { api } from './lib/api';
 import type { AppStatus, ScanItem } from './lib/api';
 import { visibleThemes, loadTheme, applyTheme, loadFont, applyFont, loadAurora, applyAurora } from './lib/theme';
 import { applyCrt, loadCrt } from './lib/crt';
 import { ViewFade } from './lib/anim';
-import { useI18n, LANGS } from './lib/i18n';
+import { useI18n, LANGS, langChosen } from './lib/i18n';
 import type { Lang } from './lib/i18n';
+import { LanguageGate } from './components/LanguageGate';
+import { Flag } from './components/Flag';
+import { UpdateChip } from './components/UpdateChip';
 import { APP_VERSION, REPO_URL } from './lib/version';
 import { collectDroppedFiles } from './lib/drop';
 import { JobsProvider } from './lib/jobs';
@@ -35,9 +38,10 @@ import { WatchToasts } from './components/WatchToasts';
 import { JobHud } from './components/JobHud';
 import { GuidedTour } from './components/GuidedTour';
 import { DiscoverView } from './components/DiscoverView';
+import { DatView } from './components/DatView';
 import { EmulatorSetupModal } from './components/EmulatorSetupModal';
 
-type Tab = 'dashboard' | 'scan' | 'library' | 'games' | 'discover' | 'insights' | 'mastery' | 'hardcore' | 'sync' | 'settings';
+type Tab = 'dashboard' | 'scan' | 'library' | 'games' | 'discover' | 'insights' | 'mastery' | 'hardcore' | 'sync' | 'dat' | 'settings';
 
 // "Mastery" is intentionally NOT listed here — it's reached via the profile
 // button on the right, so listing it again would duplicate the entry point.
@@ -49,13 +53,14 @@ const TABS: { id: Tab; labelKey: string; icon: ComponentType<any> }[] = [
   { id: 'games', labelKey: 'nav.games', icon: Trophy },
   { id: 'discover', labelKey: 'nav.discover', icon: Sparkles },
   { id: 'sync', labelKey: 'nav.sync', icon: DatabaseZap },
+  { id: 'dat', labelKey: 'nav.dat', icon: ClipboardList },
 ];
 
 const PROFILE_TABS: Tab[] = ['mastery', 'library', 'insights', 'hardcore'];
 
 // g-prefixed navigation shortcuts (press g, then the key).
 const NAV_KEYS: Record<string, Tab> = {
-  d: 'dashboard', s: 'scan', g: 'games', e: 'discover', h: 'sync', p: 'mastery', ',': 'settings',
+  d: 'dashboard', s: 'scan', g: 'games', e: 'discover', h: 'sync', t: 'dat', p: 'mastery', ',': 'settings',
 };
 
 export function App() {
@@ -74,6 +79,8 @@ export function App() {
   const [showPalette, setShowPalette] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [showEmuSetup, setShowEmuSetup] = useState(false);
+  // First-run language picker: shown until the user has ever chosen a language.
+  const [langGate, setLangGate] = useState(() => !langChosen());
   const emuChecked = useRef(false);
   const dragDepth = useRef(0);
 
@@ -197,6 +204,7 @@ export function App() {
                 goScan={() => setTab('scan')} onFindVersion={onFindVersion} />
             )}
             {tab === 'sync' && <SyncView status={status} />}
+            {tab === 'dat' && <DatView />}
             {tab === 'settings' && <Settings status={status} refresh={refresh} onAuthChange={reloadProfile} theme={theme} changeTheme={changeTheme} />}
           </ViewFade>
         </main>
@@ -206,6 +214,7 @@ export function App() {
             <button data-tour="version" className="hover:text-neon-cyan transition-colors" onClick={() => setShowChangelog(true)} title={t('footer.changelog')}>
               RACHECKER v{APP_VERSION}
             </button>
+            <UpdateChip />
             <a href={REPO_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-neon-cyan transition-colors" title="GitHub">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.73.5.5 5.73.5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.3-1.7-1.3-1.7-1.06-.72.08-.71.08-.71 1.17.08 1.79 1.2 1.79 1.2 1.04 1.78 2.73 1.27 3.4.97.1-.75.4-1.27.73-1.56-2.56-.29-5.26-1.28-5.26-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.7 5.4-5.28 5.69.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z"/></svg>
               GitHub
@@ -231,6 +240,7 @@ export function App() {
         {showChangelog && <ChangelogModal onClose={() => setShowChangelog(false)} />}
         {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
         {showTour && <GuidedTour onClose={() => setShowTour(false)} />}
+        {langGate && <LanguageGate onChosen={() => setLangGate(false)} />}
         {showWizard && <OnboardingWizard status={status} refresh={refresh} onAuthChange={reloadProfile} onClose={dismissWizard} />}
         {showEmuSetup && <EmulatorSetupModal onClose={() => setShowEmuSetup(false)} goSettings={() => setTab('settings')} />}
         {showPalette && <CommandPalette commands={commands} onOpenGame={setOpenGame} onClose={() => setShowPalette(false)} />}
@@ -336,7 +346,7 @@ function MoreMenu({ onTour, onShortcuts }: { onTour: () => void; onShortcuts: ()
           <div className="px-2.5 pt-1 pb-1 font-mono text-sm text-ink-dim">{t('nav.language')}</div>
           {LANGS.map((l) => (
             <button key={l.id} onClick={() => setLang(l.id as Lang)} className={item}>
-              <span className="text-base">{l.flag}</span>
+              <Flag lang={l.id as Lang} />
               <span className="font-body text-sm flex-1 text-ink-hi">{l.name}</span>
               {lang === l.id && <Check size={15} className="text-neon-green" />}
             </button>

@@ -56,7 +56,7 @@ async function tick() {
   setSetting('scheduleLastRunDay', dayKey(now)); // claim the slot before the (long) scan
   try {
     try { snapshotLibraryBaseline(); } catch { /* diff just won't update */ }
-    const concurrency = Math.max(1, Math.min(16, Number(getSetting('scanConcurrency', 4)) || 4));
+    const concurrency = Math.max(1, Math.min(16, Number(getSetting('scanConcurrency', 1)) || 1));
     const scanner = new Scanner({ rootPath: root, scanId: null, ...scannerOpts() });
     await scanner.run({ concurrency });
     setSetting('scheduleLastRunAt', Date.now());

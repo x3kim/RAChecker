@@ -1,6 +1,6 @@
 {
   "name": "ra-checker",
-  "version": "0.9.5",
+  "version": "0.10.0",
   "private": true,
   "type": "module",
   "description": "RetroAchievements ROM Compatibility Checker — scan your ROM library and find which games can earn achievements.",
@@ -32,6 +32,7 @@
     "@fastify/multipart": "^10.0.0",
     "@fastify/static": "^8.0.3",
     "7zip-min": "^2.1.0",
+    "electron-updater": "^6.8.9",
     "fastify": "^5.2.1",
     "node-stream-zip": "^1.15.0",
     "node-unrar-js": "^2.0.2"
