@@ -642,7 +642,9 @@ export function resetCollection() {
 export function resetHashDb() {
   const counts = wipeTables(['games', 'hashes', 'console_sync']);
   clearApiCache('game:');
-  db.exec('VACUUM');
+  // No synchronous VACUUM here — it can be very slow on a large DB and would
+  // block the reset endpoint. Freed pages go to the freelist and are reclaimed
+  // by the next backup (VACUUM INTO) / checkpoint.
   return counts;
 }
 

@@ -280,11 +280,21 @@ export async function registerRoutes(app) {
   // Powers the footer "update available" chip. The Electron shell does the real
   // download/install via electron-updater; the web/.bat build just links out.
   let updateCache = null;
+  // Compare version cores (major.minor.patch); on a tie a build WITHOUT a
+  // prerelease tag is newer than the same core WITH one (1.0.0 > 1.0.0-rc.1).
+  // Build metadata (+…) is ignored. Good enough for GitHub release tags without
+  // pulling in a full semver dependency.
   const semverGt = (a, b) => {
-    const pa = String(a).split(/[.\-+]/).map((n) => parseInt(n, 10) || 0);
-    const pb = String(b).split(/[.\-+]/).map((n) => parseInt(n, 10) || 0);
-    for (let i = 0; i < Math.max(pa.length, pb.length); i++) { const d = (pa[i] || 0) - (pb[i] || 0); if (d) return d > 0; }
-    return false;
+    const parse = (v) => {
+      const [core, pre = ''] = String(v).replace(/^v/i, '').split('+')[0].split('-');
+      return { nums: core.split('.').map((n) => parseInt(n, 10) || 0), pre };
+    };
+    const A = parse(a); const B = parse(b);
+    for (let i = 0; i < 3; i++) { const d = (A.nums[i] || 0) - (B.nums[i] || 0); if (d) return d > 0; }
+    if (A.pre === B.pre) return false;
+    if (!A.pre) return true;    // a = release, b = prerelease of the same core
+    if (!B.pre) return false;   // b = release → a (prerelease) is not newer
+    return A.pre > B.pre;       // both prereleases → lexical fallback
   };
   const pickInstaller = (assets) => {
     if (!Array.isArray(assets)) return null;
