@@ -1,0 +1,448 @@
+@import "tailwindcss";
+
+/* ============================================================
+   RACHECKER — Retro CRT / arcade-cabinet design system
+   ============================================================ */
+@theme {
+  /* Palette: deep cabinet black-blue with neon accents */
+  --color-crt-bg:      #080b12;
+  --color-crt-bg2:     #0a0e17;
+  --color-crt-panel:   #111827;
+  --color-crt-panel2:  #18203221;
+  --color-crt-surface: #131b2c;
+  --color-crt-line:    #243049;
+  --color-crt-line2:   #2f3d5e;
+
+  --color-neon-cyan:    #22e0ff;
+  --color-neon-magenta: #ff3ca6;
+  --color-neon-green:   #39ff8b;
+  --color-neon-amber:   #ffb648;
+  --color-neon-red:     #ff4d5e;
+  --color-neon-purple:  #9d6bff;
+  --color-neon-blue:    #4d8bff;
+
+  --color-ink-hi:  #e8f0ff;
+  --color-ink-mid: #9fb0d0;
+  --color-ink-dim: #5d6e90;
+
+  --font-display: "Press Start 2P", system-ui, sans-serif;
+  --font-mono:    "VT323", "Cascadia Mono", ui-monospace, monospace;
+  --font-body:    "Inter", system-ui, -apple-system, sans-serif;
+
+  --shadow-glow-cyan:    0 0 8px rgba(34,224,255,.55), 0 0 26px rgba(34,224,255,.22);
+  --shadow-glow-green:   0 0 8px rgba(57,255,139,.5), 0 0 24px rgba(57,255,139,.18);
+  --shadow-glow-magenta: 0 0 8px rgba(255,60,166,.5), 0 0 24px rgba(255,60,166,.18);
+  --shadow-glow-amber:   0 0 8px rgba(255,182,72,.5), 0 0 24px rgba(255,182,72,.18);
+  --shadow-glow-red:     0 0 8px rgba(255,77,94,.5), 0 0 24px rgba(255,77,94,.18);
+}
+
+/* Non-token theme vars (overridden per [data-theme] at the bottom of this file) */
+:root {
+  --grid-color: rgba(36, 48, 73, .25);
+  --scanline-alpha: .16;
+  --bg-tint-1: rgba(34, 224, 255, .07);
+  --bg-tint-2: rgba(157, 107, 255, .06);
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--color-ink-hi);
+  background:
+    radial-gradient(140% 120% at 50% -10%, var(--bg-tint-1), transparent 55%),
+    radial-gradient(120% 120% at 100% 0%, var(--bg-tint-2), transparent 50%),
+    var(--color-crt-bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Animated starfield-ish grid backdrop */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(120% 90% at 50% 0%, #000 30%, transparent 90%);
+  opacity: var(--grid-opacity, .5);
+}
+
+/* CRT flicker (toggled live via the hidden CRT panel — type "crt") */
+@keyframes crt-flicker {
+  0%, 100% { opacity: 1; } 91% { opacity: 1; } 92% { opacity: .86; } 93% { opacity: 1; }
+  96% { opacity: .92; } 97% { opacity: 1; }
+}
+:root[data-flicker="1"] #app-root { animation: crt-flicker 5s infinite; }
+@media (prefers-reduced-motion: reduce) { :root[data-flicker="1"] #app-root { animation: none; } }
+
+/* Subtle scanlines — only where .crt-scanlines is applied (chrome, not tables) */
+.crt-scanlines { position: relative; }
+.crt-scanlines::after {
+  content: "";
+  position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px,
+    rgba(0,0,0,var(--scanline-alpha)) 3px, rgba(0,0,0,var(--scanline-alpha)) 3px
+  );
+  mix-blend-mode: multiply; opacity: .55;
+}
+
+/* ---- typography helpers ---- */
+.font-display { font-family: var(--font-display); }
+.font-mono { font-family: var(--font-mono); }
+.text-glow-cyan { color: var(--color-neon-cyan); text-shadow: 0 0 6px rgba(34,224,255,.32); }
+.text-glow-green { color: var(--color-neon-green); text-shadow: 0 0 6px rgba(57,255,139,.3); }
+.text-glow-magenta { color: var(--color-neon-magenta); text-shadow: 0 0 6px rgba(255,60,166,.3); }
+.text-glow-amber { color: var(--color-neon-amber); text-shadow: 0 0 6px rgba(255,182,72,.3); }
+
+/* ---- panels / cards ---- */
+.panel {
+  background: linear-gradient(180deg, rgba(24,32,50,.72), rgba(15,21,34,.72));
+  border: 1px solid var(--color-crt-line);
+  border-radius: 14px;
+  backdrop-filter: blur(6px);
+}
+.panel-glow { box-shadow: 0 0 0 1px rgba(34,224,255,.08), 0 18px 50px -20px rgba(0,0,0,.8); }
+
+/* ---- sticky modal/table headers (GameModal, ChangelogModal, UploadModal, ResultsTable) ---- */
+.sticky-head { background: rgba(10,14,23,.95); }
+
+/* ---- row hover (theme-aware, used by dense table rows) ---- */
+.row-hover:hover { background: color-mix(in srgb, var(--color-ink-hi) 6%, transparent); }
+
+/* ---- neon button ---- */
+.btn {
+  font-family: var(--font-body);
+  font-weight: 600;
+  border-radius: 10px;
+  padding: .6rem 1rem;
+  border: 1px solid var(--color-crt-line2);
+  background: rgba(24,32,50,.6);
+  color: var(--color-ink-hi);
+  cursor: pointer;
+  transition: all .16s ease;
+  display: inline-flex; align-items: center; gap: .5rem;
+  user-select: none;
+}
+.btn:hover { border-color: var(--color-neon-cyan); box-shadow: var(--shadow-glow-cyan); transform: translateY(-1px); }
+.btn:focus-visible { outline: none; border-color: var(--color-neon-cyan); box-shadow: var(--shadow-glow-cyan); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; transform: none; }
+.btn-primary {
+  background: linear-gradient(180deg, rgba(34,224,255,.22), rgba(34,224,255,.08));
+  border-color: var(--color-neon-cyan);
+  color: #d6f7ff;
+}
+.btn-primary:hover { box-shadow: var(--shadow-glow-cyan); }
+.btn-magenta { border-color: var(--color-neon-magenta); }
+.btn-magenta:hover { box-shadow: var(--shadow-glow-magenta); border-color: var(--color-neon-magenta); }
+.btn-danger { border-color: var(--color-neon-red); color: #ffd6da; }
+.btn-danger:hover { border-color: var(--color-neon-red); box-shadow: var(--shadow-glow-red); }
+
+/* ---- status badges ---- */
+.badge {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  line-height: 1;
+  padding: .22rem .5rem .12rem;
+  border-radius: 6px;
+  border: 1px solid currentColor;
+  display: inline-flex; align-items: center; gap: .3rem;
+  letter-spacing: .02em;
+}
+
+/* ---- inputs ---- */
+.input {
+  background: rgba(8,11,18,.7);
+  border: 1px solid var(--color-crt-line2);
+  border-radius: 10px;
+  padding: .6rem .8rem;
+  color: var(--color-ink-hi);
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  width: 100%;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.input:focus { border-color: var(--color-neon-cyan); box-shadow: 0 0 0 3px rgba(34,224,255,.12); }
+
+/* hide scrollbar (used by the top nav) */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ---- scrollbar ---- */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: rgba(8,11,18,.5); }
+*::-webkit-scrollbar-thumb { background: var(--color-crt-line2); border-radius: 6px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--color-neon-cyan); }
+
+/* ---- animations ---- */
+@keyframes pulse-glow { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+@keyframes scan-sweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+@keyframes blink { 0%,49% { opacity: 1; } 50%,100% { opacity: .25; } }
+.animate-blink { animation: blink 1.1s steps(1) infinite; }
+@keyframes attract-fade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+.attract-stat { animation: attract-fade .5s ease-out; }
+.sweep::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(34,224,255,.06), transparent);
+  animation: scan-sweep 7s ease-in-out infinite;
+}
+
+@keyframes barrel-roll { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+.barrel-roll { animation: barrel-roll 1s ease-in-out; }
+
+@keyframes toast-in { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.toast-in { animation: toast-in .4s cubic-bezier(.2,.9,.3,1.3); }
+
+/* ---- Pac-Man easter egg (type "waka") ---- */
+@keyframes pac-move { from { left: -56px; } to { left: 102vw; } }
+@keyframes pac-chomp {
+  0%, 100% { clip-path: polygon(100% 22%, 44% 50%, 100% 78%, 100% 100%, 0 100%, 0 0, 100% 0); }
+  50%      { clip-path: circle(50% at 50% 50%); }
+}
+@keyframes pac-pellet { to { opacity: 0; transform: scale(.2); } }
+.pac-man {
+  position: absolute; bottom: 0; width: 40px; height: 40px; border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, #ffe14d, #ffcc00 70%);
+  box-shadow: 0 0 14px rgba(255,204,0,.7);
+  animation: pac-move 4s linear forwards, pac-chomp .26s steps(1) infinite;
+}
+.pac-eye { position: absolute; top: 8px; left: 20px; width: 5px; height: 5px; border-radius: 50%; background: #1a1300; }
+.pac-ghost {
+  position: absolute; bottom: 2px; width: 36px; height: 38px;
+  background: var(--color-neon-magenta);
+  clip-path: polygon(0% 100%, 0% 38%, 12% 14%, 30% 0%, 70% 0%, 88% 14%, 100% 38%, 100% 100%, 84% 86%, 67% 100%, 50% 86%, 33% 100%, 16% 86%);
+  box-shadow: 0 0 12px rgba(255,60,166,.5);
+  animation: pac-move 4s linear forwards;
+}
+.pac-ghost-eye { position: absolute; top: 11px; width: 9px; height: 11px; border-radius: 50%; background: #fff; }
+.pac-ghost-eye::after { content: ""; position: absolute; top: 3px; left: 3px; width: 4px; height: 4px; border-radius: 50%; background: #1a2cff; }
+.pac-pellet {
+  position: absolute; bottom: 16px; width: 8px; height: 8px; border-radius: 50%;
+  background: #ffe14d; box-shadow: 0 0 6px rgba(255,225,77,.8);
+  animation: pac-pellet .15s steps(1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pac-man, .pac-ghost, .pac-pellet { animation-duration: .01s; }
+}
+
+/* ---- skeleton shimmer ---- */
+@keyframes skeleton-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.skeleton {
+  background: linear-gradient(90deg, rgba(127,127,127,.06) 25%, rgba(127,127,127,.16) 37%, rgba(127,127,127,.06) 63%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+
+/* ---- modal pop-in (CSS fallback for modals not wrapped in motion) ---- */
+@keyframes modal-pop { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.modal-pop { animation: modal-pop .22s cubic-bezier(.2,.9,.3,1.25); }
+@media (prefers-reduced-motion: reduce) { .modal-pop { animation: none; } }
+
+/* ---- glass refinement: subtle top sheen via the panel's own gradient ----
+   NOTE: do NOT set `position` on .panel here — it's unlayered and would beat
+   Tailwind's .absolute/.fixed utilities, breaking dropdowns/HUD/CRT panels. */
+.panel {
+  background-image:
+    linear-gradient(180deg, rgba(255,255,255,.06), transparent 14%),
+    linear-gradient(180deg, rgba(24,32,50,.72), rgba(15,21,34,.72));
+}
+:root[data-theme="light"] .panel {
+  background-image:
+    linear-gradient(180deg, rgba(255,255,255,.9), transparent 16%),
+    linear-gradient(180deg, #ffffff, #f5f8fd);
+}
+
+/* ---- aurora background (optional, animated gradient behind everything) ---- */
+#aurora-bg { display: none; }
+:root[data-aurora="1"] #aurora-bg {
+  /* horizontal insets kept at 0 so the blurred bleed never widens the page
+     (a -10% left/right box caused a phantom horizontal scrollbar on mobile). */
+  display: block; position: fixed; inset: -20% 0% -10% 0%; z-index: 0; pointer-events: none;
+  filter: blur(70px) saturate(125%); opacity: .5; mix-blend-mode: screen;
+  background:
+    radial-gradient(38% 42% at 20% 18%, var(--color-neon-cyan), transparent 70%),
+    radial-gradient(34% 40% at 82% 26%, var(--color-neon-magenta), transparent 70%),
+    radial-gradient(46% 48% at 60% 88%, var(--color-neon-purple), transparent 72%);
+  background-size: 180% 180%;
+  animation: aurora-drift 26s ease-in-out infinite alternate;
+}
+@keyframes aurora-drift {
+  0%   { background-position: 0% 0%,   100% 0%,  50% 100%; }
+  50%  { background-position: 30% 20%, 70% 30%,  40% 70%;  }
+  100% { background-position: 0% 40%,  100% 60%, 60% 90%;  }
+}
+:root[data-theme="light"][data-aurora="1"] #aurora-bg { opacity: .28; mix-blend-mode: multiply; }
+@media (prefers-reduced-motion: reduce) { :root[data-aurora="1"] #aurora-bg { animation: none; } }
+
+/* ---- click-hunt spots: faintly visible, glow on hover (not invisible) ---- */
+@keyframes hunt-twinkle { 0%,100% { opacity: .28; } 50% { opacity: .6; } }
+.hunt-spot {
+  position: fixed; width: 16px; height: 16px; z-index: 30; cursor: pointer;
+  border-radius: 50%; opacity: .3;
+  background: radial-gradient(circle, var(--color-neon-amber) 0%, transparent 65%);
+  animation: hunt-twinkle 2.2s ease-in-out infinite;
+  transition: transform .15s, opacity .15s;
+}
+.hunt-spot:hover { opacity: 1; transform: scale(1.5); box-shadow: 0 0 14px var(--color-neon-amber); }
+@media (prefers-reduced-motion: reduce) { .hunt-spot { animation: none; } }
+
+/* ---- Plasma theme (unlock: Snake high-score) — modern neon, retro intact ---- */
+:root[data-theme="plasma"] {
+  --color-crt-bg: #07060f; --color-crt-bg2: #0a0918;
+  --color-crt-panel: #14122a; --color-crt-surface: #181534;
+  --color-crt-line: #2c2658; --color-crt-line2: #3f367e;
+  --color-neon-cyan: #7df9ff; --color-neon-magenta: #ff5edf;
+  --color-neon-green: #5dffc2; --color-neon-amber: #ffd24a;
+  --color-neon-red: #ff5d8f; --color-neon-purple: #b08cff; --color-neon-blue: #7aa2ff;
+  --color-ink-hi: #f0ecff; --color-ink-mid: #b3a9e0; --color-ink-dim: #6f659e;
+  --grid-color: rgba(125, 249, 255, .12);
+  --bg-tint-1: rgba(125,249,255,.10); --bg-tint-2: rgba(255,94,223,.08);
+  --shadow-glow-cyan: 0 0 10px rgba(125,249,255,.6), 0 0 30px rgba(176,140,255,.3);
+}
+
+/* ---- Gold Cartridge theme (unlock: click hunt) ---- */
+:root[data-theme="gold"] {
+  --color-crt-bg: #0f0b04; --color-crt-bg2: #140f06;
+  --color-crt-panel: #221805; --color-crt-surface: #281d08;
+  --color-crt-line: #4a3712; --color-crt-line2: #63491a;
+  --color-neon-cyan: #ffd24a; --color-neon-magenta: #ff9e3d;
+  --color-neon-green: #ffe07a; --color-neon-amber: #ffcf4a;
+  --color-neon-red: #ff6f4a; --color-neon-purple: #ffb84d; --color-neon-blue: #ffc24d;
+  --color-ink-hi: #fff3d6; --color-ink-mid: #d8b87a; --color-ink-dim: #8a6e3a;
+  --grid-color: rgba(255, 210, 74, .16);
+  --bg-tint-1: rgba(255,210,74,.09); --bg-tint-2: rgba(255,158,61,.06);
+  --shadow-glow-cyan: 0 0 10px rgba(255,210,74,.6), 0 0 28px rgba(255,210,74,.28);
+  --shadow-glow-amber: 0 0 10px rgba(255,210,74,.6), 0 0 28px rgba(255,210,74,.28);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sweep::before, .animate-blink { animation: none; }
+  body::before { opacity: .3; }
+}
+
+/* progress bar */
+.progress-track { background: rgba(8,11,18,.8); border: 1px solid var(--color-crt-line); border-radius: 999px; overflow: hidden; }
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-neon-cyan), var(--color-neon-purple), var(--color-neon-magenta));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--color-neon-cyan) 50%, transparent);
+  transition: width .3s ease;
+}
+
+/* ============================================================
+   THEMES — override CSS variables per [data-theme]
+   The default (no attribute / "cyan") is defined in @theme above.
+   ============================================================ */
+
+/* Amber phosphor terminal */
+:root[data-theme="amber"] {
+  --color-crt-bg: #0d0a05; --color-crt-bg2: #100c06;
+  --color-crt-panel: #1b1408; --color-crt-surface: #1f1709;
+  --color-crt-line: #3b2c12; --color-crt-line2: #4d3a17;
+  --color-neon-cyan: #ffb000; --color-neon-magenta: #ff7a18;
+  --color-neon-green: #7dff5a; --color-neon-amber: #ffd25e;
+  --color-neon-red: #ff5a3c; --color-neon-purple: #ffae00; --color-neon-blue: #ffc24d;
+  --color-ink-hi: #ffe9c2; --color-ink-mid: #c9a86a; --color-ink-dim: #7d6233;
+  --grid-color: rgba(120, 80, 20, .22);
+  --bg-tint-1: rgba(255,176,0,.07); --bg-tint-2: rgba(255,122,24,.05);
+  --shadow-glow-cyan: 0 0 8px rgba(255,176,0,.55), 0 0 26px rgba(255,176,0,.22);
+}
+
+/* Synthwave — purple/magenta/cyan */
+:root[data-theme="synthwave"] {
+  --color-crt-bg: #140a24; --color-crt-bg2: #160b28;
+  --color-crt-panel: #20123a; --color-crt-surface: #271546;
+  --color-crt-line: #3c2160; --color-crt-line2: #51307e;
+  --color-neon-cyan: #2bd9ff; --color-neon-magenta: #ff2e97;
+  --color-neon-green: #36f9b3; --color-neon-amber: #ffcf4a;
+  --color-neon-red: #ff5d73; --color-neon-purple: #b66dff; --color-neon-blue: #7a8cff;
+  --color-ink-hi: #f4e9ff; --color-ink-mid: #b79fd6; --color-ink-dim: #7a679e;
+  --grid-color: rgba(183, 109, 255, .22);
+  --bg-tint-1: rgba(255,46,151,.08); --bg-tint-2: rgba(43,217,255,.06);
+  --shadow-glow-cyan: 0 0 8px rgba(255,46,151,.5), 0 0 26px rgba(183,109,255,.25);
+}
+
+/* Matrix green */
+:root[data-theme="green"] {
+  --color-crt-bg: #04100a; --color-crt-bg2: #06140d;
+  --color-crt-panel: #0a1f15; --color-crt-surface: #0c2419;
+  --color-crt-line: #15402b; --color-crt-line2: #1d5639;
+  --color-neon-cyan: #39ff8b; --color-neon-magenta: #b6ff3c;
+  --color-neon-green: #57ff9a; --color-neon-amber: #d6ff5e;
+  --color-neon-red: #ff6b5e; --color-neon-purple: #38ffd0; --color-neon-blue: #5effa0;
+  --color-ink-hi: #d6ffe6; --color-ink-mid: #7fc79e; --color-ink-dim: #4a7d62;
+  --grid-color: rgba(40, 120, 80, .22);
+  --bg-tint-1: rgba(57,255,139,.07); --bg-tint-2: rgba(56,255,208,.05);
+  --shadow-glow-cyan: 0 0 8px rgba(57,255,139,.55), 0 0 26px rgba(57,255,139,.22);
+}
+
+/* Game Boy DMG — monochrome green LCD */
+:root[data-theme="gameboy"] {
+  --color-crt-bg: #0b1f0b; --color-crt-bg2: #0f280f;
+  --color-crt-panel: #16361a; --color-crt-surface: #1b401f;
+  --color-crt-line: #2c5e2c; --color-crt-line2: #3a7a37;
+  --color-neon-cyan: #9bbc0f; --color-neon-magenta: #8bac0f;
+  --color-neon-green: #9bbc0f; --color-neon-amber: #c6de8c;
+  --color-neon-red: #d06b4f; --color-neon-purple: #8bac0f; --color-neon-blue: #6b9b2f;
+  --color-ink-hi: #d7e89b; --color-ink-mid: #8bac0f; --color-ink-dim: #5a7a2f;
+  --grid-color: rgba(139, 172, 15, .16);
+  --scanline-alpha: .22;
+  --bg-tint-1: rgba(155,188,15,.06); --bg-tint-2: rgba(139,172,15,.05);
+  --shadow-glow-cyan: 0 0 8px rgba(155,188,15,.5), 0 0 24px rgba(155,188,15,.2);
+  --shadow-glow-green: 0 0 8px rgba(155,188,15,.5), 0 0 24px rgba(155,188,15,.2);
+  --font-body: "VT323", "Press Start 2P", monospace;
+}
+
+/* Light mode — high contrast, no scanlines/glow */
+:root[data-theme="light"] {
+  --color-crt-bg: #eef2f8; --color-crt-bg2: #e6ebf4;
+  --color-crt-panel: #ffffff; --color-crt-panel2: #f4f7fc;
+  --color-crt-surface: #f7f9fd; --color-crt-line: #d2dbeb; --color-crt-line2: #b9c6dd;
+  --color-neon-cyan: #0a8aab; --color-neon-magenta: #c01f74;
+  --color-neon-green: #128a4e; --color-neon-amber: #b9740a;
+  --color-neon-red: #cc2b3c; --color-neon-purple: #6a3fd0; --color-neon-blue: #2a64c8;
+  --color-ink-hi: #14223a; --color-ink-mid: #41526e; --color-ink-dim: #5b6e8c;
+  --grid-color: rgba(120, 140, 175, .18);
+  --scanline-alpha: 0;
+  --bg-tint-1: rgba(10,138,171,.06); --bg-tint-2: rgba(106,63,208,.05);
+  --shadow-glow-cyan: 0 0 0 1px rgba(10,138,171,.25);
+  --shadow-glow-green: 0 0 0 1px rgba(18,138,78,.25);
+  --shadow-glow-magenta: 0 0 0 1px rgba(192,31,116,.25);
+  --shadow-glow-amber: 0 0 0 1px rgba(185,116,10,.25);
+  --shadow-glow-red: 0 0 0 1px rgba(204,43,60,.25);
+}
+:root[data-theme="light"] .panel {
+  background: linear-gradient(180deg, #ffffff, #f5f8fd);
+  box-shadow: 0 1px 2px rgba(20,34,58,.06), 0 8px 24px -16px rgba(20,34,58,.25);
+}
+:root[data-theme="light"] .input { background: #ffffff; }
+:root[data-theme="light"] .btn { background: #ffffff; }
+
+/* Light theme: the header is a light, theme-matched bar instead of the dark
+   default. This is what makes the white .btn icon buttons (shortcuts, lang,
+   theme, settings, profile) read consistently, and gives the nav button labels
+   (ink-mid) strong dark-on-light contrast. */
+:root[data-theme="light"] .app-header {
+  background: rgba(244, 247, 252, .9);
+  border-bottom-color: var(--color-crt-line);
+}
+:root[data-theme="light"] .sticky-head { background: rgba(244,247,252,.92); }
+:root[data-theme="light"] body, :root[data-theme="light"] { color: var(--color-ink-hi); }
+:root[data-theme="light"] *::-webkit-scrollbar-track { background: #e6ebf4; }
+:root[data-theme="light"] .text-glow-cyan,
+:root[data-theme="light"] .text-glow-green,
+:root[data-theme="light"] .text-glow-amber,
+:root[data-theme="light"] .text-glow-magenta { text-shadow: none; }

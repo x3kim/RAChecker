@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RAChecker — Documentation</title>
+<meta name="description" content="RAChecker scans your ROM collection and shows which games earn RetroAchievements. Runs locally; fully offline after a one-time sync." />
+<script>
+  // Set language before paint (no flash). Default: English (universal).
+  try { var _l = localStorage.getItem('rachecker-docs-lang'); if (_l !== 'de' && _l !== 'en') _l = 'en';
+    document.documentElement.setAttribute('data-lang', _l); document.documentElement.setAttribute('lang', _l); } catch (e) {}
+</script>
+<style>
+  :root {
+    --bg: #0a0e16; --bg2: #0e1420; --panel: #121a28; --line: #22304a;
+    --ink: #e6edf7; --ink-mid: #aebcd2; --ink-dim: #6b7c98;
+    --cyan: #22e0ff; --green: #39ff8b; --amber: #ffcc66; --purple: #9d6bff; --red: #ff5d6c;
+    --sidebar-w: 250px; --topbar-h: 56px; --content-max: 820px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f7fb; --bg2: #eef2f8; --panel: #ffffff; --line: #dbe3ef;
+      --ink: #16202e; --ink-mid: #3f5069; --ink-dim: #6b7c98;
+      --cyan: #0891b2; --green: #0f9d58; --amber: #b7791f; --purple: #6d47c9; --red: #d1425a;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: calc(var(--topbar-h) + 12px); }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 16px; line-height: 1.65;
+  }
+  code, kbd, .mono { font-family: ui-monospace, "SFMono-Regular", "Cascadia Code", Consolas, monospace; }
+  a { color: var(--cyan); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* language visibility */
+  :root[data-lang="en"] .lang-de { display: none !important; }
+  :root[data-lang="de"] .lang-en { display: none !important; }
+
+  /* top bar */
+  .topbar {
+    position: sticky; top: 0; z-index: 30; height: var(--topbar-h);
+    display: flex; align-items: center; gap: 14px; padding: 0 18px;
+    background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .04em; }
+  .brand .dot { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--cyan) 30%, transparent), transparent);
+    border: 1px solid var(--cyan); color: var(--cyan); font-size: 15px; }
+  .brand b { font-family: ui-monospace, monospace; font-size: 14px; color: var(--cyan); }
+  .badge { font-family: ui-monospace, monospace; font-size: 12px; color: var(--ink-dim);
+    border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; }
+  .topbar .spacer { flex: 1; }
+  .topbar a.tlink { color: var(--ink-mid); font-size: 14px; }
+  .langtoggle { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .langtoggle button { background: none; border: 0; color: var(--ink-mid); padding: 5px 10px; cursor: pointer;
+    font-size: 13px; font-family: inherit; }
+  .langtoggle button.active { background: color-mix(in srgb, var(--cyan) 18%, transparent); color: var(--cyan); }
+  .menu-btn { display: none; background: none; border: 1px solid var(--line); color: var(--ink);
+    border-radius: 8px; padding: 6px 9px; cursor: pointer; }
+
+  /* layout */
+  .layout { display: grid; grid-template-columns: var(--sidebar-w) 1fr; align-items: start; }
+  .sidebar {
+    position: sticky; top: var(--topbar-h); height: calc(100vh - var(--topbar-h));
+    overflow-y: auto; padding: 22px 14px 40px; border-right: 1px solid var(--line);
+  }
+  .sidebar h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .09em;
+    color: var(--ink-dim); margin: 18px 8px 6px; }
+  .sidebar a { display: block; color: var(--ink-mid); padding: 5px 10px; border-radius: 7px; font-size: 14.5px; }
+  .sidebar a:hover { background: color-mix(in srgb, var(--ink-mid) 12%, transparent); text-decoration: none; }
+  .sidebar a.active { color: var(--cyan); background: color-mix(in srgb, var(--cyan) 12%, transparent); }
+
+  .content { min-width: 0; padding: 34px 30px 90px; }
+  .content .inner { max-width: var(--content-max); margin: 0 auto; }
+  /* Mobile-drawer backdrop: hidden by default so it never occupies a grid cell. */
+  .scrim { display: none; }
+  h1 { font-size: 30px; line-height: 1.2; margin: 0 0 6px; }
+  h2 { font-size: 22px; margin: 44px 0 12px; border-top: 1px solid var(--line); padding-top: 26px; }
+  h2:first-of-type { border-top: none; padding-top: 0; }
+  h3 { font-size: 17px; margin: 26px 0 8px; }
+  p, li { color: var(--ink-mid); }
+  .lead { font-size: 18px; color: var(--ink); }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  strong { color: var(--ink); }
+
+  code:not(pre code) { background: var(--bg2); border: 1px solid var(--line); border-radius: 5px;
+    padding: 1px 6px; font-size: 13.5px; color: var(--ink); }
+  kbd { background: var(--panel); border: 1px solid var(--line); border-bottom-width: 2px;
+    border-radius: 5px; padding: 1px 6px; font-size: 12.5px; color: var(--ink); }
+  pre { background: var(--bg2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; }
+  pre code { font-size: 13.5px; color: var(--ink); }
+
+  .callout { border: 1px solid var(--line); border-left: 3px solid var(--cyan); background: var(--panel);
+    border-radius: 10px; padding: 12px 16px; margin: 16px 0; }
+  .callout.warn { border-left-color: var(--amber); }
+  .callout .t { font-weight: 700; color: var(--ink); margin-bottom: 2px; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin: 18px 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .card h3 { margin: 0 0 6px; font-size: 15px; color: var(--cyan); }
+  .card p { margin: 0; font-size: 14px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14.5px; display: block; overflow-x: auto; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+  th { color: var(--ink); font-weight: 600; white-space: nowrap; }
+  td:first-child { white-space: nowrap; }
+
+  .steps { counter-reset: s; list-style: none; padding-left: 0; }
+  .steps > li { counter-increment: s; position: relative; padding-left: 40px; margin: 14px 0; }
+  .steps > li::before { content: counter(s); position: absolute; left: 0; top: 0;
+    width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+    background: color-mix(in srgb, var(--cyan) 16%, transparent); color: var(--cyan);
+    border: 1px solid var(--cyan); font-family: ui-monospace, monospace; font-size: 13px; }
+
+  footer { border-top: 1px solid var(--line); color: var(--ink-dim); font-size: 13.5px;
+    padding: 22px 30px; text-align: center; }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar { position: fixed; top: var(--topbar-h); left: 0; width: 78%; max-width: 300px;
+      background: var(--bg); z-index: 25; transform: translateX(-100%); transition: transform .2s ease;
+      box-shadow: 0 0 40px rgba(0,0,0,.4); }
+    .sidebar.open { transform: translateX(0); }
+    .menu-btn { display: inline-flex; }
+    .content { padding: 24px 18px 80px; }
+    :root[data-lang="en"] .scrim.lang-en.show,
+    :root[data-lang="de"] .scrim.lang-de.show { display: block; position: fixed; inset: var(--topbar-h) 0 0 0;
+      background: rgba(4,6,12,.5); z-index: 20; }
+  }
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <button class="menu-btn" id="menuBtn" aria-label="Menu">☰</button>
+    <span class="brand"><span class="dot">🎮</span> <b>RACHECKER</b></span>
+    <span class="badge">Docs · v0.9.x Beta</span>
+    <span class="spacer"></span>
+    <span class="langtoggle" role="group" aria-label="Language">
+      <button id="lang-en" onclick="setLang('en')">EN</button>
+      <button id="lang-de" onclick="setLang('de')">DE</button>
+    </span>
+    <a class="tlink" href="https://github.com/x3kim/RAChecker" target="_blank" rel="noreferrer">GitHub</a>
+    <a class="tlink" href="https://retroachievements.org" target="_blank" rel="noreferrer">RetroAchievements ↗</a>
+  </header>
+
+  <div class="layout">
+    <!-- ===================== ENGLISH ===================== -->
+    <nav class="sidebar lang-en" id="sb-en">
+      <h4>Getting started</h4>
+      <a href="#en-what">What is RAChecker?</a>
+      <a href="#en-install">Installation</a>
+      <a href="#en-first">First run</a>
+      <a href="#en-how">How it works</a>
+      <h4>Usage</h4>
+      <a href="#en-scan">Scanning &amp; results</a>
+      <a href="#en-collection">Collection &amp; games</a>
+      <a href="#en-discover">Discover</a>
+      <a href="#en-hardcore">Hardcore &amp; playtime</a>
+      <a href="#en-export">Export &amp; emulator launch</a>
+      <a href="#en-offline">Offline package &amp; backups</a>
+      <h4>Reference</h4>
+      <a href="#en-shortcuts">Keyboard &amp; tips</a>
+      <a href="#en-faq">FAQ</a>
+      <a href="#en-trouble">Troubleshooting</a>
+    </nav>
+    <main class="content lang-en">
+     <div class="inner">
+      <h1>RAChecker</h1>
+      <p class="lead">A local tool that scans your ROM collection and tells you, per game, whether you can unlock <a href="https://retroachievements.org" target="_blank" rel="noreferrer">RetroAchievements</a> — via an exact hash match against RetroAchievements' database.</p>
+      <div class="callout">
+        <div class="t">In short</div>
+        Load the hash database once → scan your ROM folder → green rows earn achievements. Runs on your machine; after the one-time load, scanning works fully offline. RAChecker ships no ROMs.
+      </div>
+
+      <h2 id="en-what">What is RAChecker?</h2>
+      <p>RetroAchievements identifies a game by an exact file hash. You can only earn achievements if your ROM is byte-for-byte the version registered at RetroAchievements. With thousands of files, checking that by hand is impossible.</p>
+      <p>RAChecker computes that hash for every ROM (using the same rules as the emulators, including ZIP/RAR/7z and disc images) and matches it against a locally stored copy of the RetroAchievements hash list. The result: a clear list of which of your games earn achievements — and which are a different version.</p>
+      <div class="cards">
+        <div class="card"><h3>Local</h3><p>Runs as a small web app on your machine or as a desktop program. No cloud, no uploads of your ROMs.</p></div>
+        <div class="card"><h3>Offline after sync</h3><p>The hash database is loaded once from RetroAchievements. After that, scanning needs no internet.</p></div>
+        <div class="card"><h3>Not a clone</h3><p>An independent tool built on RetroAchievements' open Web API and the open rcheevos hash rules. Not affiliated with RetroAchievements.</p></div>
+      </div>
+
+      <h2 id="en-install">Installation</h2>
+      <h3>Desktop app (Windows)</h3>
+      <p>Easiest: download the installer or portable <code>.exe</code> from the releases and run it — one window, no browser, no console.</p>
+      <h3>From source</h3>
+      <p>Requires Node.js 22+:</p>
+      <pre><code>git clone https://github.com/x3kim/RAChecker
+cd RAChecker
+npm install
+npm run serve      # builds the frontend + starts the server on :8088</code></pre>
+      <ul>
+        <li><strong>Windows:</strong> alternatively double-click <code>Start-RAChecker.bat</code>.</li>
+        <li><strong>Linux/macOS:</strong> run <code>./start.sh</code>.</li>
+        <li><strong>Development:</strong> <code>npm run dev</code> (Vite HMR on :5173).</li>
+      </ul>
+      <p>Then open <code>http://localhost:8088</code>.</p>
+
+      <h2 id="en-first">First run</h2>
+      <p>On the very first start a wizard walks you through three steps: pick your ROM top folder, connect your RetroAchievements account, and sync the hash database.</p>
+      <ol class="steps">
+        <li><strong>Connect your RA account.</strong> In Settings, enter your RetroAchievements username and Web API key (find the key in your RA account settings). Read-only — RAChecker changes nothing on your account.</li>
+        <li><strong>Sync the hash database.</strong> <strong>Hash DB</strong> tab → <strong>Synchronize</strong>. Loads all games + hashes per system once. The first time takes a few minutes. Cached afterwards; automatic re-sync only after 90 days.</li>
+        <li><strong>Scan your ROM folder.</strong> <strong>Scan</strong> tab → pick the folder → start the scan.</li>
+      </ol>
+
+      <h2 id="en-how">How it works</h2>
+      <h3>Hashing</h3>
+      <p>For cartridge systems RAChecker reimplements the rcheevos hash rules and reads in a streamed way — even multi-gigabyte files won't blow up memory. Archives (ZIP/RAR/7z) are read transparently. For disc systems (PS1, PS2, Saturn, Dreamcast … and <code>.chd</code>) RAChecker uses the bundled <code>RAHasher</code> tool.</p>
+      <div class="callout warn">
+        <div class="t">Name folders after the system</div>
+        Extensions like <code>.bin</code>, <code>.iso</code>, <code>.cue</code> or <code>.zip</code> are shared by many systems. RAChecker reads the <strong>folder name</strong> to disambiguate — e.g. <code>SNES</code>, <code>PlayStation</code>, <code>Mega Drive</code>, <code>Game Boy Advance</code>. So put discs into a system-named folder.
+      </div>
+      <h3>Sync &amp; offline</h3>
+      <p>The sync loads all games + hashes per system <em>once</em> from RetroAchievements and stores them locally (one request per system). From then on every scan runs fully offline against that cache. Your account/profile, the Discover area and playtime tracking still need an online connection because they fetch live data.</p>
+
+      <h2 id="en-scan">Scanning &amp; results</h2>
+      <p>In the <strong>Scan</strong> tab, pick your ROM top folder and start — subfolders are searched recursively. You get live progress, a hit rate per system and a table with every ROM. Clicking a green row opens details (achievements, points, exact reference name, full hash).</p>
+      <p>What the statuses mean:</p>
+      <table>
+        <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>🟢 With achievements</td><td>Exactly this ROM version is registered at RA — achievements are earnable.</td></tr>
+          <tr><td>🔴 No match</td><td>RA doesn't know this hash → a different version, no achievements.</td></tr>
+          <tr><td>🟡 RAHasher</td><td>Disc system / <code>.chd</code> — install RAHasher and scan again.</td></tr>
+          <tr><td>🟣 Unclear</td><td>System not recognizable — put the ROM into a system folder.</td></tr>
+          <tr><td>⚪ Skipped</td><td>No hash target, e.g. a disc track <code>.bin</code> next to its <code>.cue</code>.</td></tr>
+        </tbody>
+      </table>
+      <p>For a 🔴 row, "Right version" helps: RAChecker looks up the game and shows which ROM versions RetroAchievements accepts.</p>
+
+      <h2 id="en-collection">Collection &amp; games</h2>
+      <ul>
+        <li><strong>Collection</strong> — every ROM ever scanned, stored permanently. Filter/sort by status/system, find duplicates and delete extra copies (1G1R cleanup), copy paths, export as CSV or a playlist.</li>
+        <li><strong>Collection diff</strong> — after each scan: what's new, newly has achievements, is lost or gone.</li>
+        <li><strong>Games</strong> — browse all achievement games per system, sortable by points, achievements or name; opening a game shows box art, all achievements with badges and the compatible ROM versions.</li>
+        <li><strong>Profile</strong> — your RA progress: points, mastered sets, completion per game.</li>
+      </ul>
+
+      <h2 id="en-discover">Discover</h2>
+      <div class="cards">
+        <div class="card"><h3>Free games</h3><p>RetroAchievements' list of legally free homebrew/freeware titles. Each card shows whether an achievement set exists and whether you already own the file.</p></div>
+        <div class="card"><h3>Set radar</h3><p>Which achievement sets are being built right now — games you own first. Plus your set requests and "want to play" list.</p></div>
+        <div class="card"><h3>Community</h3><p>Achievement of the Week and freshly mastered games from the community, flagged with what you own.</p></div>
+      </div>
+      <div class="callout warn">
+        <div class="t">Downloads point to the original source</div>
+        The "Download" buttons open the developers' pages (itch.io, GitHub, AtariAge …). You download the file there yourself — RAChecker ships no ROMs and cannot scrape those pages automatically. In Settings you can set a target folder; then drop the file there and re-scan.
+      </div>
+
+      <h2 id="en-hardcore">Hardcore &amp; playtime</h2>
+      <ul>
+        <li><strong>Hardcore</strong> — a list of all games where your hardcore progress trails your softcore progress. Hardcore forbids save states, cheats and rewind; only then do you get gold badges, leaderboard entries and full points. Every softcore unlock can be earned again.</li>
+        <li><strong>Leaderboards</strong> — in the game window: all leaderboards for a game with your rank (they only count in hardcore mode).</li>
+        <li><strong>Playtime</strong> — optional. RetroAchievements only shows what you're playing <em>right now</em> and keeps no history. RAChecker polls that at your chosen interval and stitches it into a local session history (Profile → Insights → Playtime). Off by default; exportable as JSON and importable again.</li>
+      </ul>
+
+      <h2 id="en-export">Export &amp; emulator launch</h2>
+      <p><strong>Exports</strong> (in the collection under "Export"): RetroArch playlist (<code>.lpl</code>), ES-DE/EmulationStation, Playnite, LaunchBox and CSV. The ES-DE export ships a ZIP with one <code>gamelist.xml</code> per system and relative paths — exactly what ES-DE expects.</p>
+      <p><strong>Launch directly:</strong> in Settings, enter the path to <code>retroarch.exe</code> and the core folder. After that the "Launch" button in the game window opens the ROM directly with the matching core; which core is recommended per system (and whether it supports achievements/hardcore) is shown in the game window.</p>
+
+      <h2 id="en-offline">Offline package &amp; backups</h2>
+      <ul>
+        <li><strong>Backups</strong> — the local database (hashes, collection, profile cache) is backed up automatically: on start and after every scan. Manual any time, with download and restore.</li>
+        <li><strong>Offline package</strong> — exports the hash DB, game details and image cache as one <code>.7z</code> archive for a second machine, plus a checklist of whether everything needed is present locally.</li>
+      </ul>
+      <div class="callout warn">
+        <div class="t">The backup download contains your API key</div>
+        Don't share it carelessly.
+      </div>
+
+      <h2 id="en-shortcuts">Keyboard &amp; tips</h2>
+      <ul>
+        <li><kbd>Ctrl</kbd>+<kbd>K</kbd> or <kbd>/</kbd> — command palette: live search over games, systems and actions.</li>
+        <li><kbd>g</kbd> then <kbd>d</kbd>/<kbd>s</kbd>/<kbd>g</kbd>/<kbd>e</kbd>/<kbd>h</kbd> — jump to Dashboard/Scan/Games/Discover/Hash DB.</li>
+        <li><kbd>?</kbd> shows all shortcuts, <kbd>Esc</kbd> closes dialogs.</li>
+        <li><strong>Drag &amp; drop</strong> — drop a ROM or archive onto the window to check it instantly, without scanning the whole folder.</li>
+        <li>Language and the guided tour live in the <strong>"More" menu</strong> (⋯) top-right.</li>
+      </ul>
+
+      <h2 id="en-faq">FAQ</h2>
+      <h3>Do I need a RetroAchievements account?</h3>
+      <p>For syncing the hash database and for profile/Discover: yes (free). The plain scan match works offline afterwards.</p>
+      <h3>Are my ROMs uploaded anywhere?</h3>
+      <p>No. Everything runs locally. Only the hash list comes from RetroAchievements; your files never leave your machine.</p>
+      <h3>Can I download ROMs here?</h3>
+      <p>No. RAChecker ships no ROMs. The Discover area only links to legally free homebrew titles at their developers.</p>
+      <h3>Why are all results "No match"?</h3>
+      <p>Then the hash database isn't synced yet — see <a href="#en-first">First run</a>, step 2.</p>
+
+      <h2 id="en-trouble">Troubleshooting</h2>
+      <table>
+        <thead><tr><th>Problem</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td>Everything "No match"</td><td>Sync the hash DB.</td></tr>
+          <tr><td>Disc games "RAHasher"</td><td>Download RAHasher in Settings, then scan again.</td></tr>
+          <tr><td>Network path unreadable</td><td>Connected/mounted in Windows? Type the full UNC path in the picker.</td></tr>
+          <tr><td>Port 8088 in use</td><td>Change <code>"port"</code> in <code>server/config.local.json</code>.</td></tr>
+          <tr><td>Scan slow</td><td>Disc images and large archives take longer. The file cache makes re-scans fast.</td></tr>
+        </tbody>
+      </table>
+     </div>
+     <footer>
+       RAChecker is an independent community tool and is not affiliated with RetroAchievements. ·
+       <a href="https://github.com/x3kim/RAChecker" target="_blank" rel="noreferrer">Source &amp; issues on GitHub</a>
+     </footer>
+    </main>
+
+    <!-- ===================== DEUTSCH ===================== -->
+    <nav class="sidebar lang-de" id="sb-de">
+      <h4>Einstieg</h4>
+      <a href="#de-what">Was ist RAChecker?</a>
+      <a href="#de-install">Installation</a>
+      <a href="#de-first">Erster Start</a>
+      <a href="#de-how">Wie es funktioniert</a>
+      <h4>Nutzung</h4>
+      <a href="#de-scan">Scannen &amp; Ergebnisse</a>
+      <a href="#de-collection">Sammlung &amp; Spiele</a>
+      <a href="#de-discover">Entdecken</a>
+      <a href="#de-hardcore">Hardcore &amp; Spielzeit</a>
+      <a href="#de-export">Export &amp; Emulator-Start</a>
+      <a href="#de-offline">Offline-Paket &amp; Backups</a>
+      <h4>Referenz</h4>
+      <a href="#de-shortcuts">Tastatur &amp; Tricks</a>
+      <a href="#de-faq">Häufige Fragen</a>
+      <a href="#de-trouble">Fehlerbehebung</a>
+    </nav>
+    <main class="content lang-de">
+     <div class="inner">
+      <h1>RAChecker</h1>
+      <p class="lead">Ein lokales Tool, das deine ROM-Sammlung durchsucht und dir pro Spiel sagt, ob du dort <a href="https://retroachievements.org" target="_blank" rel="noreferrer">RetroAchievements</a>-Erfolge freischalten kannst — durch einen exakten Hash-Abgleich mit RetroAchievements' Datenbank.</p>
+      <div class="callout">
+        <div class="t">Kurz gesagt</div>
+        Hash-Datenbank einmalig laden → ROM-Ordner scannen → grüne Zeilen bringen Erfolge. Läuft auf deinem Rechner; nach dem einmaligen Laden funktioniert der Scan komplett offline. RAChecker liefert keine ROMs mit.
+      </div>
+
+      <h2 id="de-what">Was ist RAChecker?</h2>
+      <p>RetroAchievements erkennt ein Spiel an einem exakten Datei-Hash. Nur wenn deine ROM byte-genau der bei RetroAchievements registrierten Version entspricht, kannst du dort Erfolge holen. Bei tausenden Dateien lässt sich das nicht von Hand prüfen.</p>
+      <p>RAChecker berechnet für jede ROM diesen Hash (nach denselben Regeln wie die Emulatoren, inklusive ZIP/RAR/7z und Disc-Images) und gleicht ihn gegen eine lokal gespeicherte Kopie der RetroAchievements-Hash-Liste ab. Ergebnis: eine klare Liste, welche deiner Spiele Erfolge bringen — und welche eine abweichende Version sind.</p>
+      <div class="cards">
+        <div class="card"><h3>Lokal</h3><p>Läuft als kleine Web-App auf deinem Rechner oder als Desktop-Programm. Keine Cloud, keine Uploads deiner ROMs.</p></div>
+        <div class="card"><h3>Offline nach Sync</h3><p>Die Hash-Datenbank wird einmalig von RetroAchievements geladen. Danach braucht der Scan kein Internet.</p></div>
+        <div class="card"><h3>Kein Klon</h3><p>Eigenständiges Werkzeug auf Basis der offenen RA-Web-API und der offenen rcheevos-Hash-Regeln. Nicht mit RetroAchievements affiliiert.</p></div>
+      </div>
+
+      <h2 id="de-install">Installation</h2>
+      <h3>Desktop-App (Windows)</h3>
+      <p>Am einfachsten: die Installer- oder Portable-<code>.exe</code> aus den Releases herunterladen und starten — ein Fenster, kein Browser, keine Konsole.</p>
+      <h3>Aus dem Quellcode</h3>
+      <p>Node.js 22+ vorausgesetzt:</p>
+      <pre><code>git clone https://github.com/x3kim/RAChecker
+cd RAChecker
+npm install
+npm run serve      # baut das Frontend + startet den Server auf :8088</code></pre>
+      <ul>
+        <li><strong>Windows:</strong> alternativ <code>Start-RAChecker.bat</code> doppelklicken.</li>
+        <li><strong>Linux/macOS:</strong> <code>./start.sh</code> ausführen.</li>
+        <li><strong>Entwicklung:</strong> <code>npm run dev</code> (Vite-HMR auf :5173).</li>
+      </ul>
+      <p>Danach öffnet sich <code>http://localhost:8088</code>.</p>
+
+      <h2 id="de-first">Erster Start</h2>
+      <p>Beim allerersten Start führt dich ein Assistent durch drei Schritte: ROM-Oberordner wählen, RetroAchievements-Konto verbinden und die Hash-Datenbank synchronisieren.</p>
+      <ol class="steps">
+        <li><strong>RA-Konto verbinden.</strong> In den Einstellungen deinen RetroAchievements-Benutzernamen und Web-API-Schlüssel eintragen (den Schlüssel findest du in deinen RA-Kontoeinstellungen). Nur zum Lesen — RAChecker verändert nichts an deinem Konto.</li>
+        <li><strong>Hash-Datenbank synchronisieren.</strong> Tab <strong>Hash-DB</strong> → <strong>Synchronisieren</strong>. Holt pro System einmalig alle Spiele + Hashes. Beim ersten Mal dauert das ein paar Minuten. Danach im Cache; automatischer Re-Sync erst nach 90 Tagen.</li>
+        <li><strong>ROM-Ordner scannen.</strong> Tab <strong>Scannen</strong> → Ordner wählen → Scan starten.</li>
+      </ol>
+
+      <h2 id="de-how">Wie es funktioniert</h2>
+      <h3>Hashing</h3>
+      <p>Für Cartridge-Systeme reimplementiert RAChecker die rcheevos-Hash-Regeln und liest dabei gestreamt — auch mehrere Gigabyte große Dateien belasten den Speicher nicht. Archive (ZIP/RAR/7z) werden transparent gelesen. Für Disc-Systeme (PS1, PS2, Saturn, Dreamcast … und <code>.chd</code>) nutzt RAChecker das mitgelieferte <code>RAHasher</code>-Werkzeug.</p>
+      <div class="callout warn">
+        <div class="t">Ordner nach System benennen</div>
+        Endungen wie <code>.bin</code>, <code>.iso</code>, <code>.cue</code> oder <code>.zip</code> nutzen viele Systeme. RAChecker liest den <strong>Ordnernamen</strong> zur eindeutigen Zuordnung — z. B. <code>SNES</code>, <code>PlayStation</code>, <code>Mega Drive</code>, <code>Game Boy Advance</code>. Lege Discs also in einen system-benannten Ordner.
+      </div>
+      <h3>Sync &amp; Offline</h3>
+      <p>Der Sync lädt pro System <em>einmal</em> alle Spiele + Hashes von RetroAchievements und legt sie lokal ab (eine Anfrage pro System). Ab dann läuft jeder Scan komplett offline gegen diesen Cache. Das Konto/Profil, der Bereich Entdecken und die Spielzeit-Verfolgung brauchen weiterhin eine Online-Verbindung, weil sie Live-Daten abfragen.</p>
+
+      <h2 id="de-scan">Scannen &amp; Ergebnisse</h2>
+      <p>Im Tab <strong>Scannen</strong> den ROM-Oberordner wählen und starten — Unterordner werden rekursiv durchsucht. Du siehst live Fortschritt, Trefferquote pro System und eine Tabelle mit jedem ROM. Ein Klick auf eine grüne Zeile öffnet die Details (Erfolge, Punkte, exakter Referenz-Name, voller Hash).</p>
+      <p>Was die Status bedeuten:</p>
+      <table>
+        <thead><tr><th>Status</th><th>Bedeutung</th></tr></thead>
+        <tbody>
+          <tr><td>🟢 Mit Erfolgen</td><td>Genau diese ROM-Version ist bei RA registriert — Erfolge holbar.</td></tr>
+          <tr><td>🔴 Kein Match</td><td>RA kennt diesen Hash nicht → abweichende Version, keine Erfolge.</td></tr>
+          <tr><td>🟡 RAHasher</td><td>Disc-System / <code>.chd</code> — RAHasher installieren und erneut scannen.</td></tr>
+          <tr><td>🟣 Unklar</td><td>System nicht erkennbar — ROM in einen System-Ordner legen.</td></tr>
+          <tr><td>⚪ Übersprungen</td><td>Kein Hash-Ziel, z. B. ein Disc-Track <code>.bin</code> neben der <code>.cue</code>.</td></tr>
+        </tbody>
+      </table>
+      <p>Bei einer 🔴-Zeile bringt „Richtige Version" dich weiter: RAChecker sucht das Spiel und zeigt, welche ROM-Versionen RetroAchievements akzeptiert.</p>
+
+      <h2 id="de-collection">Sammlung &amp; Spiele</h2>
+      <ul>
+        <li><strong>Sammlung</strong> — alle je gescannten ROMs, dauerhaft gespeichert. Nach Status/System filtern und sortieren, Duplikate finden und Extra-Kopien löschen (1G1R-Aufräumen), Pfade kopieren, als CSV oder Playlist exportieren.</li>
+        <li><strong>Sammlung-Diff</strong> — nach jedem Scan: was ist neu, hat jetzt Erfolge, ist verloren oder verschwunden.</li>
+        <li><strong>Spiele</strong> — pro System alle Spiele mit Erfolgen durchstöbern, sortierbar nach Punkten, Erfolgen oder Name; ein Spiel öffnen zeigt Box-Art, alle Erfolge mit Badges und die kompatiblen ROM-Versionen.</li>
+        <li><strong>Profil</strong> — dein RA-Fortschritt: Punkte, gemeisterte Sets, Completion pro Spiel.</li>
+      </ul>
+
+      <h2 id="de-discover">Entdecken</h2>
+      <div class="cards">
+        <div class="card"><h3>Gratis-Spiele</h3><p>RetroAchievements' Liste legal kostenloser Homebrew- und Freeware-Titel. Jede Karte zeigt, ob es ein Erfolgs-Set gibt und ob du die Datei schon hast.</p></div>
+        <div class="card"><h3>Set-Radar</h3><p>Welche Achievement-Sets gerade gebaut werden — zuerst für Spiele, die du besitzt. Dazu deine Set-Anfragen und „Will ich spielen"-Liste.</p></div>
+        <div class="card"><h3>Community</h3><p>Achievement der Woche und frisch gemeisterte Spiele der Community, markiert mit dem, was du besitzt.</p></div>
+      </div>
+      <div class="callout warn">
+        <div class="t">Downloads führen zur Original-Quelle</div>
+        Die „Download"-Buttons öffnen die Seite der Entwickler (itch.io, GitHub, AtariAge …). Du lädst die Datei dort selbst herunter — RAChecker liefert keine ROMs und kann diese Seiten nicht automatisch abgreifen. In den Einstellungen lässt sich ein Zielordner festlegen; danach die Datei dort ablegen und neu scannen.
+      </div>
+
+      <h2 id="de-hardcore">Hardcore &amp; Spielzeit</h2>
+      <ul>
+        <li><strong>Hardcore</strong> — Liste aller Spiele, in denen dein Hardcore-Fortschritt hinter dem Softcore-Fortschritt liegt. Hardcore verbietet Savestates, Cheats und Rückspulen; nur so gibt es goldene Abzeichen, Ranglisten-Teilnahme und die volle Punktzahl. Jeder Softcore-Erfolg lässt sich erneut holen.</li>
+        <li><strong>Ranglisten</strong> — im Spiel-Fenster: alle Leaderboards eines Spiels samt deinem Platz (zählen nur im Hardcore-Modus).</li>
+        <li><strong>Spielzeit</strong> — optional. RetroAchievements zeigt nur, was du <em>gerade</em> spielst, und speichert keine Historie. RAChecker fragt das im gewählten Intervall ab und näht daraus eine lokale Session-Historie zusammen (Profil → Insights → Spielzeit). Standardmäßig aus; als JSON exportierbar und wieder importierbar.</li>
+      </ul>
+
+      <h2 id="de-export">Export &amp; Emulator-Start</h2>
+      <p><strong>Exporte</strong> (in der Sammlung unter „Export"): RetroArch-Playlist (<code>.lpl</code>), ES-DE/EmulationStation, Playnite, LaunchBox und CSV. Der ES-DE-Export liefert ein ZIP mit einer <code>gamelist.xml</code> pro System und relativen Pfaden — genau so, wie ES-DE es erwartet.</p>
+      <p><strong>Direkt starten:</strong> In den Einstellungen den Pfad zu <code>retroarch.exe</code> und zum Core-Ordner eintragen. Danach startet der „Starten"-Button im Spiel-Fenster die ROM direkt mit dem passenden Core; welcher Core je System empfohlen wird (und ob er Achievements/Hardcore unterstützt) steht im Spiel-Fenster.</p>
+
+      <h2 id="de-offline">Offline-Paket &amp; Backups</h2>
+      <ul>
+        <li><strong>Backups</strong> — die lokale Datenbank (Hashes, Sammlung, Profil-Cache) wird automatisch gesichert: beim Start und nach jedem Scan. Manuell jederzeit, mit Download und Wiederherstellung.</li>
+        <li><strong>Offline-Paket</strong> — exportiert Hash-DB, Spieldetails und Bildcache als ein <code>.7z</code>-Archiv für einen zweiten Rechner, plus eine Prüfliste, ob alles Nötige lokal vorliegt.</li>
+      </ul>
+      <div class="callout warn">
+        <div class="t">Der Backup-Download enthält deinen API-Schlüssel</div>
+        Teile ihn nicht ungeprüft weiter.
+      </div>
+
+      <h2 id="de-shortcuts">Tastatur &amp; Tricks</h2>
+      <ul>
+        <li><kbd>Strg</kbd>+<kbd>K</kbd> oder <kbd>/</kbd> — Befehlspalette: Live-Suche über Spiele, Systeme und Aktionen.</li>
+        <li><kbd>g</kbd> dann <kbd>d</kbd>/<kbd>s</kbd>/<kbd>g</kbd>/<kbd>e</kbd>/<kbd>h</kbd> — zu Übersicht/Scannen/Spiele/Entdecken/Hash-DB springen.</li>
+        <li><kbd>?</kbd> zeigt alle Shortcuts, <kbd>Esc</kbd> schließt Dialoge.</li>
+        <li><strong>Drag &amp; Drop</strong> — eine ROM oder ein Archiv ins Fenster ziehen prüft sie sofort, ohne den ganzen Ordner zu scannen.</li>
+        <li>Sprache und die geführte Tour liegen im <strong>„Mehr"-Menü</strong> (⋯) oben rechts.</li>
+      </ul>
+
+      <h2 id="de-faq">Häufige Fragen</h2>
+      <h3>Brauche ich ein RetroAchievements-Konto?</h3>
+      <p>Für den Sync der Hash-Datenbank und für Profil/Entdecken: ja (kostenlos). Der reine Scan-Abgleich funktioniert danach offline.</p>
+      <h3>Werden meine ROMs irgendwohin hochgeladen?</h3>
+      <p>Nein. Alles läuft lokal. Nur die Hash-Liste kommt von RetroAchievements; deine Dateien verlassen den Rechner nicht.</p>
+      <h3>Kann ich hier ROMs herunterladen?</h3>
+      <p>Nein. RAChecker liefert keine ROMs. Der Bereich Entdecken verlinkt nur auf die legal kostenlosen Homebrew-Titel bei ihren Entwicklern.</p>
+      <h3>Warum sind alle Ergebnisse „Kein Match"?</h3>
+      <p>Dann ist die Hash-Datenbank noch nicht synchronisiert — siehe <a href="#de-first">Erster Start</a>, Schritt 2.</p>
+
+      <h2 id="de-trouble">Fehlerbehebung</h2>
+      <table>
+        <thead><tr><th>Problem</th><th>Lösung</th></tr></thead>
+        <tbody>
+          <tr><td>Alles „Kein Match"</td><td>Hash-DB synchronisieren.</td></tr>
+          <tr><td>Disc-Spiele „RAHasher"</td><td>In den Einstellungen RAHasher herunterladen, dann erneut scannen.</td></tr>
+          <tr><td>Netzwerkpfad nicht lesbar</td><td>In Windows verbunden/gemountet? Im Picker den vollen UNC-Pfad eintippen.</td></tr>
+          <tr><td>Port 8088 belegt</td><td>In <code>server/config.local.json</code> den <code>"port"</code> ändern.</td></tr>
+          <tr><td>Scan langsam</td><td>Disc-Images und große Archive brauchen länger. Der Datei-Cache macht Re-Scans schnell.</td></tr>
+        </tbody>
+      </table>
+     </div>
+     <footer>
+       RAChecker ist ein eigenständiges Community-Werkzeug und steht in keiner Verbindung zu RetroAchievements. ·
+       <a href="https://github.com/x3kim/RAChecker" target="_blank" rel="noreferrer">Quellcode &amp; Issues auf GitHub</a>
+     </footer>
+    </main>
+
+    <div class="scrim lang-en" id="scrim-en"></div>
+    <div class="scrim lang-de" id="scrim-de"></div>
+  </div>
+
+<script>
+  var docLang = document.documentElement.getAttribute('data-lang') || 'en';
+  function markToggle() {
+    var en = document.getElementById('lang-en'), de = document.getElementById('lang-de');
+    if (en) en.classList.toggle('active', docLang === 'en');
+    if (de) de.classList.toggle('active', docLang === 'de');
+  }
+  function activeSidebar() { return document.querySelector('.sidebar.lang-' + docLang); }
+  function activeScrim() { return document.querySelector('.scrim.lang-' + docLang); }
+  var observer = null;
+  function initSpy() {
+    if (observer) observer.disconnect();
+    var sb = activeSidebar(); if (!sb) return;
+    var links = [].slice.call(sb.querySelectorAll('a'));
+    var map = {};
+    links.forEach(function (a) { var id = a.getAttribute('href').slice(1); var el = document.getElementById(id); if (el) map[id] = a; });
+    observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { links.forEach(function (l) { l.classList.remove('active'); }); var a = map[e.target.id]; if (a) a.classList.add('active'); }
+      });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    Object.keys(map).forEach(function (id) { observer.observe(document.getElementById(id)); });
+  }
+  function closeDrawer() { var sb = activeSidebar(), sc = activeScrim(); if (sb) sb.classList.remove('open'); if (sc) sc.classList.remove('show'); }
+  function setLang(l) {
+    docLang = (l === 'de') ? 'de' : 'en';
+    document.documentElement.setAttribute('data-lang', docLang);
+    document.documentElement.setAttribute('lang', docLang);
+    try { localStorage.setItem('rachecker-docs-lang', docLang); } catch (e) {}
+    markToggle(); closeDrawer(); initSpy(); window.scrollTo(0, 0);
+  }
+  document.getElementById('menuBtn').addEventListener('click', function () {
+    var sb = activeSidebar(), sc = activeScrim();
+    if (sb) sb.classList.toggle('open'); if (sc) sc.classList.toggle('show');
+  });
+  document.addEventListener('click', function (e) {
+    if (e.target && e.target.classList && e.target.classList.contains('scrim')) closeDrawer();
+    if (e.target && e.target.closest && e.target.closest('.sidebar a')) closeDrawer();
+  });
+  markToggle(); initSpy();
+</script>
+</body>
+</html>

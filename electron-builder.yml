@@ -1,0 +1,39 @@
+# Packaging config for the RAChecker desktop app (npm run app:dist).
+appId: de.rachecker.app
+productName: RAChecker
+copyright: "Spieldaten © retroachievements.org"
+
+# No asar: the server spawns bundled binaries (RAHasher, 7za) and reads its
+# own tree via plain fs paths — a real directory keeps all of that working.
+asar: false
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - electron/**/*
+  - server/src/**/*
+  - server/package.json
+  - server/config.local.example.json
+  - web/dist/**/*
+  - bin/**/*
+  - package.json
+  - "!server/config.local.json" # never ship personal credentials
+  - "!data/**"
+  - "!release/**"
+
+win:
+  target:
+    - target: nsis
+    - target: portable
+  icon: build/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+  license: LICENSE
+
+portable:
+  artifactName: "RAChecker-${version}-portable.exe"

@@ -1,0 +1,21 @@
+{
+  "_comment": "Kopiere diese Datei zu 'config.local.json' und passe sie an. config.local.json ist git-ignoriert und ueberschreibt die Standardwerte aus server/src/config.js.",
+
+  "raUsername": "DEIN_RA_BENUTZERNAME",
+  "raApiKey": "DEIN_WEB_API_KEY",
+
+  "romRoot": "C:\\ROMs",
+
+  "port": 8088,
+  "host": "127.0.0.1",
+
+  "hashCacheTtlDays": 90,
+
+  "rateLimit": {
+    "minIntervalMs": 500,
+    "maxRetries": 4,
+    "backoffBaseMs": 1500
+  },
+
+  "rahasherPath": ""
+}

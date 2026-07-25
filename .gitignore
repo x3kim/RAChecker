@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+.npm/
+
+# Build output
+web/dist/
+*.tsbuildinfo
+
+# Runtime data (DB, cached images, temp extraction) — never commit
+data/
+!data/.gitkeep
+
+# Local config with secrets
+server/config.local.json
+.env
+.env.local
+
+# Bundled external binaries (downloaded at setup)
+bin/RAHasher*
+bin/*.exe
+
+# Desktop-app build output (electron-builder)
+release/
+build/icon.png
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

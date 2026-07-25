@@ -1,0 +1,44 @@
+{
+  "name": "ra-checker",
+  "version": "0.9.5",
+  "private": true,
+  "type": "module",
+  "description": "RetroAchievements ROM Compatibility Checker — scan your ROM library and find which games can earn achievements.",
+  "license": "MIT",
+  "main": "electron/main.mjs",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "postinstall": "echo RAChecker dependencies installed.",
+    "dev": "concurrently -n SERVER,WEB -c cyan,magenta \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:server": "node --watch --no-warnings server/src/index.js",
+    "dev:web": "npm --workspace web run dev",
+    "build": "npm --workspace web run build",
+    "start": "node --no-warnings server/src/index.js",
+    "serve": "npm run build && npm run start",
+    "test": "node --no-warnings --test server/test/*.test.js",
+    "icon": "node scripts/make-icon.mjs",
+    "app:dev": "npm run build && electron .",
+    "app:dist": "npm run build && electron-builder --win",
+    "app:dir": "npm run build && electron-builder --win --dir"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.1",
+    "@fastify/multipart": "^10.0.0",
+    "@fastify/static": "^8.0.3",
+    "7zip-min": "^2.1.0",
+    "fastify": "^5.2.1",
+    "node-stream-zip": "^1.15.0",
+    "node-unrar-js": "^2.0.2"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "electron": "^43.1.0",
+    "electron-builder": "^26.15.3"
+  }
+}
