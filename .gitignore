@@ -29,3 +29,6 @@ build/icon.png
 .DS_Store
 Thumbs.db
 *.log
+
+# Local launch/marketing notes - not for the public repo
+promo/
