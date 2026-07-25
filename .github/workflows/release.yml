@@ -1,0 +1,83 @@
+# Builds the Windows desktop app and publishes it to a GitHub Release whenever a
+# version tag (vX.Y.Z) is pushed — or on demand via the "Run workflow" button.
+# Uploads the installer, the portable exe and the electron-updater feed
+# (latest.yml + .blockmap) so the app's in-app auto-update works.
+#
+# Release flow for the maintainer: bump the version (package.json x2 +
+# web/src/lib/version.ts), commit, then:
+#     git tag v0.10.1 && git push origin v0.10.1
+# That single push builds and publishes the release automatically.
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: {} # manual button; uses the version from package.json
+
+permissions:
+  contents: write # needed to create/update the GitHub Release
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      # Bundle the official RAHasher (disc-system hashing) so the shipped exe
+      # works out of the box. Non-fatal: if the RALibretro download hiccups, the
+      # build continues and users can still fetch it via Settings → Download RAHasher.
+      - name: Bundle RAHasher.exe
+        run: node -e "import('./server/src/hashing/rahasher.js').then(m=>m.downloadRAHasher(p=>console.log(p.message||p.phase))).then(()=>console.log('RAHasher bundled')).catch(e=>console.warn('RAHasher bundle skipped:',String(e)))"
+
+      - name: Build frontend
+        run: npm run build
+
+      # --publish never: build locally only (latest.yml is still generated); the
+      # explicit gh step below does the upload, so there is no double publish.
+      - name: Package installer + portable
+        run: npx --no-install electron-builder --win --publish never
+
+      - name: Resolve release tag
+        id: ver
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ steps.ver.outputs.tag }}"
+          files=(
+            release/RAChecker-Setup-*.exe
+            release/RAChecker-Setup-*.exe.blockmap
+            release/RAChecker-*-portable.exe
+            release/latest.yml
+          )
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag exists — uploading assets (clobber)."
+            gh release upload "$tag" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            echo "Creating release $tag."
+            gh release create "$tag" "${files[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "RAChecker ${tag#v}" \
+              --generate-notes
+          fi
