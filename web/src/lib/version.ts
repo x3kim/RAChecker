@@ -1,6 +1,6 @@
 // Single source of truth for the app version + changelog. The footer version
 // chip opens a modal rendering CHANGELOG; package.json is kept in sync manually.
-export const APP_VERSION = '0.9.5';
+export const APP_VERSION = '0.10.0';
 
 // GitHub repository — linked from the header (GitHub icon in the "More" menu).
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
@@ -12,6 +12,19 @@ export interface Release { version: string; date: string; title?: { de: string; 
 
 // Newest first. Dates are ISO (YYYY-MM-DD).
 export const CHANGELOG: Release[] = [
+  {
+    version: '0.10.0',
+    date: '2026-07-25',
+    title: { de: 'DAT-Abgleich, Auto-Update & Sprachwahl', en: 'DAT check, auto-update & language picker' },
+    changes: [
+      { type: 'feature', de: 'Neuer Bereich „DAT": Importiere No-Intro/Redump/logiqx-Kataloge und sieh pro Katalog, welche Einträge du bereits hast und welche fehlen — abgeglichen über die echte Datei-Prüfsumme (CRC32) deiner Sammlung, unabhängig vom RetroAchievements-Hash. Die Liste der fehlenden Spiele lässt sich exportieren.', en: 'New "DAT" area: import No-Intro/Redump/logiqx catalogs and see, per catalog, which entries you already have and which are missing — matched by your collection\'s real file checksum (CRC32), independent of the RetroAchievements hash. The list of missing games can be exported.' },
+      { type: 'feature', de: 'Automatische Updates (Desktop-App): RAChecker prüft beim Start auf eine neue Version, lädt sie im Hintergrund und bietet unten links „Neustart & installieren". Die Web-/Startskript-Version zeigt stattdessen einen Link zur neuen Version.', en: 'Automatic updates (desktop app): RAChecker checks for a new version on launch, downloads it in the background and offers "Restart & install" bottom-left. The web/launcher build instead shows a link to the new release.' },
+      { type: 'feature', de: 'Sprachauswahl beim allerersten Start (mit Flaggen). Englisch ist jetzt die Standardsprache.', en: 'Language picker on the very first launch (with flags). English is now the default language.' },
+      { type: 'feature', de: 'Einstellungen → Daten & Speicher: Bilder-Cache, Sammlung & Scan-Verlauf oder die Hash-Datenbank gezielt löschen (vorher nur „Temp leeren").', en: 'Settings → Data & storage: delete the image cache, the collection & scan history, or the hash database individually (previously only "clear temp").' },
+      { type: 'improve', de: 'Parallele Scan-Dateien standardmäßig auf 1 (ruhiger, klarerer Fortschritt). Hinweis: ein Archiv mit mehreren ROMs zeigt nacheinander mehrere Dateinamen — das ist kein paralleles Scannen, sondern die einzelnen Einträge im Archiv.', en: 'Parallel scan files now default to 1 (calmer, clearer progress). Note: an archive containing several ROMs shows multiple filenames in sequence — that is not parallel scanning but the individual entries inside the archive.' },
+      { type: 'fix', de: 'Offline-Check „Spieldetails gecacht" ist jetzt klar formuliert („33 (nötig ≥ 24)" statt des verwirrenden „33/24"). Der Wert zählt alle gecachten Details, die Zahl dahinter ist das Minimum für deine eigenen spielbaren Spiele.', en: 'Offline check "game details cached" is now worded clearly ("33 (need ≥ 24)" instead of the confusing "33/24"). The value counts all cached details; the number after it is the minimum for your own playable games.' },
+    ],
+  },
   {
     version: '0.9.5',
     date: '2026-07-25',

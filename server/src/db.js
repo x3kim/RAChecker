@@ -163,6 +163,36 @@ function addColumn(table, def) {
 addColumn('games', 'title_norm TEXT');
 db.exec('CREATE INDEX IF NOT EXISTS idx_games_title_norm ON games(title_norm)');
 addColumn('library', 'message TEXT'); // persist scan error/skip reason for the collection view
+addColumn('library', 'crc TEXT');     // raw file CRC32 (lowercase hex) for DAT completeness matching
+
+// ---- DAT completeness (No-Intro/Redump/logiqx catalogs) -------------------
+// Imported DAT files + their ROM entries. Matching is by raw-file CRC32 (what
+// DATs universally carry), stored on the library row — this is a different
+// dimension from the RetroAchievements hash (which strips headers etc.).
+db.exec(`
+  CREATE TABLE IF NOT EXISTS dat_files (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    name         TEXT,
+    description  TEXT,
+    version      TEXT,
+    console_id   INTEGER,             -- guessed RA console (nullable)
+    game_count   INTEGER DEFAULT 0,
+    imported_at  INTEGER
+  );
+  CREATE TABLE IF NOT EXISTS dat_entries (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    dat_id     INTEGER NOT NULL,
+    game_name  TEXT,
+    rom_name   TEXT,
+    size       INTEGER,
+    crc        TEXT,                  -- lowercase hex
+    md5        TEXT,
+    sha1       TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_dat_entries_dat ON dat_entries(dat_id);
+  CREATE INDEX IF NOT EXISTS idx_dat_entries_crc ON dat_entries(crc);
+  CREATE INDEX IF NOT EXISTS idx_library_crc ON library(crc);
+`);
 
 // Normalize a title for accent/diacritic-insensitive search:
 // "Pokémon Crystal Version" -> "pokemon crystal version".
@@ -588,6 +618,115 @@ export function libraryStats() {
   return { total, byStatus, byConsole };
 }
 export function clearLibrary() { db.prepare('DELETE FROM library').run(); }
+
+// Destructive resets exposed in Settings → Data. Each returns the row counts it
+// removed so the UI can report what happened. Credentials/settings are never
+// touched here.
+function wipeTables(tables) {
+  const counts = {};
+  for (const tbl of tables) {
+    try {
+      counts[tbl] = db.prepare(`SELECT COUNT(*) AS n FROM ${tbl}`).get().n;
+      db.prepare(`DELETE FROM ${tbl}`).run();
+    } catch { counts[tbl] = 0; }
+  }
+  return counts;
+}
+// Collection + scan history + per-file hash cache. Keeps the synced hash DB and
+// the RA login, so the next scan just re-populates from disk.
+export function resetCollection() {
+  return wipeTables(['library', 'scans', 'scan_items', 'file_hash_cache', 'scan_baseline', 'play_sessions']);
+}
+// The synced RetroAchievements hash database (games/hashes) — forces a fresh
+// sync. Console metadata rows are kept so the systems list still renders.
+export function resetHashDb() {
+  const counts = wipeTables(['games', 'hashes', 'console_sync']);
+  clearApiCache('game:');
+  // No synchronous VACUUM here — it can be very slow on a large DB and would
+  // block the reset endpoint. Freed pages go to the freelist and are reclaimed
+  // by the next backup (VACUUM INTO) / checkpoint.
+  return counts;
+}
+
+// ---- DAT completeness ------------------------------------------------------
+const insertDatFileStmt = db.prepare('INSERT INTO dat_files(name, description, version, console_id, game_count, imported_at) VALUES(?,?,?,?,?,?)');
+const insertDatEntryStmt = db.prepare('INSERT INTO dat_entries(dat_id, game_name, rom_name, size, crc, md5, sha1) VALUES(?,?,?,?,?,?,?)');
+
+// Store a parsed DAT and all its rom entries in one transaction.
+export function insertDat({ name, description, version, console_id, entries }) {
+  const games = new Set();
+  db.exec('BEGIN');
+  try {
+    const info = insertDatFileStmt.run(name || 'DAT', description || null, version || null, console_id ?? null, 0, Date.now());
+    const datId = Number(info.lastInsertRowid);
+    for (const e of entries) {
+      games.add(e.game_name || e.rom_name || '');
+      insertDatEntryStmt.run(datId, e.game_name || null, e.rom_name || null, e.size ?? null,
+        e.crc ? String(e.crc).toLowerCase() : null,
+        e.md5 ? String(e.md5).toLowerCase() : null,
+        e.sha1 ? String(e.sha1).toLowerCase() : null);
+    }
+    db.prepare('UPDATE dat_files SET game_count = ? WHERE id = ?').run(games.size, datId);
+    db.exec('COMMIT');
+    return { id: datId, entries: entries.length, games: games.size };
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+// One row per DAT with a live "have" count against the collection's CRC set.
+export function listDats() {
+  const rows = db.prepare('SELECT id, name, description, version, console_id, game_count, imported_at FROM dat_files ORDER BY imported_at DESC').all();
+  const haveStmt = db.prepare(`
+    SELECT COUNT(*) AS n FROM dat_entries e
+    WHERE e.dat_id = ? AND e.crc IS NOT NULL
+      AND e.crc IN (SELECT crc FROM library WHERE crc IS NOT NULL)`);
+  const totalStmt = db.prepare('SELECT COUNT(*) AS n FROM dat_entries WHERE dat_id = ?');
+  return rows.map((r) => ({
+    ...r,
+    total: totalStmt.get(r.id).n,
+    have: haveStmt.get(r.id).n,
+  }));
+}
+
+export function deleteDat(id) {
+  db.prepare('DELETE FROM dat_entries WHERE dat_id = ?').run(id);
+  db.prepare('DELETE FROM dat_files WHERE id = ?').run(id);
+}
+
+// Detailed coverage for one DAT: which rom entries are present in the
+// collection (by CRC) and which are missing.
+export function datCoverage(id, { missingLimit = 5000 } = {}) {
+  const dat = db.prepare('SELECT id, name, description, version, console_id, game_count FROM dat_files WHERE id = ?').get(id);
+  if (!dat) return null;
+  const entries = db.prepare('SELECT game_name, rom_name, size, crc FROM dat_entries WHERE dat_id = ?').all(id);
+  const owned = new Set(db.prepare('SELECT DISTINCT crc FROM library WHERE crc IS NOT NULL').all().map((r) => r.crc));
+  let have = 0;
+  const missing = [];
+  for (const e of entries) {
+    const hit = e.crc && owned.has(e.crc);
+    if (hit) have++;
+    else if (missing.length < missingLimit) missing.push({ game: e.game_name, rom: e.rom_name, crc: e.crc, size: e.size });
+  }
+  return { dat, total: entries.length, have, missing, missingTotal: entries.length - have, collectionCrcCount: owned.size };
+}
+
+// Progress of the raw-CRC pass over the collection (needed before matching).
+export function datCrcStatus() {
+  const total = db.prepare("SELECT COUNT(*) AS n FROM library WHERE status IN ('match','no_match')").get().n;
+  const withCrc = db.prepare("SELECT COUNT(*) AS n FROM library WHERE crc IS NOT NULL").get().n;
+  return { total, withCrc, without: Math.max(0, total - withCrc) };
+}
+
+// Library rows still lacking a raw CRC (candidates for the CRC pass). Only rows
+// that represent a real ROM (match/no_match) — skip errors/skips/rahasher.
+export function getLibraryRowsWithoutCrc(limit = 100000) {
+  return db.prepare("SELECT path, inner_path, size, ext FROM library WHERE crc IS NULL AND status IN ('match','no_match') ORDER BY path LIMIT ?").all(limit);
+}
+export function setLibraryCrc(path, inner, crc) {
+  db.prepare('UPDATE library SET crc = ? WHERE path = ? AND inner_path = ?').run(crc, path, inner ?? '');
+}
 
 // Distinct on-disk file paths in the collection (one archive may back many
 // rows via inner_path). Used by the health check to test file existence.

@@ -13,9 +13,19 @@ export const LANGS: { id: Lang; name: string; flag: string }[] = [
   { id: 'en', name: 'English', flag: '🇬🇧' },
 ];
 
+// Default to English for everyone on first run (user preference: EN is the
+// primary language). A stored choice always wins; the first-run LanguageGate
+// lets the user switch on the very first launch.
 export function loadLang(): Lang {
   const l = localStorage.getItem(KEY);
-  return l === 'en' || l === 'de' ? l : 'de';
+  return l === 'en' || l === 'de' ? l : 'en';
+}
+
+// True until the user has ever explicitly chosen a language (drives the
+// first-run language picker). Cleared implicitly once setLang persists KEY.
+export function langChosen(): boolean {
+  const l = localStorage.getItem(KEY);
+  return l === 'en' || l === 'de';
 }
 
 // Module-level mirror of the active language so non-React helpers (util.ts time
@@ -31,6 +41,20 @@ const DE: Dict = {
   'nav.scan': 'Scannen',
   'nav.games': 'Spiele',
   'nav.sync': 'Hash-DB',
+  'nav.dat': 'DAT',
+  'dat.title': 'DAT-Abgleich (Vollständigkeit)',
+  'dat.intro': 'Importiere DAT-Kataloge (No-Intro/Redump/logiqx) und sieh pro Katalog, welche Einträge du bereits hast und welche fehlen. Abgeglichen wird über die echte Datei-Prüfsumme (CRC32) deiner Sammlung — unabhängig vom RetroAchievements-Hash.',
+  'dat.import': 'DAT importieren', 'dat.importHint': 'Eine oder mehrere .dat/.xml-Dateien wählen. Unterstützt logiqx-XML und ClrMamePro.',
+  'dat.importing': 'Importiere…', 'dat.importDone': '{n} DAT(s) importiert · {games} Spiele', 'dat.importErr': 'Import fehlgeschlagen',
+  'dat.crcTitle': 'Prüfsummen der Sammlung',
+  'dat.crcNote': 'Für den Abgleich braucht jede Sammlungs-Datei ihre CRC32. ZIP-Inhalte werden direkt aus dem Archiv gelesen (schnell), lose Dateien einmalig durchgelesen. 7z/RAR-Inhalte werden in diesem Durchlauf übersprungen.',
+  'dat.crcStatus': '{have} von {total} Sammlungs-Dateien haben eine CRC.', 'dat.crcProgress': '{done} / {total} verarbeitet',
+  'dat.crcDone': 'Fertig — {computed} berechnet, {skipped} übersprungen.', 'dat.crcRun': 'CRC berechnen', 'dat.crcRunning': 'Berechne…', 'dat.crcAll': 'Alle Dateien haben eine CRC.',
+  'dat.empty': 'Noch keine DAT importiert. Oben eine .dat/.xml-Datei wählen.', 'dat.games': '{n} Spiele',
+  'dat.details': 'Details', 'dat.delete': 'Löschen', 'dat.deleteConfirm': '„{name}“ und alle Einträge löschen?',
+  'dat.cov.have': '{have} / {total} vorhanden', 'dat.cov.missing': '{n} fehlen', 'dat.cov.searchMissing': 'Fehlende durchsuchen…',
+  'dat.cov.export': 'Fehlende exportieren', 'dat.cov.noMissing': 'Nichts fehlt — vollständig!',
+  'dat.cov.crcWarn': 'Deine Sammlung hat noch keine CRC-Werte. Führe zuerst „CRC berechnen“ aus, sonst gilt alles als fehlend.',
   'nav.single': 'Einzeltest',
   'nav.profile': 'Dein Profil (Mastery · Sammlung · Insights)',
   'nav.settings': 'Einstellungen',
@@ -309,6 +333,15 @@ const DE: Dict = {
   'set.storageItems': '{n} Dateien', 'set.storageTempDesc': 'Temporär = Reste von Drag&Drop-Tests, dem Entpacken von Archiven und dem Kopieren großer Dateien. Kann gefahrlos geleert werden (nicht während eines Scans).',
   'set.storageClearTemp': 'Temp leeren', 'set.storageCleared': '{n} gelöscht · {size} frei', 'set.storageTempEmpty': 'Temp ist leer.',
   'set.tempUpload': 'Drag&Drop-Test', 'set.tempBigcopy': 'Große-Datei-Kopie', 'set.tempBackup': 'Backup-Download', 'set.tempExtract': 'Archiv-Entpacken', 'set.tempOther': 'Sonstiges',
+  'set.reset.title': 'Löschen / Zurücksetzen', 'set.reset.desc': 'Endgültig — bitte mit Bedacht. Bei Zweifel vorher ein Backup (siehe oben) anlegen.',
+  'set.reset.action': 'Löschen',
+  'set.reset.images': 'Bilder-Cache löschen', 'set.reset.imagesHint': 'Alle lokal gespeicherten Badges/Boxarts. Werden bei Bedarf automatisch neu geladen.',
+  'set.reset.imagesConfirm': 'Kompletten Bilder-Cache löschen? Bilder werden bei Bedarf neu geladen.', 'set.reset.imagesDone': '{n} Einträge gelöscht · {size} frei',
+  'set.reset.collection': 'Sammlung & Scan-Verlauf löschen', 'set.reset.collectionHint': 'Alle gescannten Dateien, Scan-Verlauf, Datei-Hash-Cache und Spielzeit-Sessions. Hash-DB und Login bleiben erhalten.',
+  'set.reset.collectionConfirm': 'Sammlung, Scan-Verlauf und Datei-Cache wirklich löschen? Hash-DB und Login bleiben erhalten.', 'set.reset.collectionDone': 'Sammlung & Verlauf gelöscht.',
+  'set.reset.hashdb': 'Hash-Datenbank löschen', 'set.reset.hashdbHint': 'Die synchronisierten RA-Spiele & -Hashes. Erzwingt einen neuen Sync. Login bleibt.',
+  'set.reset.hashdbConfirm': 'Synchronisierte Hash-Datenbank löschen? Danach ist ein neuer Sync nötig (Login bleibt).', 'set.reset.hashdbDone': 'Hash-Datenbank gelöscht — bitte neu synchronisieren.',
+  'update.available': 'Update verfügbar', 'update.downloading': 'Update lädt… {p}%', 'update.restart': 'Neustart & installieren',
   // advanced
   'set.advanced': 'ERWEITERT', 'set.advancedDesc': 'Feineinstellungen — die Standardwerte passen für die meisten.',
   'set.rateLimit': 'RA-API Tempo-Limit', 'set.rateLimitDesc': 'Mindestabstand zwischen RA-Abfragen. Höher = sanfter zu RetroAchievements, aber langsamerer Sync.',
@@ -444,7 +477,7 @@ const DE: Dict = {
   'off.sub': 'Alles Lokale in einem Archiv: Hash-DB, Spieldetails, Bilder. Für einen zweiten Rechner oder als Vollbackup.',
   'off.ready': 'Vollständig offline-fähig', 'off.notReady': 'Noch nicht komplett offline-fähig',
   'off.check.hashdb': 'Hash-Datenbank geladen', 'off.check.sync': 'Alle Systeme aktuell',
-  'off.check.details': 'Spieldetails gecacht ({v}/{need})', 'off.check.images': 'Bilder gecacht ({v})',
+  'off.check.details': 'Spieldetails gecacht: {v} (nötig ≥ {need})', 'off.check.images': 'Bilder gecacht ({v})',
   'off.check.rahasher': 'RAHasher installiert', 'off.check.profile': 'Profil gecacht',
   'off.check.completion': 'Fortschritt gecacht',
   'off.export': 'Paket exportieren', 'off.exportTip': 'DB + Bildcache als .7z herunterladen',
@@ -495,6 +528,20 @@ const EN: Dict = {
   'nav.scan': 'Scan',
   'nav.games': 'Games',
   'nav.sync': 'Hash DB',
+  'nav.dat': 'DAT',
+  'dat.title': 'DAT check (completeness)',
+  'dat.intro': 'Import DAT catalogs (No-Intro/Redump/logiqx) and see, per catalog, which entries you already have and which are missing. Matching is done by the real file checksum (CRC32) of your collection — independent of the RetroAchievements hash.',
+  'dat.import': 'Import DAT', 'dat.importHint': 'Pick one or more .dat/.xml files. Both logiqx XML and ClrMamePro are supported.',
+  'dat.importing': 'Importing…', 'dat.importDone': '{n} DAT(s) imported · {games} games', 'dat.importErr': 'Import failed',
+  'dat.crcTitle': 'Collection checksums',
+  'dat.crcNote': 'Matching needs a CRC32 for every collection file. ZIP contents are read straight from the archive (fast); loose files are read once. 7z/RAR contents are skipped in this pass.',
+  'dat.crcStatus': '{have} of {total} collection files have a CRC.', 'dat.crcProgress': '{done} / {total} processed',
+  'dat.crcDone': 'Done — {computed} computed, {skipped} skipped.', 'dat.crcRun': 'Compute CRC', 'dat.crcRunning': 'Computing…', 'dat.crcAll': 'All files have a CRC.',
+  'dat.empty': 'No DAT imported yet. Pick a .dat/.xml file above.', 'dat.games': '{n} games',
+  'dat.details': 'Details', 'dat.delete': 'Delete', 'dat.deleteConfirm': 'Delete “{name}” and all its entries?',
+  'dat.cov.have': '{have} / {total} present', 'dat.cov.missing': '{n} missing', 'dat.cov.searchMissing': 'Search missing…',
+  'dat.cov.export': 'Export missing', 'dat.cov.noMissing': 'Nothing missing — complete!',
+  'dat.cov.crcWarn': 'Your collection has no CRC values yet. Run “Compute CRC” first, otherwise everything counts as missing.',
   'nav.single': 'Single check',
   'nav.profile': 'Your profile (Mastery · Collection · Insights)',
   'nav.settings': 'Settings',
@@ -737,6 +784,15 @@ const EN: Dict = {
   'set.storageItems': '{n} files', 'set.storageTempDesc': 'Temp = leftovers from drag&drop tests, archive extraction and large-file copies. Safe to clear (not during a scan).',
   'set.storageClearTemp': 'Clear temp', 'set.storageCleared': '{n} removed · {size} freed', 'set.storageTempEmpty': 'Temp is empty.',
   'set.tempUpload': 'Drag&drop test', 'set.tempBigcopy': 'Large-file copy', 'set.tempBackup': 'Backup download', 'set.tempExtract': 'Archive extraction', 'set.tempOther': 'Other',
+  'set.reset.title': 'Delete / reset', 'set.reset.desc': 'Permanent — please be careful. When in doubt, make a backup (above) first.',
+  'set.reset.action': 'Delete',
+  'set.reset.images': 'Clear image cache', 'set.reset.imagesHint': 'All locally stored badges/box art. Re-downloaded automatically when needed.',
+  'set.reset.imagesConfirm': 'Clear the entire image cache? Images are re-downloaded when needed.', 'set.reset.imagesDone': '{n} entries removed · {size} freed',
+  'set.reset.collection': 'Delete collection & scan history', 'set.reset.collectionHint': 'All scanned files, scan history, file-hash cache and playtime sessions. Hash DB and login are kept.',
+  'set.reset.collectionConfirm': 'Really delete the collection, scan history and file cache? The hash DB and login are kept.', 'set.reset.collectionDone': 'Collection & history deleted.',
+  'set.reset.hashdb': 'Delete hash database', 'set.reset.hashdbHint': 'The synced RA games & hashes. Forces a fresh sync. Login is kept.',
+  'set.reset.hashdbConfirm': 'Delete the synced hash database? A fresh sync will be required afterwards (login is kept).', 'set.reset.hashdbDone': 'Hash database deleted — please re-sync.',
+  'update.available': 'Update available', 'update.downloading': 'Downloading update… {p}%', 'update.restart': 'Restart & install',
   'set.advanced': 'ADVANCED', 'set.advancedDesc': 'Fine-tuning — the defaults work for most.',
   'set.rateLimit': 'RA API rate limit', 'set.rateLimitDesc': 'Minimum spacing between RA requests. Higher = gentler on RetroAchievements, slower sync.',
   'set.rateInterval': 'Min interval (ms)', 'set.rateRetries': 'Retries',
@@ -869,7 +925,7 @@ const EN: Dict = {
   'off.sub': 'Everything local in one archive: hash DB, game details, images. For a second machine or as a full backup.',
   'off.ready': 'Fully offline-capable', 'off.notReady': 'Not fully offline-capable yet',
   'off.check.hashdb': 'Hash database loaded', 'off.check.sync': 'All systems up to date',
-  'off.check.details': 'Game details cached ({v}/{need})', 'off.check.images': 'Images cached ({v})',
+  'off.check.details': 'Game details cached: {v} (need ≥ {need})', 'off.check.images': 'Images cached ({v})',
   'off.check.rahasher': 'RAHasher installed', 'off.check.profile': 'Profile cached',
   'off.check.completion': 'Progress cached',
   'off.export': 'Export package', 'off.exportTip': 'Download DB + image cache as .7z',

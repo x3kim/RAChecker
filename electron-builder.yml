@@ -11,6 +11,13 @@ directories:
   output: release
   buildResources: build
 
+# Update feed for electron-updater. Generates latest.yml alongside the exe; the
+# app checks this repo's GitHub releases and auto-downloads newer versions.
+publish:
+  provider: github
+  owner: x3kim
+  repo: RAChecker
+
 files:
   - electron/**/*
   - server/src/**/*
@@ -34,6 +41,9 @@ nsis:
   allowToChangeInstallationDirectory: true
   deleteAppDataOnUninstall: false
   license: LICENSE
+  # Space-free name so the on-disk file, latest.yml url and the uploaded GitHub
+  # asset all match — otherwise electron-updater 404s on the download.
+  artifactName: "RAChecker-Setup-${version}.exe"
 
 portable:
   artifactName: "RAChecker-${version}-portable.exe"

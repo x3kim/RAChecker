@@ -6,9 +6,11 @@ node_modules/
 web/dist/
 *.tsbuildinfo
 
-# Runtime data (DB, cached images, temp extraction) — never commit
-data/
-!data/.gitkeep
+# Runtime data (DB, cached images, temp extraction) — never commit.
+# Root-anchored so it does NOT also swallow server/src/data/ (bundled source
+# tables: free-games, cores, frontends).
+/data/
+!/data/.gitkeep
 
 # Local config with secrets
 server/config.local.json

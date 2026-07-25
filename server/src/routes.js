@@ -10,7 +10,8 @@ import { config, ROOT } from './config.js';
 import {
   getConsoles, getSyncState, getScan, listScans, getScanItems,
   createScan, finishScan, totalHashCount, totalGameCount, getSetting, setSetting,
-  getLibrary, libraryStats, clearLibrary, getGamesByConsole, countGamesByConsole,
+  getLibrary, libraryStats, clearLibrary, resetCollection, resetHashDb, getGamesByConsole, countGamesByConsole,
+  insertDat, listDats, deleteDat, datCoverage, datCrcStatus, getLibraryRowsWithoutCrc, setLibraryCrc,
   searchGames, getDuplicates, getDuplicateFiles, libraryInsights, suggestPlayable,
   getPlayableGames,
   getApiCache, setApiCache, clearApiCache, getCacheTtls, setCacheTtls,
@@ -42,6 +43,8 @@ import { setScheduleConfig, scheduleStatus } from './scheduler.js';
 import { acquireScanLock, releaseScanLock, scanLockHolder } from './scan-lock.js';
 import { CONSOLE_BY_ID } from './consoles.js';
 import { statSync, readdirSync, readFileSync } from 'node:fs';
+import { parseDat, guessConsole, crc32File, crc32ZipEntry } from './dat.js';
+import { extname as extnameFn } from 'node:path';
 
 // Single version source = root package.json (web/src/lib/version.ts mirrors it).
 const APP_VERSION = (() => {
@@ -273,6 +276,55 @@ export async function registerRoutes(app) {
   // ---- status / meta ------------------------------------------------------
   app.get('/api/health', async () => ({ ok: true, version: APP_VERSION }));
 
+  // ---- update check (GitHub latest release) -------------------------------
+  // Powers the footer "update available" chip. The Electron shell does the real
+  // download/install via electron-updater; the web/.bat build just links out.
+  let updateCache = null;
+  // Compare version cores (major.minor.patch); on a tie a build WITHOUT a
+  // prerelease tag is newer than the same core WITH one (1.0.0 > 1.0.0-rc.1).
+  // Build metadata (+…) is ignored. Good enough for GitHub release tags without
+  // pulling in a full semver dependency.
+  const semverGt = (a, b) => {
+    const parse = (v) => {
+      const [core, pre = ''] = String(v).replace(/^v/i, '').split('+')[0].split('-');
+      return { nums: core.split('.').map((n) => parseInt(n, 10) || 0), pre };
+    };
+    const A = parse(a); const B = parse(b);
+    for (let i = 0; i < 3; i++) { const d = (A.nums[i] || 0) - (B.nums[i] || 0); if (d) return d > 0; }
+    if (A.pre === B.pre) return false;
+    if (!A.pre) return true;    // a = release, b = prerelease of the same core
+    if (!B.pre) return false;   // b = release → a (prerelease) is not newer
+    return A.pre > B.pre;       // both prereleases → lexical fallback
+  };
+  const pickInstaller = (assets) => {
+    if (!Array.isArray(assets)) return null;
+    const exes = assets.filter((a) => /\.exe$/i.test(a.name));
+    const setup = exes.find((a) => /setup/i.test(a.name)) || exes[0];
+    return setup ? { name: setup.name, url: setup.browser_download_url, size: setup.size } : null;
+  };
+  app.get('/api/update/check', async (req) => {
+    const fresh = req.query.fresh === '1';
+    if (!fresh && updateCache && Date.now() - updateCache.at < 60 * 60 * 1000) return updateCache.value;
+    try {
+      const res = await fetch('https://api.github.com/repos/x3kim/RAChecker/releases/latest', {
+        headers: { accept: 'application/vnd.github+json', 'user-agent': 'RAChecker' },
+        signal: AbortSignal.timeout(6000),
+      });
+      if (!res.ok) throw new Error('GitHub HTTP ' + res.status);
+      const j = await res.json();
+      const latest = String(j.tag_name || '').replace(/^v/i, '');
+      const value = {
+        ok: true, current: APP_VERSION, latest,
+        newer: latest ? semverGt(latest, APP_VERSION) : false,
+        url: j.html_url, notes: String(j.body || '').slice(0, 4000), asset: pickInstaller(j.assets),
+      };
+      updateCache = { at: Date.now(), value };
+      return value;
+    } catch (e) {
+      return { ok: false, current: APP_VERSION, error: String(e.message) };
+    }
+  });
+
   app.get('/api/status', async () => {
     const consoles = getConsoles();
     const sync = getSyncState();
@@ -329,7 +381,7 @@ export async function registerRoutes(app) {
     raUsername: config.raUsername,
     cacheTtls: getCacheTtls(),
     scanFileTimeoutSec: Number(getSetting('scanFileTimeoutSec', 600)),
-    scanConcurrency: Math.max(1, Math.min(16, Number(getSetting('scanConcurrency', 4)) || 4)),
+    scanConcurrency: Math.max(1, Math.min(16, Number(getSetting('scanConcurrency', 1)) || 1)),
     enabledConsoles: getEnabledConsoles(),
     bigFileCopy: config.bigFileCopy,
     rateLimit: config.rateLimit,
@@ -346,7 +398,7 @@ export async function registerRoutes(app) {
       setSetting('scanFileTimeoutSec', Math.max(10, Number(body.scanFileTimeoutSec) || 600));
     }
     if (body.scanConcurrency != null) {
-      setSetting('scanConcurrency', Math.max(1, Math.min(16, Number(body.scanConcurrency) || 4)));
+      setSetting('scanConcurrency', Math.max(1, Math.min(16, Number(body.scanConcurrency) || 1)));
     }
     // "Systems I care about": array of console ids, or null/[] to mean "all".
     if ('enabledConsoles' in body) {
@@ -456,6 +508,43 @@ export async function registerRoutes(app) {
     }
     storageCache = null; // reflect freed space immediately
     return { ok: true, removed, freed };
+  });
+
+  // Delete the local image cache (badges/box art). Fully re-downloadable via a
+  // re-open or the badge pre-cache; does not touch the database.
+  app.post('/api/data/clear-images', async () => {
+    let entries;
+    try { entries = readdirSync(config.imageCacheDir, { withFileTypes: true }); }
+    catch { return { ok: true, removed: 0, freed: 0 }; }
+    let removed = 0; let freed = 0;
+    for (const e of entries) {
+      const full = join(config.imageCacheDir, e.name);
+      try {
+        const sz = e.isDirectory() ? dirSize(full) : statSync(full).size;
+        await rm(full, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+        removed++; freed += sz;
+      } catch { /* in use — skip */ }
+    }
+    storageCache = null;
+    return { ok: true, removed, freed };
+  });
+
+  // Wipe the collection + scan history + per-file hash cache (keeps the synced
+  // hash DB and the RA login). Refused mid-scan.
+  app.post('/api/data/reset-collection', async () => {
+    if (activeScan) return { ok: false, error: 'Während eines Scans nicht möglich.' };
+    const counts = resetCollection();
+    storageCache = null;
+    return { ok: true, counts };
+  });
+
+  // Wipe the synced RetroAchievements hash database (forces a fresh sync next
+  // time). Keeps the RA login and console metadata. Refused mid-scan.
+  app.post('/api/data/reset-hashdb', async () => {
+    if (activeScan) return { ok: false, error: 'Während eines Scans nicht möglich.' };
+    const counts = resetHashDb();
+    storageCache = null;
+    return { ok: true, counts };
   });
 
   // ---- database backups ---------------------------------------------------
@@ -598,7 +687,7 @@ export async function registerRoutes(app) {
       bigFileMaxBytes: bigFileMaxBytes(),
       emit: (ev, data) => send(ev, data),
     });
-    const concurrency = Number(req.query.concurrency) || Math.max(1, Math.min(16, Number(getSetting('scanConcurrency', 4)) || 4));
+    const concurrency = Number(req.query.concurrency) || Math.max(1, Math.min(16, Number(getSetting('scanConcurrency', 1)) || 1));
     scanner.run({ concurrency })
       .then((r) => finishScan(scanId, r.status, { totals: r.totals, bySystem: r.bySystem }, Date.now()))
       .catch((e) => { send('error', { message: String(e.message) }); finishScan(scanId, 'error', { error: String(e.message) }, Date.now()); })
@@ -922,6 +1011,79 @@ export async function registerRoutes(app) {
     } finally {
       await rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 120 }).catch(() => {});
     }
+  });
+
+  // ---- DAT completeness (No-Intro/Redump/logiqx catalogs) -----------------
+  // Import DAT files, then match them against the collection by raw CRC32 —
+  // "which of this curated set do I have / am I missing", RomVault-style.
+  app.post('/api/dat/import', async (req) => {
+    const imported = [];
+    const errors = [];
+    for await (const part of req.parts()) {
+      if (part.type !== 'file') continue;
+      const fname = basename(part.filename || 'dat.dat');
+      try {
+        const buf = await part.toBuffer();
+        const { header, entries } = parseDat(buf.toString('utf8'));
+        if (!entries.length) { errors.push({ file: fname, error: 'no ROM entries found' }); continue; }
+        const name = (header.name || header.description || fname).trim();
+        const consoleId = guessConsole(name) ?? guessConsole(header.description);
+        const r = insertDat({ name, description: header.description, version: header.version, console_id: consoleId, entries });
+        imported.push({ file: fname, name, console_id: consoleId, ...r });
+      } catch (e) {
+        errors.push({ file: fname, error: String(e.message).slice(0, 200) });
+      }
+    }
+    return { ok: errors.length === 0, imported, errors };
+  });
+
+  app.get('/api/dat/list', async () => {
+    const dats = listDats().map((d) => ({ ...d, console_name: d.console_id != null ? (CONSOLE_BY_ID.get(d.console_id)?.name || null) : null }));
+    return { dats, crc: datCrcStatus() };
+  });
+
+  app.get('/api/dat/crc-status', async () => datCrcStatus());
+
+  app.get('/api/dat/:id/coverage', async (req) => {
+    const cov = datCoverage(Number(req.params.id));
+    if (!cov) return { error: 'not found' };
+    return { ...cov, console_name: cov.dat.console_id != null ? (CONSOLE_BY_ID.get(cov.dat.console_id)?.name || null) : null };
+  });
+
+  app.delete('/api/dat/:id', async (req) => { deleteDat(Number(req.params.id)); return { ok: true }; });
+
+  // Compute raw CRC32 for collection files that don't have one yet (required
+  // before matching). ZIP members read their CRC from the central directory
+  // (cheap, no decompression); loose files stream. 7z/rar members are skipped
+  // in this pass. SSE progress.
+  app.get('/api/dat/scan-crc/stream', (req, reply) => {
+    const { send, close } = openSSE(req, reply);
+    let closed = false;
+    req.raw.on('close', () => { closed = true; });
+    (async () => {
+      const rows = getLibraryRowsWithoutCrc();
+      send('init', { total: rows.length });
+      let done = 0; let computed = 0; let skipped = 0;
+      for (const row of rows) {
+        if (closed) break;
+        const inner = row.inner_path || '';
+        const archExt = extnameFn(row.path).toLowerCase();
+        try {
+          let crc = null;
+          if (inner) {
+            if (archExt === '.zip') crc = await crc32ZipEntry(row.path, inner);
+            else skipped++; // 7z/rar members not covered in this pass
+          } else {
+            crc = await crc32File(row.path);
+          }
+          if (crc) { setLibraryCrc(row.path, inner, crc); computed++; }
+        } catch { skipped++; }
+        done++;
+        if ((done & 15) === 0 || done === rows.length) send('progress', { done, total: rows.length, computed, skipped });
+      }
+      send('done', { done, computed, skipped, ...datCrcStatus() });
+      close();
+    })().catch(() => { try { close(); } catch { /* already closed */ } });
   });
 
   // ---- duplicates (1G1R helper) -------------------------------------------

@@ -1,9 +1,12 @@
 // RAChecker desktop shell. Boots the Fastify server in-process (Electron's
 // Node has node:sqlite since v35) and opens the UI in a BrowserWindow.
-import { app, BrowserWindow, dialog, shell } from 'electron';
+import { app, BrowserWindow, dialog, shell, ipcMain } from 'electron';
+import electronUpdater from 'electron-updater';
 import { createServer } from 'node:net';
 import { join, dirname } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
+
+const { autoUpdater } = electronUpdater;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -85,7 +88,7 @@ async function boot() {
       autoHideMenuBar: true,
       title: 'RAChecker',
       icon: join(ROOT, 'build', 'icon.ico'),
-      webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+      webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: join(__dirname, 'preload.cjs') },
     });
     // External links (RetroAchievements, GitHub …) open in the real browser.
     win.webContents.setWindowOpenHandler(({ url: target }) => {
@@ -94,8 +97,38 @@ async function boot() {
     });
     win.on('closed', () => { win = null; });
     await win.loadURL(url);
+    if (app.isPackaged) setupAutoUpdate();
   } catch (err) {
     dialog.showErrorBox('RAChecker konnte nicht starten', String(err?.stack || err));
     app.quit();
   }
 }
+
+// ---- auto-update (electron-updater, GitHub releases feed) -----------------
+// Full-auto flow: on launch we check GitHub; if a newer release exists it is
+// downloaded in the background, then the UI offers a one-click "restart &
+// install". The publish feed + latest.yml come from electron-builder.yml.
+function pushStatus(data) { try { win?.webContents.send('update:status', data); } catch { /* window gone */ } }
+
+function setupAutoUpdate() {
+  autoUpdater.autoDownload = true;             // download as soon as an update is found
+  autoUpdater.autoInstallOnAppQuit = true;     // also install silently on a normal quit
+  autoUpdater.on('checking-for-update', () => pushStatus({ state: 'checking' }));
+  autoUpdater.on('update-available', (info) => pushStatus({ state: 'available', version: info?.version }));
+  autoUpdater.on('update-not-available', (info) => pushStatus({ state: 'none', version: info?.version }));
+  autoUpdater.on('error', (err) => pushStatus({ state: 'error', error: String(err?.message || err) }));
+  autoUpdater.on('download-progress', (p) => pushStatus({ state: 'downloading', percent: Math.round(p?.percent || 0) }));
+  autoUpdater.on('update-downloaded', (info) => pushStatus({ state: 'downloaded', version: info?.version }));
+  autoUpdater.checkForUpdates().catch((e) => pushStatus({ state: 'error', error: String(e?.message || e) }));
+}
+
+// The renderer (via preload) can trigger a manual check and the install/restart.
+ipcMain.handle('update:check', async () => {
+  try { await autoUpdater.checkForUpdates(); return { ok: true }; }
+  catch (e) { return { ok: false, error: String(e?.message || e) }; }
+});
+ipcMain.handle('update:install', () => {
+  // Defer so the IPC reply is sent before the app tears down to install.
+  setImmediate(() => { try { autoUpdater.quitAndInstall(); } catch { /* ignore */ } });
+  return { ok: true };
+});

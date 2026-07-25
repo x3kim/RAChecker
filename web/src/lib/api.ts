@@ -245,6 +245,20 @@ export interface OfflineReadiness {
   images: number; imageBytes: number; lastFullSyncAt: number | null;
 }
 
+// ---- DAT completeness ----
+export interface DatFile {
+  id: number; name: string; description?: string | null; version?: string | null;
+  console_id: number | null; console_name?: string | null; game_count: number;
+  imported_at: number; total: number; have: number;
+}
+export interface CrcStatus { total: number; withCrc: number; without: number; }
+export interface DatMissing { game: string | null; rom: string | null; crc: string | null; size: number | null; }
+export interface DatCoverage {
+  dat: { id: number; name: string; description?: string | null; version?: string | null; console_id: number | null; game_count: number };
+  console_name?: string | null; total: number; have: number; missing: DatMissing[]; missingTotal: number; collectionCrcCount: number;
+  error?: string;
+}
+
 async function j<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
@@ -265,6 +279,19 @@ export const api = {
     }),
   storage: () => j<StorageInfo>('/api/storage'),
   clearTemp: () => j<{ ok: boolean; removed: number; freed: number; error?: string }>('/api/storage/clear-temp', { method: 'POST' }),
+  clearImages: () => j<{ ok: boolean; removed: number; freed: number }>('/api/data/clear-images', { method: 'POST' }),
+  resetCollection: () => j<{ ok: boolean; counts?: Record<string, number>; error?: string }>('/api/data/reset-collection', { method: 'POST' }),
+  resetHashDb: () => j<{ ok: boolean; counts?: Record<string, number>; error?: string }>('/api/data/reset-hashdb', { method: 'POST' }),
+  checkUpdate: () => j<{ ok: boolean; current: string; latest?: string; newer?: boolean; url?: string; notes?: string; asset?: { name: string; url: string; size: number }; error?: string }>('/api/update/check'),
+  datList: () => j<{ dats: DatFile[]; crc: CrcStatus }>('/api/dat/list'),
+  datCrcStatus: () => j<CrcStatus>('/api/dat/crc-status'),
+  datCoverage: (id: number) => j<DatCoverage>(`/api/dat/${id}/coverage`),
+  datDelete: (id: number) => j<{ ok: boolean }>(`/api/dat/${id}`, { method: 'DELETE' }),
+  datImport: (files: File[]) => {
+    const fd = new FormData();
+    for (const f of files) fd.append('files', f);
+    return j<{ ok: boolean; imported: Array<{ file: string; name: string; entries: number; games: number; console_id: number | null }>; errors: Array<{ file: string; error: string }> }>('/api/dat/import', { method: 'POST', body: fd });
+  },
   libraryForGame: (id: number) => j<OwnedFiles>(`/api/library/for-game/${id}`),
   watchConfig: (cfg: { enabled?: boolean; mode?: 'interval' | 'events'; intervalMin?: number; path?: string }) =>
     j<WatchStatus>('/api/watch/config', {

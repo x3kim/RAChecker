@@ -127,7 +127,7 @@ export function Settings({ status, refresh, onAuthChange, theme, changeTheme }: 
   const [systemsSaved, setSystemsSaved] = useState(false);
   const [bigFileSaved, setBigFileSaved] = useState(false);
   const [advancedSaved, setAdvancedSaved] = useState(false);
-  const [scanConcurrency, setScanConcurrency] = useState(4);
+  const [scanConcurrency, setScanConcurrency] = useState(1);
   const [concSaved, setConcSaved] = useState(false);
   const [schedule, setSchedule] = useState<ScheduleStatus | null>(null);
   useEffect(() => { api.schedule().then(setSchedule).catch(() => {}); }, []);
@@ -137,7 +137,7 @@ export function Settings({ status, refresh, onAuthChange, theme, changeTheme }: 
 
   const loadSettings = () => api.settings().then((s) => {
     setTtls(s.cacheTtls); setScanTimeout(s.scanFileTimeoutSec);
-    setScanConcurrency(s.scanConcurrency ?? 4);
+    setScanConcurrency(s.scanConcurrency ?? 1);
     setEnabledConsoles(s.enabledConsoles);
     setBigFile(s.bigFileCopy ?? { enabled: false, thresholdMB: 1024, maxThresholdMB: 8192 });
     setRateLimit(s.rateLimit ?? { minIntervalMs: 0, maxRetries: 0 });
@@ -229,6 +229,37 @@ export function Settings({ status, refresh, onAuthChange, theme, changeTheme }: 
     finally { setTempBusy(false); setTimeout(() => setTempMsg(''), 4000); }
   };
   const tempKindLabel = (k: string) => t(({ upload: 'set.tempUpload', bigcopy: 'set.tempBigcopy', backup: 'set.tempBackup', extract: 'set.tempExtract' } as Record<string, string>)[k] || 'set.tempOther');
+
+  // ---- destructive resets (images / collection / hash DB) ----
+  const [resetBusy, setResetBusy] = useState('');
+  const [resetMsg, setResetMsg] = useState('');
+  const clearImages = async () => {
+    if (!window.confirm(t('set.reset.imagesConfirm'))) return;
+    setResetBusy('images'); setResetMsg('…');
+    try { const r = await api.clearImages(); setResetMsg(t('set.reset.imagesDone', { n: r.removed, size: fmtBytes(r.freed) })); await loadStorage(); }
+    catch { setResetMsg(t('common.error')); }
+    finally { setResetBusy(''); setTimeout(() => setResetMsg(''), 5000); }
+  };
+  const resetCollection = async () => {
+    if (!window.confirm(t('set.reset.collectionConfirm'))) return;
+    setResetBusy('collection'); setResetMsg('…');
+    try {
+      const r = await api.resetCollection();
+      setResetMsg(r.ok ? t('set.reset.collectionDone') : (r.error || t('common.error')));
+      await loadStorage(); refresh();
+    } catch { setResetMsg(t('common.error')); }
+    finally { setResetBusy(''); setTimeout(() => setResetMsg(''), 6000); }
+  };
+  const resetHashDb = async () => {
+    if (!window.confirm(t('set.reset.hashdbConfirm'))) return;
+    setResetBusy('hashdb'); setResetMsg('…');
+    try {
+      const r = await api.resetHashDb();
+      setResetMsg(r.ok ? t('set.reset.hashdbDone') : (r.error || t('common.error')));
+      await loadStorage(); refresh();
+    } catch { setResetMsg(t('common.error')); }
+    finally { setResetBusy(''); setTimeout(() => setResetMsg(''), 6000); }
+  };
 
   // ---- folder watch config (#1) ----
   const w = status?.watch;
@@ -746,6 +777,30 @@ export function Settings({ status, refresh, onAuthChange, theme, changeTheme }: 
           {!tempMsg && storage && !storage.temp && <span className="font-mono text-base text-ink-dim">{t('set.storageTempEmpty')}</span>}
         </div>
         {storage?.dataDir && <div className="font-mono text-sm text-ink-dim mt-2 break-all">{storage.dataDir}</div>}
+      </section>
+
+      {/* Danger zone — destructive resets (delete images / collection / hash DB) */}
+      <section className="panel p-5">
+        <h2 className="font-display text-sm flex items-center gap-2" style={{ color: 'var(--color-neon-red)' }}><AlertTriangle size={16} /> {t('set.reset.title')}</h2>
+        <p className="font-body text-ink-mid mt-2 text-sm leading-relaxed">{t('set.reset.desc')}</p>
+        <div className="mt-3 flex flex-col gap-2">
+          {[
+            { id: 'images', label: t('set.reset.images'), hint: t('set.reset.imagesHint'), on: clearImages },
+            { id: 'collection', label: t('set.reset.collection'), hint: t('set.reset.collectionHint'), on: resetCollection },
+            { id: 'hashdb', label: t('set.reset.hashdb'), hint: t('set.reset.hashdbHint'), on: resetHashDb },
+          ].map((r) => (
+            <div key={r.id} className="flex items-center gap-3 panel !rounded-lg px-3 py-2 flex-wrap">
+              <div className="min-w-0 flex-1">
+                <div className="font-body text-sm text-ink-hi">{r.label}</div>
+                <div className="font-body text-sm text-ink-dim">{r.hint}</div>
+              </div>
+              <button className="btn btn-danger !py-1.5 !px-3 text-sm shrink-0" onClick={r.on} disabled={!!resetBusy}>
+                <Trash2 size={14} className={resetBusy === r.id ? 'animate-pulse' : ''} /> {t('set.reset.action')}
+              </button>
+            </div>
+          ))}
+        </div>
+        {resetMsg && <div className="font-mono text-base mt-3 text-ink-hi">{resetMsg}</div>}
       </section>
 
       {/* Backups */}
