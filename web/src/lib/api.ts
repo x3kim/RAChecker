@@ -32,7 +32,7 @@ export interface TempItem { name: string; size: number; mtime: number; dir: bool
 export interface RateLimit { minIntervalMs: number; maxRetries: number; backoffBaseMs?: number; }
 export interface Settings {
   romRoot: string; hashCacheTtlDays: number; raUsername: string;
-  cacheTtls: CacheTtls; scanFileTimeoutSec: number; scanConcurrency: number;
+  cacheTtls: CacheTtls; scanFileTimeoutSec: number; scanConcurrency: number; skipCollected: boolean;
   enabledConsoles: number[] | null; bigFileCopy: BigFileCopy;
   rateLimit: RateLimit; rahasherPath: string; downloadDir: string;
 }
@@ -252,7 +252,9 @@ export interface DatFile {
   imported_at: number; total: number; have: number;
 }
 export interface CrcStatus { total: number; withCrc: number; without: number; }
-export interface DatMissing { game: string | null; rom: string | null; crc: string | null; size: number | null; }
+export interface DatMissing { game: string | null; rom: string | null; crc: string | null; sha1?: string | null; size: number | null; }
+export interface DatExtra { path: string; inner: string; size: number | null; crc: string | null; sha1: string | null; }
+export interface DatExtras { extras: DatExtra[]; total: number; datCount: number; }
 export interface DatCoverage {
   dat: { id: number; name: string; description?: string | null; version?: string | null; console_id: number | null; game_count: number };
   console_name?: string | null; total: number; have: number; missing: DatMissing[]; missingTotal: number; collectionCrcCount: number;
@@ -286,6 +288,7 @@ export const api = {
   datList: () => j<{ dats: DatFile[]; crc: CrcStatus }>('/api/dat/list'),
   datCrcStatus: () => j<CrcStatus>('/api/dat/crc-status'),
   datCoverage: (id: number) => j<DatCoverage>(`/api/dat/${id}/coverage`),
+  datExtras: () => j<DatExtras>('/api/dat/extras'),
   datDelete: (id: number) => j<{ ok: boolean }>(`/api/dat/${id}`, { method: 'DELETE' }),
   datImport: (files: File[]) => {
     const fd = new FormData();

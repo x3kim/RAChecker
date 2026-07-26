@@ -129,6 +129,7 @@ export function Settings({ status, refresh, onAuthChange, theme, changeTheme }: 
   const [advancedSaved, setAdvancedSaved] = useState(false);
   const [scanConcurrency, setScanConcurrency] = useState(1);
   const [concSaved, setConcSaved] = useState(false);
+  const [skipCollected, setSkipCollected] = useState(false);
   const [schedule, setSchedule] = useState<ScheduleStatus | null>(null);
   useEffect(() => { api.schedule().then(setSchedule).catch(() => {}); }, []);
   const saveSchedule = async (patch: { enabled?: boolean; time?: string }) => {
@@ -138,6 +139,7 @@ export function Settings({ status, refresh, onAuthChange, theme, changeTheme }: 
   const loadSettings = () => api.settings().then((s) => {
     setTtls(s.cacheTtls); setScanTimeout(s.scanFileTimeoutSec);
     setScanConcurrency(s.scanConcurrency ?? 1);
+    setSkipCollected(!!s.skipCollected);
     setEnabledConsoles(s.enabledConsoles);
     setBigFile(s.bigFileCopy ?? { enabled: false, thresholdMB: 1024, maxThresholdMB: 8192 });
     setRateLimit(s.rateLimit ?? { minIntervalMs: 0, maxRetries: 0 });
@@ -148,6 +150,11 @@ export function Settings({ status, refresh, onAuthChange, theme, changeTheme }: 
     const r = await api.saveServerSettings({ scanConcurrency });
     setScanConcurrency(r.scanConcurrency ?? scanConcurrency);
     setConcSaved(true); setTimeout(() => setConcSaved(false), 1800);
+  };
+  const toggleSkip = async () => {
+    const next = !skipCollected;
+    setSkipCollected(next);
+    try { await api.saveServerSettings({ skipCollected: next }); } catch { setSkipCollected(!next); }
   };
   useEffect(() => { loadSettings(); }, []);
 
@@ -657,6 +664,17 @@ export function Settings({ status, refresh, onAuthChange, theme, changeTheme }: 
           <input type="number" min={1} max={16} className="input !py-1.5 !px-2 w-24" value={scanConcurrency}
             onChange={(e) => setScanConcurrency(Math.max(1, Math.min(16, Number(e.target.value) || 1)))} />
           <button className="btn btn-primary" onClick={saveConc}><Save size={16} /> {concSaved ? t('set.saved') : t('set.save')}</button>
+        </div>
+
+        <div className="mt-5 pt-4 border-t border-crt-line">
+          <div className="flex items-center gap-3 flex-wrap">
+            <button onClick={toggleSkip} className="btn !py-1.5 !px-3 text-sm"
+              style={skipCollected ? { borderColor: 'var(--color-neon-green)', boxShadow: 'var(--shadow-glow-green)' } : {}}>
+              {skipCollected ? t('set.watchOn') : t('set.watchOff')}
+            </button>
+            <span className="font-body text-sm text-ink-hi">{t('set.skipCollected')}</span>
+          </div>
+          <p className="font-body text-ink-dim text-sm mt-2 leading-relaxed max-w-2xl">{t('set.skipCollectedDesc')}</p>
         </div>
       </section>
 

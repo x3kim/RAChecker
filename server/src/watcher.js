@@ -21,6 +21,7 @@ export function scannerOpts() {
     bigFileCopyBytes: bf.enabled ? Math.max(0, Number(bf.thresholdMB) || 0) * 1024 * 1024 : 0,
     bigFileMaxBytes: Math.max(0, Number(bf.maxThresholdMB) || 0) * 1024 * 1024,
     fileTimeoutMs: Math.max(10, Number(getSetting('scanFileTimeoutSec', 600))) * 1000,
+    skipCollected: !!getSetting('skipCollected', false),
   };
 }
 

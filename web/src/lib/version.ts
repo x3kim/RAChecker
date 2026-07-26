@@ -1,6 +1,6 @@
 // Single source of truth for the app version + changelog. The footer version
 // chip opens a modal rendering CHANGELOG; package.json is kept in sync manually.
-export const APP_VERSION = '0.10.0';
+export const APP_VERSION = '0.11.0';
 
 // GitHub repository — linked from the header (GitHub icon in the "More" menu).
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
@@ -12,6 +12,19 @@ export interface Release { version: string; date: string; title?: { de: string; 
 
 // Newest first. Dates are ISO (YYYY-MM-DD).
 export const CHANGELOG: Release[] = [
+  {
+    version: '0.11.0',
+    date: '2026-07-26',
+    title: { de: 'DAT-Abgleich v2, Portable-Update & „Neues überspringen"', en: 'DAT check v2, portable update & skip-collected' },
+    changes: [
+      { type: 'feature', de: 'DAT-Abgleich unterstützt jetzt 7z- und RAR-Archive: die Prüfsumme (CRC32) wird direkt aus dem Archiv gelesen (kein Entpacken) — vorher galten Inhalte solcher Archive fälschlich als „fehlt".', en: 'DAT check now supports 7z and RAR archives: the checksum (CRC32) is read straight from the archive (no extraction) — previously such archive contents were wrongly counted as "missing".' },
+      { type: 'feature', de: 'DAT-Abgleich auch über md5/sha1: DATs, die nur sha1 tragen (Redump-CHD, MAME-Disk), werden jetzt korrekt gematcht (lose Dateien werden dafür einmalig für crc+md5+sha1 gelesen). Zusätzlich Name+Größe als letzter Fallback.', en: 'DAT check also via md5/sha1: DATs that only carry sha1 (Redump CHD, MAME disk) now match correctly (loose files are read once for crc+md5+sha1). Plus name+size as a last-resort fallback.' },
+      { type: 'feature', de: 'Neue Ansicht „Extra / unbekannte Dumps": Sammlungs-Dateien, deren Hash in KEINER importierten DAT steckt (Bad Dumps, Hacks/Homebrew oder Systeme ohne DAT).', en: 'New "Extra / unknown dumps" view: collection files whose hash is in NO imported DAT (bad dumps, hacks/homebrew or systems without a DAT).' },
+      { type: 'improve', de: 'DAT-Parser gehärtet: ROM-Namen mit Klammern (z. B. „(USA)", „(World)") werden in ClrMamePro-DATs jetzt korrekt gelesen (vorher fielen solche Einträge raus); System-Erkennung aus No-Intro/Redump-Kopfzeilen deutlich treffsicherer; MAME-„machine"/„disk"-DATs unterstützt.', en: 'DAT parser hardened: ROM names with parentheses (e.g. "(USA)", "(World)") are now read correctly in ClrMamePro DATs (such entries used to be dropped); system detection from No-Intro/Redump headers is far more accurate; MAME "machine"/"disk" DATs supported.' },
+      { type: 'feature', de: 'Portable-Version: automatische Update-Prüfung. Da sich eine laufende portable .exe unter Windows nicht selbst ersetzen kann (technische Grenze, kein Installer), lädt sie die neue Version herunter und ersetzt sich per „Neustart & ersetzen" beim nächsten Start — oder du zeigst sie dir einfach im Ordner an. (Die Installer-Version aktualisiert weiterhin voll automatisch.)', en: 'Portable build: automatic update check. Since a running portable .exe can\'t replace itself on Windows (a technical limit, no installer), it downloads the new version and swaps it in on "restart & replace" at next launch — or you just reveal it in the folder. (The installer build still updates fully automatically.)' },
+      { type: 'feature', de: 'Neue Scan-Option „Bereits gesammelte Dateien überspringen" (Einstellungen → Scannen): unveränderte Dateien werden beim erneuten Scan gar nicht mehr durchlaufen oder angezeigt — der Scan zeigt nur noch wirklich neue/geänderte Dateien, unveränderte Archive werden nicht einmal geöffnet.', en: 'New scan option "Skip files already in the collection" (Settings → Scanning): unchanged files are no longer walked or shown on a re-scan — the scan surfaces only genuinely new/changed files, and unchanged archives aren\'t even opened.' },
+    ],
+  },
   {
     version: '0.10.0',
     date: '2026-07-25',

@@ -164,6 +164,10 @@ addColumn('games', 'title_norm TEXT');
 db.exec('CREATE INDEX IF NOT EXISTS idx_games_title_norm ON games(title_norm)');
 addColumn('library', 'message TEXT'); // persist scan error/skip reason for the collection view
 addColumn('library', 'crc TEXT');     // raw file CRC32 (lowercase hex) for DAT completeness matching
+// NOTE: library.md5 is the RetroAchievements hash (rcheevos), NOT the raw file
+// md5 — so the DAT raw-file hashes live in their own columns.
+addColumn('library', 'raw_md5 TEXT');  // raw file md5 — fallback match for DATs that carry no CRC
+addColumn('library', 'raw_sha1 TEXT'); // raw file sha1 — Redump CHD / MAME <disk> carry only this
 
 // ---- DAT completeness (No-Intro/Redump/logiqx catalogs) -------------------
 // Imported DAT files + their ROM entries. Matching is by raw-file CRC32 (what
@@ -191,7 +195,11 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_dat_entries_dat ON dat_entries(dat_id);
   CREATE INDEX IF NOT EXISTS idx_dat_entries_crc ON dat_entries(crc);
+  CREATE INDEX IF NOT EXISTS idx_dat_entries_md5 ON dat_entries(md5);
+  CREATE INDEX IF NOT EXISTS idx_dat_entries_sha1 ON dat_entries(sha1);
   CREATE INDEX IF NOT EXISTS idx_library_crc ON library(crc);
+  CREATE INDEX IF NOT EXISTS idx_library_raw_md5 ON library(raw_md5);
+  CREATE INDEX IF NOT EXISTS idx_library_raw_sha1 ON library(raw_sha1);
 `);
 
 // Normalize a title for accent/diacritic-insensitive search:
@@ -590,6 +598,17 @@ export function upsertLibraryItem(row) {
 const getLibraryItemStmt = db.prepare('SELECT * FROM library WHERE path = ? AND inner_path = ?');
 export function getLibraryItem(path, inner = '') { return getLibraryItemStmt.get(path, inner); }
 
+// Is this archive already fully scanned and unchanged? All its members share the
+// archive's mtime, so one persisted row at the same mtime means the container
+// hasn't changed since — used by the "skip already-collected files" scan option
+// to avoid re-listing untouched archives.
+const archiveUnchangedStmt = db.prepare(
+  "SELECT 1 FROM library WHERE path = ? AND mtime = ? AND status IN ('match','no_match','needs_rahasher','unsupported','ambiguous','error') LIMIT 1",
+);
+export function libraryArchiveUnchanged(path, mtime) {
+  return !!archiveUnchangedStmt.get(path, Math.round(mtime));
+}
+
 export function getLibrary({ status, console_id, q, limit = 1000, offset = 0 } = {}) {
   let sql = `
     SELECT l.*, g.title AS match_title, g.image_icon AS match_image,
@@ -675,19 +694,54 @@ export function insertDat({ name, description, version, console_id, entries }) {
   }
 }
 
-// One row per DAT with a live "have" count against the collection's CRC set.
+// Basename of a DAT rom_name (they occasionally carry a subfolder prefix).
+function romBase(name) {
+  if (!name) return '';
+  const s = String(name);
+  const i = Math.max(s.lastIndexOf('/'), s.lastIndexOf('\\'));
+  return (i >= 0 ? s.slice(i + 1) : s).toLowerCase();
+}
+
+// Snapshot the collection's hashes as membership sets. A DAT entry counts as
+// "have" if ANY of its hashes matches (crc primary, md5/sha1 fallback for DATs
+// that carry only those), and as a last resort by rom filename + exact size.
+export function libraryHashSets() {
+  const crc = new Set(), md5 = new Set(), sha1 = new Set(), nameSize = new Set();
+  const rows = db.prepare(
+    'SELECT path, inner_path, size, crc, raw_md5, raw_sha1 FROM library WHERE crc IS NOT NULL OR raw_md5 IS NOT NULL OR raw_sha1 IS NOT NULL',
+  ).all();
+  for (const r of rows) {
+    if (r.crc) crc.add(r.crc);
+    if (r.raw_md5) md5.add(r.raw_md5);
+    if (r.raw_sha1) sha1.add(r.raw_sha1);
+    if (r.size != null) nameSize.add(romBase(r.inner_path || r.path) + '|' + r.size);
+  }
+  return { crc, md5, sha1, nameSize };
+}
+
+export function entryMatches(e, sets) {
+  if (e.crc && sets.crc.has(e.crc)) return true;
+  if (e.md5 && sets.md5.has(e.md5)) return true;
+  if (e.sha1 && sets.sha1.has(e.sha1)) return true;
+  // Name+size fallback only for entries with no usable hash of their own.
+  if (!e.crc && !e.md5 && !e.sha1 && e.rom_name && e.size != null) {
+    return sets.nameSize.has(romBase(e.rom_name) + '|' + e.size);
+  }
+  return false;
+}
+
+// One row per DAT with a live "have" count against the collection (crc + md5 +
+// sha1 + name/size fallback).
 export function listDats() {
   const rows = db.prepare('SELECT id, name, description, version, console_id, game_count, imported_at FROM dat_files ORDER BY imported_at DESC').all();
-  const haveStmt = db.prepare(`
-    SELECT COUNT(*) AS n FROM dat_entries e
-    WHERE e.dat_id = ? AND e.crc IS NOT NULL
-      AND e.crc IN (SELECT crc FROM library WHERE crc IS NOT NULL)`);
-  const totalStmt = db.prepare('SELECT COUNT(*) AS n FROM dat_entries WHERE dat_id = ?');
-  return rows.map((r) => ({
-    ...r,
-    total: totalStmt.get(r.id).n,
-    have: haveStmt.get(r.id).n,
-  }));
+  const sets = libraryHashSets();
+  const entryStmt = db.prepare('SELECT rom_name, size, crc, md5, sha1 FROM dat_entries WHERE dat_id = ?');
+  return rows.map((r) => {
+    const entries = entryStmt.all(r.id);
+    let have = 0;
+    for (const e of entries) if (entryMatches(e, sets)) have++;
+    return { ...r, total: entries.length, have };
+  });
 }
 
 export function deleteDat(id) {
@@ -700,16 +754,36 @@ export function deleteDat(id) {
 export function datCoverage(id, { missingLimit = 5000 } = {}) {
   const dat = db.prepare('SELECT id, name, description, version, console_id, game_count FROM dat_files WHERE id = ?').get(id);
   if (!dat) return null;
-  const entries = db.prepare('SELECT game_name, rom_name, size, crc FROM dat_entries WHERE dat_id = ?').all(id);
-  const owned = new Set(db.prepare('SELECT DISTINCT crc FROM library WHERE crc IS NOT NULL').all().map((r) => r.crc));
+  const entries = db.prepare('SELECT game_name, rom_name, size, crc, md5, sha1 FROM dat_entries WHERE dat_id = ?').all(id);
+  const sets = libraryHashSets();
   let have = 0;
   const missing = [];
   for (const e of entries) {
-    const hit = e.crc && owned.has(e.crc);
-    if (hit) have++;
-    else if (missing.length < missingLimit) missing.push({ game: e.game_name, rom: e.rom_name, crc: e.crc, size: e.size });
+    if (entryMatches(e, sets)) have++;
+    else if (missing.length < missingLimit) missing.push({ game: e.game_name, rom: e.rom_name, crc: e.crc, sha1: e.sha1, size: e.size });
   }
-  return { dat, total: entries.length, have, missing, missingTotal: entries.length - have, collectionCrcCount: owned.size };
+  return { dat, total: entries.length, have, missing, missingTotal: entries.length - have, collectionCrcCount: sets.crc.size };
+}
+
+// "Extra / unknown" dumps: collection files whose hash is in NO imported DAT —
+// bad dumps, hacks, or systems you haven't imported a DAT for yet. Only files
+// that actually carry a hash (ran through the CRC pass) are considered.
+export function datExtras({ limit = 5000 } = {}) {
+  const datCrc = new Set(db.prepare('SELECT DISTINCT crc FROM dat_entries WHERE crc IS NOT NULL').all().map((r) => r.crc));
+  const datMd5 = new Set(db.prepare('SELECT DISTINCT md5 FROM dat_entries WHERE md5 IS NOT NULL').all().map((r) => r.md5));
+  const datSha1 = new Set(db.prepare('SELECT DISTINCT sha1 FROM dat_entries WHERE sha1 IS NOT NULL').all().map((r) => r.sha1));
+  const rows = db.prepare(
+    "SELECT path, inner_path, size, crc, raw_md5, raw_sha1 FROM library WHERE (crc IS NOT NULL OR raw_md5 IS NOT NULL OR raw_sha1 IS NOT NULL) AND status IN ('match','no_match') ORDER BY path",
+  ).all();
+  const extras = [];
+  let total = 0;
+  for (const r of rows) {
+    const known = (r.crc && datCrc.has(r.crc)) || (r.raw_md5 && datMd5.has(r.raw_md5)) || (r.raw_sha1 && datSha1.has(r.raw_sha1));
+    if (known) continue;
+    total++;
+    if (extras.length < limit) extras.push({ path: r.path, inner: r.inner_path || '', size: r.size, crc: r.crc, sha1: r.raw_sha1 });
+  }
+  return { extras, total, datCount: db.prepare('SELECT COUNT(*) AS n FROM dat_files').get().n };
 }
 
 // Progress of the raw-CRC pass over the collection (needed before matching).
@@ -722,10 +796,25 @@ export function datCrcStatus() {
 // Library rows still lacking a raw CRC (candidates for the CRC pass). Only rows
 // that represent a real ROM (match/no_match) — skip errors/skips/rahasher.
 export function getLibraryRowsWithoutCrc(limit = 100000) {
-  return db.prepare("SELECT path, inner_path, size, ext FROM library WHERE crc IS NULL AND status IN ('match','no_match') ORDER BY path LIMIT ?").all(limit);
+  // Loose files also need md5/sha1 for the fallback match, so pick them up when
+  // those are still missing even if a CRC was computed by an earlier pass.
+  return db.prepare(`SELECT path, inner_path, size, ext FROM library
+    WHERE status IN ('match','no_match')
+      AND (crc IS NULL OR ((inner_path IS NULL OR inner_path = '') AND (raw_md5 IS NULL OR raw_sha1 IS NULL)))
+    ORDER BY path LIMIT ?`).all(limit);
 }
 export function setLibraryCrc(path, inner, crc) {
   db.prepare('UPDATE library SET crc = ? WHERE path = ? AND inner_path = ?').run(crc, path, inner ?? '');
+}
+// Store whichever of crc/md5/sha1 were computed (loose files get all three;
+// archive members get crc only, read from the container directory). The raw
+// md5/sha1 go to raw_md5/raw_sha1 — library.md5 is the RA hash, not this.
+export function setLibraryHashes(path, inner, { crc = null, md5 = null, sha1 = null } = {}) {
+  db.prepare(`UPDATE library SET
+      crc      = COALESCE(?, crc),
+      raw_md5  = COALESCE(?, raw_md5),
+      raw_sha1 = COALESCE(?, raw_sha1)
+    WHERE path = ? AND inner_path = ?`).run(crc, md5, sha1, path, inner ?? '');
 }
 
 // Distinct on-disk file paths in the collection (one archive may back many

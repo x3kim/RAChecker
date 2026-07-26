@@ -3,8 +3,14 @@
 import { app, BrowserWindow, dialog, shell, ipcMain } from 'electron';
 import electronUpdater from 'electron-updater';
 import { createServer } from 'node:net';
+import { createWriteStream } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
+import { Readable } from 'node:stream';
 import { join, dirname } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
+
+const GH_REPO = 'x3kim/RAChecker';
 
 const { autoUpdater } = electronUpdater;
 
@@ -97,7 +103,9 @@ async function boot() {
     });
     win.on('closed', () => { win = null; });
     await win.loadURL(url);
-    if (app.isPackaged) setupAutoUpdate();
+    // Installer builds self-update via electron-updater (NSIS). The portable exe
+    // can't replace itself in place, so it gets a download-and-swap flow instead.
+    if (app.isPackaged) { if (isPortable()) setupPortableUpdate(); else setupAutoUpdate(); }
   } catch (err) {
     dialog.showErrorBox('RAChecker konnte nicht starten', String(err?.stack || err));
     app.quit();
@@ -124,6 +132,7 @@ function setupAutoUpdate() {
 
 // The renderer (via preload) can trigger a manual check and the install/restart.
 ipcMain.handle('update:check', async () => {
+  if (isPortable()) { try { await checkPortableUpdate(); return { ok: true }; } catch (e) { return { ok: false, error: String(e?.message || e) }; } }
   try { await autoUpdater.checkForUpdates(); return { ok: true }; }
   catch (e) { return { ok: false, error: String(e?.message || e) }; }
 });
@@ -131,4 +140,94 @@ ipcMain.handle('update:install', () => {
   // Defer so the IPC reply is sent before the app tears down to install.
   setImmediate(() => { try { autoUpdater.quitAndInstall(); } catch { /* ignore */ } });
   return { ok: true };
+});
+
+// ---- portable auto-update -------------------------------------------------
+// A running .exe on Windows is locked and a portable build has no install dir,
+// so electron-updater's silent replace is impossible. Instead: detect a newer
+// GitHub release, download its -portable.exe next to the current one, then
+// either reveal it or (best-effort) swap it in on quit via a tiny helper.
+function isPortable() { return app.isPackaged && !!process.env.PORTABLE_EXECUTABLE_FILE; }
+
+function semverGt(a, b) {
+  const pa = String(a).replace(/^v/, '').split('-')[0].split('.').map(Number);
+  const pb = String(b).replace(/^v/, '').split('-')[0].split('.').map(Number);
+  for (let i = 0; i < 3; i++) { const x = pa[i] || 0, y = pb[i] || 0; if (x !== y) return x > y; }
+  // Equal core: a build without a prerelease tag beats one with (1.0.0 > 1.0.0-rc).
+  const ta = String(a).includes('-'), tb = String(b).includes('-');
+  return !ta && tb;
+}
+
+let portableUpdate = null; // { version, asset:{name,url,size} }
+
+async function checkPortableUpdate() {
+  pushStatus({ state: 'checking', portable: true });
+  const res = await fetch(`https://api.github.com/repos/${GH_REPO}/releases/latest`, {
+    headers: { accept: 'application/vnd.github+json', 'user-agent': 'RAChecker' },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) throw new Error(`GitHub ${res.status}`);
+  const j = await res.json();
+  const latest = String(j.tag_name || j.name || '').replace(/^v/, '');
+  const asset = (j.assets || []).find((a) => /-portable\.exe$/i.test(a.name));
+  if (latest && asset && semverGt(latest, app.getVersion())) {
+    portableUpdate = { version: latest, asset: { name: asset.name, url: asset.browser_download_url, size: asset.size } };
+    pushStatus({ state: 'available', version: latest, portable: true });
+  } else {
+    portableUpdate = null;
+    pushStatus({ state: 'none', version: latest, portable: true });
+  }
+}
+
+function setupPortableUpdate() { checkPortableUpdate().catch((e) => pushStatus({ state: 'error', portable: true, error: String(e?.message || e) })); }
+
+// Download the new portable exe next to the current one (avoiding the locked
+// running file's own name). Returns the saved path.
+async function downloadPortable() {
+  if (!portableUpdate) throw new Error('no update');
+  const dir = process.env.PORTABLE_EXECUTABLE_DIR || dirname(process.env.PORTABLE_EXECUTABLE_FILE);
+  let target = join(dir, portableUpdate.asset.name);
+  if (target === process.env.PORTABLE_EXECUTABLE_FILE) target = join(dir, `new-${portableUpdate.asset.name}`);
+  const res = await fetch(portableUpdate.asset.url, { headers: { 'user-agent': 'RAChecker' } });
+  if (!res.ok || !res.body) throw new Error(`download ${res.status}`);
+  const total = Number(res.headers.get('content-length')) || portableUpdate.asset.size || 0;
+  let received = 0;
+  const ws = createWriteStream(target);
+  const reader = Readable.fromWeb(res.body);
+  reader.on('data', (c) => { received += c.length; pushStatus({ state: 'downloading', portable: true, percent: total ? Math.round((received / total) * 100) : 0 }); });
+  await new Promise((resolve, reject) => { reader.pipe(ws); ws.on('finish', resolve); ws.on('error', reject); reader.on('error', reject); });
+  return target;
+}
+
+let downloadedPortablePath = null;
+ipcMain.handle('update:downloadPortable', async () => {
+  try {
+    downloadedPortablePath = await downloadPortable();
+    pushStatus({ state: 'downloaded', portable: true, version: portableUpdate?.version });
+    return { ok: true, path: downloadedPortablePath };
+  } catch (e) { pushStatus({ state: 'error', portable: true, error: String(e?.message || e) }); return { ok: false, error: String(e?.message || e) }; }
+});
+ipcMain.handle('update:revealPortable', () => {
+  if (downloadedPortablePath) shell.showItemInFolder(downloadedPortablePath);
+  return { ok: true };
+});
+// Best-effort in-place swap: a detached helper waits for THIS process to exit
+// (its file unlocks), overwrites the running exe with the download, relaunches
+// it, and deletes itself. If anything fails the downloaded exe is still there.
+ipcMain.handle('update:swapPortable', async () => {
+  try {
+    if (!downloadedPortablePath) return { ok: false, error: 'not downloaded' };
+    const oldExe = process.env.PORTABLE_EXECUTABLE_FILE;
+    const helper = join(app.getPath('temp'), `rachecker-update-${process.pid}.cmd`);
+    const script = `@echo off\r\n`
+      + `:wait\r\n`
+      + `tasklist /FI "PID eq ${process.pid}" 2>nul | find "${process.pid}" >nul && (timeout /t 1 /nobreak >nul & goto wait)\r\n`
+      + `move /Y "${downloadedPortablePath}" "${oldExe}" >nul\r\n`
+      + `start "" "${oldExe}"\r\n`
+      + `del "%~f0"\r\n`;
+    await writeFile(helper, script, 'utf8');
+    spawn('cmd.exe', ['/c', helper], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+    setImmediate(() => app.quit());
+    return { ok: true };
+  } catch (e) { return { ok: false, error: String(e?.message || e) }; }
 });

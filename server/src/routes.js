@@ -11,7 +11,7 @@ import {
   getConsoles, getSyncState, getScan, listScans, getScanItems,
   createScan, finishScan, totalHashCount, totalGameCount, getSetting, setSetting,
   getLibrary, libraryStats, clearLibrary, resetCollection, resetHashDb, getGamesByConsole, countGamesByConsole,
-  insertDat, listDats, deleteDat, datCoverage, datCrcStatus, getLibraryRowsWithoutCrc, setLibraryCrc,
+  insertDat, listDats, deleteDat, datCoverage, datCrcStatus, datExtras, getLibraryRowsWithoutCrc, setLibraryHashes,
   searchGames, getDuplicates, getDuplicateFiles, libraryInsights, suggestPlayable,
   getPlayableGames,
   getApiCache, setApiCache, clearApiCache, getCacheTtls, setCacheTtls,
@@ -43,7 +43,8 @@ import { setScheduleConfig, scheduleStatus } from './scheduler.js';
 import { acquireScanLock, releaseScanLock, scanLockHolder } from './scan-lock.js';
 import { CONSOLE_BY_ID } from './consoles.js';
 import { statSync, readdirSync, readFileSync } from 'node:fs';
-import { parseDat, guessConsole, crc32File, crc32ZipEntry } from './dat.js';
+import { parseDat, guessConsole, hashFileAll } from './dat.js';
+import { listEntriesWithCrc } from './hashing/archive.js';
 import { extname as extnameFn } from 'node:path';
 
 // Single version source = root package.json (web/src/lib/version.ts mirrors it).
@@ -382,6 +383,7 @@ export async function registerRoutes(app) {
     cacheTtls: getCacheTtls(),
     scanFileTimeoutSec: Number(getSetting('scanFileTimeoutSec', 600)),
     scanConcurrency: Math.max(1, Math.min(16, Number(getSetting('scanConcurrency', 1)) || 1)),
+    skipCollected: !!getSetting('skipCollected', false),
     enabledConsoles: getEnabledConsoles(),
     bigFileCopy: config.bigFileCopy,
     rateLimit: config.rateLimit,
@@ -400,6 +402,7 @@ export async function registerRoutes(app) {
     if (body.scanConcurrency != null) {
       setSetting('scanConcurrency', Math.max(1, Math.min(16, Number(body.scanConcurrency) || 1)));
     }
+    if (body.skipCollected != null) setSetting('skipCollected', !!body.skipCollected);
     // "Systems I care about": array of console ids, or null/[] to mean "all".
     if ('enabledConsoles' in body) {
       const ids = Array.isArray(body.enabledConsoles)
@@ -685,6 +688,7 @@ export async function registerRoutes(app) {
       enabledConsoles: onlyConsole ? null : getEnabledConsoles(),
       bigFileCopyBytes: bigFileCopyBytes(),
       bigFileMaxBytes: bigFileMaxBytes(),
+      skipCollected: !!getSetting('skipCollected', false),
       emit: (ev, data) => send(ev, data),
     });
     const concurrency = Number(req.query.concurrency) || Math.max(1, Math.min(16, Number(getSetting('scanConcurrency', 1)) || 1));
@@ -1052,10 +1056,13 @@ export async function registerRoutes(app) {
 
   app.delete('/api/dat/:id', async (req) => { deleteDat(Number(req.params.id)); return { ok: true }; });
 
-  // Compute raw CRC32 for collection files that don't have one yet (required
-  // before matching). ZIP members read their CRC from the central directory
-  // (cheap, no decompression); loose files stream. 7z/rar members are skipped
-  // in this pass. SSE progress.
+  // Compute hashes for collection files that don't have them yet (required
+  // before DAT matching). Loose files stream once for crc+md5+sha1; archive
+  // members (.zip/.7z/.rar) read their CRC straight from the container's
+  // directory/headers — no decompression. Rows are ordered by path, so each
+  // archive is listed once and its members filled from that single listing.
+  // SSE progress.
+  const normEntry = (s) => String(s || '').replace(/\\/g, '/');
   app.get('/api/dat/scan-crc/stream', (req, reply) => {
     const { send, close } = openSSE(req, reply);
     let closed = false;
@@ -1064,19 +1071,26 @@ export async function registerRoutes(app) {
       const rows = getLibraryRowsWithoutCrc();
       send('init', { total: rows.length });
       let done = 0; let computed = 0; let skipped = 0;
+      let archPath = null; let archMap = null; // cached listing for the current archive
       for (const row of rows) {
         if (closed) break;
         const inner = row.inner_path || '';
-        const archExt = extnameFn(row.path).toLowerCase();
         try {
-          let crc = null;
           if (inner) {
-            if (archExt === '.zip') crc = await crc32ZipEntry(row.path, inner);
-            else skipped++; // 7z/rar members not covered in this pass
+            if (archPath !== row.path) {
+              archPath = row.path;
+              try {
+                const list = await listEntriesWithCrc(row.path);
+                archMap = new Map(list.map((e) => [normEntry(e.name), e.crc]));
+              } catch { archMap = new Map(); }
+            }
+            const crc = archMap.get(normEntry(inner)) || null;
+            if (crc) { setLibraryHashes(row.path, inner, { crc }); computed++; }
+            else skipped++;
           } else {
-            crc = await crc32File(row.path);
+            const h = await hashFileAll(row.path);
+            setLibraryHashes(row.path, '', h); computed++;
           }
-          if (crc) { setLibraryCrc(row.path, inner, crc); computed++; }
         } catch { skipped++; }
         done++;
         if ((done & 15) === 0 || done === rows.length) send('progress', { done, total: rows.length, computed, skipped });
@@ -1084,6 +1098,13 @@ export async function registerRoutes(app) {
       send('done', { done, computed, skipped, ...datCrcStatus() });
       close();
     })().catch(() => { try { close(); } catch { /* already closed */ } });
+  });
+
+  // Collection files whose hash is in no imported DAT (bad dumps / hacks /
+  // systems without a DAT). Powers the DAT view's "Extra / unknown" panel.
+  app.get('/api/dat/extras', async (req) => {
+    const limit = Math.min(20000, Math.max(1, Number(req.query.limit) || 5000));
+    return datExtras({ limit });
   });
 
   // ---- duplicates (1G1R helper) -------------------------------------------
