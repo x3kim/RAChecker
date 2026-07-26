@@ -1,81 +1,178 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
-import { colors, space, radius, textGlow } from '../theme';
+import { Image } from 'expo-image';
+import { Feather } from '@expo/vector-icons';
+import { colors, space, radius } from '../theme';
 import { Panel, Display, Mono, Body, SectionHeader, Btn } from '../ui';
-import { pickAndHash, HashResult } from '../hashFile';
+import { pickFiles, pickFolder, enumerateFolder, scanTargets, ScanRow } from '../scan';
+import { getFolder, setFolder } from '../storage';
+import { dbStats } from '../db';
+import { consoleName } from '../consoles';
+import { mediaUrl } from '../ra/api';
+
+type Phase = 'idle' | 'listing' | 'scanning';
 
 export function ScanScreen() {
-  const [result, setResult] = useState<HashResult | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [rows, setRows] = useState<ScanRow[]>([]);
+  const [phase, setPhase] = useState<Phase>('idle');
+  const [progress, setProgress] = useState<{ done: number; total: number; current: string } | null>(null);
+  const [folder, setFolderState] = useState<string | null>(null);
+  const [hashes, setHashes] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const autoRan = useRef(false);
 
-  const run = async () => {
-    setBusy(true);
+  const scan = useCallback(async (targets: { uri: string; name: string }[]) => {
+    if (!targets.length) return;
     setError(null);
+    setPhase('scanning');
+    setRows([]);
     try {
-      const r = await pickAndHash();
-      if (r) setResult(r);
+      const r = await scanTargets(targets, setProgress);
+      setRows(r);
     } catch (e: any) {
       setError(String(e?.message || e));
     } finally {
-      setBusy(false);
+      setPhase('idle');
+      setProgress(null);
     }
-  };
+  }, []);
+
+  const runFolder = useCallback(async (existing?: string) => {
+    setError(null);
+    let dir = existing ?? null;
+    if (!dir) dir = await pickFolder();
+    if (!dir) return;
+    await setFolder(dir);
+    setFolderState(dir);
+    setPhase('listing');
+    try {
+      const targets = await enumerateFolder(dir);
+      if (!targets.length) { setError('No ROMs found in that folder.'); setPhase('idle'); return; }
+      await scan(targets);
+    } catch (e: any) {
+      setError(String(e?.message || e));
+      setPhase('idle');
+    }
+  }, [scan]);
+
+  const runFiles = useCallback(async () => {
+    const targets = await pickFiles();
+    await scan(targets);
+  }, [scan]);
+
+  useEffect(() => {
+    (async () => {
+      setHashes((await dbStats()).hashes);
+      const f = await getFolder();
+      setFolderState(f);
+      if (f && !autoRan.current) { autoRan.current = true; runFolder(f); }
+    })();
+  }, [runFolder]);
+
+  const busy = phase !== 'idle';
+  const matched = rows.filter((r) => r.match).length;
+  const noMatch = rows.filter((r) => !r.match && !r.error).length;
+  const errors = rows.filter((r) => r.error).length;
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <View style={{ marginBottom: space.lg }}>
-        <Display size={17} color={colors.inkHi} style={{ lineHeight: 27 }}>Which ROMs earn achievements?</Display>
-        <Body size={14} color={colors.inkMid} style={{ marginTop: space.md }}>
-          Hash a ROM on your device — the exact same rules as the desktop app. Matching against RetroAchievements comes with the hash-DB sync (next update).
-        </Body>
-      </View>
-
       <Panel>
-        <SectionHeader title="ON-DEVICE SCAN" />
-        <Body size={13} color={colors.inkDim} style={{ marginBottom: space.md }}>
-          Pick a cartridge ROM (.nes, .sfc/.smc, .gb/.gbc/.gba, .n64/.z64, .md …). Disc systems need RAHasher and aren’t supported on mobile yet.
-        </Body>
-        <Btn label={busy ? 'Hashing…' : 'Pick a ROM'} variant="primary" onPress={run} disabled={busy} />
+        <SectionHeader title="SCAN" />
+        {hashes === 0 && (
+          <Body size={12} color={colors.amber} style={{ marginBottom: space.md }}>
+            No hashes yet — sync the hash DB first (Hash DB tab) so ROMs can match.
+          </Body>
+        )}
+        <View style={styles.actions}>
+          <Btn label="Pick ROMs" variant="primary" onPress={runFiles} disabled={busy} style={{ flex: 1 }} />
+          <Btn label="Scan folder" onPress={() => runFolder()} disabled={busy} style={{ flex: 1 }} />
+        </View>
+        {folder && (
+          <Body size={11} color={colors.inkDim} style={{ marginTop: space.sm }} numberOfLines={1}>
+            Folder set · scans on launch. Tap “Scan folder” to change.
+          </Body>
+        )}
 
-        {error && (
-          <View style={[styles.resultBox, { borderColor: colors.red }]}>
-            <Body size={13} color={colors.red}>{error}</Body>
+        {busy && (
+          <View style={{ marginTop: space.md }}>
+            <View style={styles.track}><View style={[styles.fill, { width: `${progress && progress.total ? Math.round((progress.done / progress.total) * 100) : 6}%` }]} /></View>
+            <Body size={12} color={colors.inkDim} style={{ marginTop: 6 }} numberOfLines={1}>
+              {phase === 'listing' ? 'Listing folder…' : progress ? `${progress.done}/${progress.total} · ${progress.current}` : 'Scanning…'}
+            </Body>
           </View>
         )}
 
-        {result && !error && (
-          <View style={styles.resultBox}>
-            <View style={styles.row}>
-              <Body size={12} color={colors.inkDim} weight="medium">FILE</Body>
-              <Body size={13} color={colors.inkHi} style={{ flex: 1, textAlign: 'right' }} numberOfLines={2}>{result.name}</Body>
-            </View>
-            <View style={styles.row}>
-              <Body size={12} color={colors.inkDim} weight="medium">RULE</Body>
-              <Mono size={17} color={colors.inkMid}>{result.rule ?? '(none)'}</Mono>
-            </View>
-            <View style={styles.hashRow}>
-              <Body size={12} color={colors.inkDim} weight="medium">RA HASH (MD5)</Body>
-              <Mono size={20} color={colors.green} style={[{ marginTop: 4 }, textGlow(colors.green, 8)]}>{result.md5}</Mono>
-            </View>
-          </View>
-        )}
+        {error && <Body size={13} color={colors.red} style={{ marginTop: space.md }}>{error}</Body>}
       </Panel>
+
+      {rows.length > 0 && (
+        <>
+          <View style={styles.summary}>
+            <Tag n={matched} label="with achievements" color={colors.green} />
+            <Tag n={noMatch} label="no match" color={colors.red} />
+            {errors > 0 && <Tag n={errors} label="errors" color={colors.amber} />}
+          </View>
+          <View style={{ gap: space.sm, marginTop: space.md }}>
+            {rows.slice(0, 400).map((r, i) => <Row key={i} row={r} />)}
+            {rows.length > 400 && <Body size={12} color={colors.inkDim} style={{ textAlign: 'center' }}>… and {rows.length - 400} more</Body>}
+          </View>
+        </>
+      )}
     </ScrollView>
+  );
+}
+
+function Tag({ n, label, color }: { n: number; label: string; color: string }) {
+  return (
+    <View style={[styles.tag, { borderColor: color }]}>
+      <Mono size={18} color={color}>{n}</Mono>
+      <Body size={11} color={colors.inkDim}>{label}</Body>
+    </View>
+  );
+}
+
+function Row({ row }: { row: ScanRow }) {
+  const accent = row.error ? colors.amber : row.match ? colors.green : colors.red;
+  const icon = mediaUrl(row.match?.image_icon);
+  return (
+    <View style={[styles.rowCard, { borderLeftColor: accent }]}>
+      {row.match && icon ? (
+        <Image source={{ uri: icon }} style={styles.icon} contentFit="cover" transition={150} />
+      ) : (
+        <View style={[styles.icon, styles.iconFallback]}>
+          <Feather name={row.error ? 'alert-triangle' : row.match ? 'award' : 'x'} size={18} color={accent} />
+        </View>
+      )}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Body size={13} color={colors.inkHi} weight="semibold" numberOfLines={1}>
+          {row.match ? row.match.title : row.name}
+        </Body>
+        {row.match ? (
+          <Body size={12} color={colors.inkMid} numberOfLines={1}>
+            {consoleName(row.match.console_id) ?? ''} · {row.match.num_achievements} achievements · {row.match.points} pts
+          </Body>
+        ) : row.error ? (
+          <Body size={12} color={colors.amber} numberOfLines={1}>{row.error}</Body>
+        ) : (
+          <Body size={12} color={colors.inkDim} numberOfLines={1}>No match — different version or not on RA</Body>
+        )}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   content: { padding: space.lg, paddingBottom: space.xxl },
-  resultBox: {
-    marginTop: space.lg,
-    padding: space.md,
-    backgroundColor: colors.surface,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    gap: space.sm,
+  actions: { flexDirection: 'row', gap: space.sm },
+  track: { height: 8, backgroundColor: colors.surface, borderRadius: 4, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
+  fill: { height: '100%', backgroundColor: colors.cyan },
+  summary: { flexDirection: 'row', gap: space.sm, marginTop: space.lg },
+  tag: { flex: 1, alignItems: 'center', borderWidth: 1, borderRadius: radius.md, paddingVertical: space.sm, backgroundColor: colors.panel },
+  rowCard: {
+    flexDirection: 'row', alignItems: 'center', gap: space.md,
+    backgroundColor: colors.panel, borderColor: colors.line, borderWidth: 1,
+    borderLeftWidth: 3, borderRadius: radius.md, padding: space.sm,
   },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md },
-  hashRow: { marginTop: space.xs, borderTopWidth: 1, borderTopColor: colors.line, paddingTop: space.sm },
+  icon: { width: 40, height: 40, borderRadius: radius.sm, backgroundColor: colors.surface },
+  iconFallback: { alignItems: 'center', justifyContent: 'center' },
 });

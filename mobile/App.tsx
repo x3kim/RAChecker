@@ -8,14 +8,16 @@ import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } f
 import { colors, space, radius } from './src/theme';
 import { Display, Body } from './src/ui';
 import { ScanScreen } from './src/screens/ScanScreen';
+import { SyncScreen } from './src/screens/SyncScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 
 const TOP_INSET = Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 24) : 0;
 
-type Tab = 'scan' | 'profile' | 'settings';
+type Tab = 'scan' | 'sync' | 'profile' | 'settings';
 const TABS: { key: Tab; label: string; icon: keyof typeof Feather.glyphMap }[] = [
   { key: 'scan', label: 'Scan', icon: 'search' },
+  { key: 'sync', label: 'Hash DB', icon: 'database' },
   { key: 'profile', label: 'Profile', icon: 'user' },
   { key: 'settings', label: 'Settings', icon: 'settings' },
 ];
@@ -46,6 +48,7 @@ export default function App() {
 
       <View style={styles.body}>
         {tab === 'scan' && <ScanScreen />}
+        {tab === 'sync' && <SyncScreen onGoSettings={() => setTab('settings')} />}
         {tab === 'profile' && <ProfileScreen onGoSettings={() => setTab('settings')} />}
         {tab === 'settings' && <SettingsScreen onConnected={() => setTab('profile')} />}
       </View>

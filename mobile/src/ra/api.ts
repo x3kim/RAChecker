@@ -31,6 +31,13 @@ export function getUserSummary(c: Creds): Promise<any> {
   return apiGet('API_GetUserSummary.php', { u: c.username, g: 1, a: 0 }, c);
 }
 
+// THE bulk endpoint: every achievement game + all its MD5 hashes for a console,
+// in one call. h=1 includes hashes, f=1 restricts to games with achievements.
+export type RAGame = { ID: number; Title: string; ImageIcon?: string; NumAchievements?: number; Points?: number; Hashes?: string[] };
+export function getGameList(c: Creds, consoleId: number): Promise<RAGame[]> {
+  return apiGet('API_GetGameList.php', { i: consoleId, h: 1, f: 1 }, c);
+}
+
 export function mediaUrl(path?: string | null): string | null {
   if (!path) return null;
   if (/^https?:\/\//.test(path)) return path;
