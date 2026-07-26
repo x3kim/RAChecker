@@ -54,6 +54,39 @@ export function getGameInfoAndUserProgress(c: Creds, gameId: number): Promise<RA
   return apiGet('API_GetGameInfoAndUserProgress.php', { u: c.username, g: gameId }, c);
 }
 
+// ---- completion progress (Mastery / Hardcore / Quick Wins) ----------------
+export type CompletionGame = {
+  GameID: number; ConsoleID: number; ConsoleName?: string; Title: string; ImageIcon?: string;
+  MaxPossible: number; NumAwarded: number; NumAwardedHardcore: number; MostRecentAwardedDate?: string;
+};
+export async function getUserCompletionProgress(c: Creds): Promise<CompletionGame[]> {
+  const all: CompletionGame[] = [];
+  let offset = 0; const count = 500;
+  for (let guard = 0; guard < 40; guard++) {
+    const page = await apiGet('API_GetUserCompletionProgress.php', { u: c.username, c: count, o: offset }, c);
+    const results: CompletionGame[] = page?.Results || [];
+    all.push(...results);
+    const total = page?.Total ?? all.length;
+    offset += count;
+    if (all.length >= total || results.length === 0) break;
+  }
+  return all;
+}
+
+// ---- community / discover --------------------------------------------------
+export function getAchievementOfTheWeek(c: Creds): Promise<any> { return apiGet('API_GetAchievementOfTheWeek.php', {}, c); }
+export function getActiveClaims(c: Creds): Promise<any[]> { return apiGet('API_GetActiveClaims.php', {}, c); }
+export function getRecentGameAwards(c: Creds, count = 25): Promise<any> { return apiGet('API_GetRecentGameAwards.php', { c: count, o: 0 }, c); }
+
+// ---- leaderboards ----------------------------------------------------------
+export type Leaderboard = { ID: number; Title: string; Description?: string; RankAsc?: boolean; Format?: string; TopEntry?: { User: string; Score: number; FormattedScore?: string } };
+export function getGameLeaderboards(c: Creds, gameId: number): Promise<{ Count: number; Total: number; Results: Leaderboard[] }> {
+  return apiGet('API_GetGameLeaderboards.php', { i: gameId, c: 100, o: 0 }, c);
+}
+export function getUserGameLeaderboards(c: Creds, gameId: number): Promise<{ Results: { ID: number; UserEntry?: { User: string; Rank: number; FormattedScore?: string; Score?: number } }[] }> {
+  return apiGet('API_GetUserGameLeaderboards.php', { i: gameId, u: c.username, c: 100, o: 0 }, c);
+}
+
 export function mediaUrl(path?: string | null): string | null {
   if (!path) return null;
   if (/^https?:\/\//.test(path)) return path;

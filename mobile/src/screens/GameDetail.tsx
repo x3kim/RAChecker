@@ -7,7 +7,7 @@ import { Display, Mono, Body } from '../ui';
 import { MatchGame } from '../db';
 import { getCreds } from '../storage';
 import { getCache, setCache } from '../storage';
-import { getGameInfoAndUserProgress, mediaUrl, badgeUrl, RAGameInfo, RAAchievement } from '../ra/api';
+import { getGameInfoAndUserProgress, getGameLeaderboards, getUserGameLeaderboards, mediaUrl, badgeUrl, RAGameInfo, RAAchievement, Leaderboard } from '../ra/api';
 import { consoleName } from '../consoles';
 
 const TOP = Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 24) : 0;
@@ -15,6 +15,7 @@ const TTL = 6 * 60 * 60 * 1000; // 6h
 
 export function GameDetail({ game, onClose }: { game: MatchGame; onClose: () => void }) {
   const [info, setInfo] = useState<RAGameInfo | null>(null);
+  const [lbs, setLbs] = useState<{ lb: Leaderboard; rank?: number; score?: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,12 +24,21 @@ export function GameDetail({ game, onClose }: { game: MatchGame; onClose: () => 
       setLoading(true); setError(null);
       try {
         const cached = await getCache<RAGameInfo>('game_' + game.id, TTL);
-        if (cached) { setInfo(cached); setLoading(false); return; }
         const c = await getCreds();
-        if (!c) { setError('Connect your RA account to see achievements.'); setLoading(false); return; }
-        const gi = await getGameInfoAndUserProgress(c, game.id);
-        setInfo(gi);
-        await setCache('game_' + game.id, gi);
+        if (cached) setInfo(cached);
+        else if (!c) { setError('Connect your RA account to see achievements.'); setLoading(false); return; }
+        else { const gi = await getGameInfoAndUserProgress(c, game.id); setInfo(gi); await setCache('game_' + game.id, gi); }
+        // Leaderboards (best-effort — never block the screen).
+        if (c) {
+          try {
+            const [gl, ul] = await Promise.all([getGameLeaderboards(c, game.id), getUserGameLeaderboards(c, game.id).catch(() => ({ Results: [] }))]);
+            const userById = new Map((ul.Results || []).map((r) => [r.ID, r.UserEntry]));
+            setLbs((gl.Results || []).slice(0, 25).map((lb) => {
+              const ue = userById.get(lb.ID);
+              return { lb, rank: ue?.Rank, score: ue?.FormattedScore ?? (ue?.Score != null ? String(ue.Score) : undefined) };
+            }));
+          } catch { /* leaderboards optional */ }
+        }
       } catch (e: any) {
         setError(String(e?.message || e));
       } finally {
@@ -92,6 +102,27 @@ export function GameDetail({ game, onClose }: { game: MatchGame; onClose: () => 
               );
             })}
           </View>
+
+          {lbs.length > 0 && (
+            <View style={{ marginTop: space.xl, gap: space.sm }}>
+              <Display size={12} color={colors.amber}>LEADERBOARDS</Display>
+              {lbs.map(({ lb, rank, score }) => (
+                <View key={lb.ID} style={styles.lb}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Body size={13} color={colors.inkHi} weight="semibold" numberOfLines={1}>{lb.Title}</Body>
+                    {lb.TopEntry ? <Body size={12} color={colors.inkDim} numberOfLines={1}>#1 {lb.TopEntry.User} · {lb.TopEntry.FormattedScore ?? lb.TopEntry.Score}</Body> : null}
+                  </View>
+                  {rank != null ? (
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Mono size={16} color={colors.green}>#{rank}</Mono>
+                      {score ? <Body size={11} color={colors.inkDim}>{score}</Body> : null}
+                    </View>
+                  ) : <Body size={12} color={colors.inkDim}>—</Body>}
+                </View>
+              ))}
+              <Body size={11} color={colors.inkDim}>Leaderboards only count in hardcore mode.</Body>
+            </View>
+          )}
         </ScrollView>
       </View>
     </Modal>
@@ -110,4 +141,5 @@ const styles = StyleSheet.create({
   fill: { height: '100%', backgroundColor: colors.green },
   ach: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: colors.panel, borderColor: colors.line, borderWidth: 1, borderRadius: radius.md, padding: space.sm },
   badge: { width: 44, height: 44, borderRadius: radius.sm, backgroundColor: colors.surface },
+  lb: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: colors.panel, borderColor: colors.line, borderWidth: 1, borderRadius: radius.md, padding: space.sm },
 });
