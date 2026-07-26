@@ -7,11 +7,13 @@ import { replaceConsole, initDb } from './db';
 
 export type SyncProgress = { done: number; total: number; name: string; gameCount: number; hashCount: number; errors: number };
 
-export async function syncAll(creds: Creds, onProgress: (p: SyncProgress) => void): Promise<SyncProgress> {
+export async function syncAll(creds: Creds, onProgress: (p: SyncProgress) => void, consoleIds?: number[] | null): Promise<SyncProgress> {
   await initDb();
-  const total = CART_CONSOLES.length;
+  const want = consoleIds && consoleIds.length ? new Set(consoleIds) : null;
+  const list = want ? CART_CONSOLES.filter((c) => want.has(c.id)) : CART_CONSOLES;
+  const total = list.length;
   let done = 0, gameCount = 0, hashCount = 0, errors = 0;
-  for (const c of CART_CONSOLES) {
+  for (const c of list) {
     onProgress({ done, total, name: c.name, gameCount, hashCount, errors });
     try {
       const games = await getGameList(creds, c.id);

@@ -156,3 +156,14 @@ export async function clearLibrary(): Promise<void> {
   const d = await db();
   await d.execAsync('DELETE FROM library;');
 }
+
+// Re-match every collection row against the (now updated) hash DB — so ROMs
+// scanned before a sync light up once their console is synced. Returns matched count.
+export async function rematchCollection(): Promise<number> {
+  const d = await db();
+  await d.runAsync(`UPDATE library SET
+      game_id = (SELECT h.game_id FROM hashes h WHERE h.md5 = library.md5),
+      console_id = (SELECT g.console_id FROM games g JOIN hashes h ON h.game_id = g.id WHERE h.md5 = library.md5)`);
+  const r = await d.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM library WHERE game_id IS NOT NULL');
+  return r?.n ?? 0;
+}

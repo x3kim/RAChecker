@@ -1,4 +1,4 @@
-import { useState, ReactNode } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 import { View, StyleSheet, ActivityIndicator, Platform, StatusBar as RNStatusBar, Pressable, SafeAreaView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
@@ -12,6 +12,8 @@ import { GamesScreen } from './src/screens/GamesScreen';
 import { SyncScreen } from './src/screens/SyncScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { OnboardingModal } from './src/screens/OnboardingModal';
+import { isOnboarded } from './src/storage';
 
 const TOP_INSET = Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 24) : 0;
 
@@ -36,6 +38,8 @@ export default function App() {
   // results. Scan starts visited so its launch auto-scan runs exactly once.
   const [visited, setVisited] = useState<Set<Tab>>(() => new Set<Tab>(['scan']));
   const show = (t: Tab) => { setTab(t); setVisited((v) => (v.has(t) ? v : new Set(v).add(t))); };
+  const [onboarding, setOnboarding] = useState(false);
+  useEffect(() => { isOnboarded().then((v) => setOnboarding(!v)); }, []);
 
   if (!fontsLoaded) {
     return <View style={styles.loading}><ActivityIndicator color={colors.cyan} /></View>;
@@ -75,6 +79,8 @@ export default function App() {
           );
         })}
       </View>
+
+      {onboarding && <OnboardingModal onDone={() => setOnboarding(false)} />}
     </SafeAreaView>
   );
 }

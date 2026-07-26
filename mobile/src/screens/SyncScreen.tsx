@@ -1,31 +1,40 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { colors, space, radius } from '../theme';
 import { Panel, Display, Mono, Body, SectionHeader, Btn } from '../ui';
-import { getCreds } from '../storage';
-import { initDb, dbStats, clearDb } from '../db';
+import { getCreds, getSelectedConsoles, setSelectedConsoles } from '../storage';
+import { initDb, dbStats, clearDb, rematchCollection } from '../db';
 import { syncAll, SyncProgress } from '../sync';
+import { SystemsPicker } from '../components/SystemsPicker';
+import { CART_CONSOLES } from '../consoles';
 
 export function SyncScreen({ onGoSettings }: { onGoSettings: () => void }) {
   const [hasCreds, setHasCreds] = useState<boolean | null>(null);
   const [stats, setStats] = useState<{ games: number; hashes: number; consoles: number } | null>(null);
   const [progress, setProgress] = useState<SyncProgress | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [systems, setSystems] = useState<number[] | null>(null);
+  const [showPicker, setShowPicker] = useState(false);
 
   const refresh = useCallback(async () => {
     await initDb();
     setStats(await dbStats());
     setHasCreds(!!(await getCreds()));
+    setSystems(await getSelectedConsoles());
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  const changeSystems = async (v: number[] | null) => { setSystems(v); await setSelectedConsoles(v); };
+  const selCount = systems == null ? CART_CONSOLES.length : systems.length;
 
   const run = async () => {
     const creds = await getCreds();
     if (!creds) { onGoSettings(); return; }
     setSyncing(true);
     try {
-      await syncAll(creds, setProgress);
+      await syncAll(creds, setProgress, systems);
+      await rematchCollection();
     } finally {
       setSyncing(false);
       setProgress(null);
@@ -50,6 +59,16 @@ export function SyncScreen({ onGoSettings }: { onGoSettings: () => void }) {
           <Stat label="GAMES" value={stats?.games ?? 0} color={colors.green} />
           <Stat label="SYSTEMS" value={stats?.consoles ?? 0} color={colors.amber} />
         </View>
+
+        <Pressable onPress={() => setShowPicker((s) => !s)} style={styles.pickerToggle}>
+          <Body size={12} color={colors.inkMid}>Systems to sync: {selCount === CART_CONSOLES.length ? 'all' : selCount}</Body>
+          <Body size={12} color={colors.cyan}>{showPicker ? 'Hide' : 'Choose'}</Body>
+        </Pressable>
+        {showPicker && (
+          <View style={{ marginTop: space.sm }}>
+            <SystemsPicker value={systems} onChange={changeSystems} />
+          </View>
+        )}
 
         {syncing && (
           <View style={{ marginTop: space.lg }}>
@@ -89,6 +108,7 @@ const styles = StyleSheet.create({
   stats: { flexDirection: 'row', justifyContent: 'space-between', gap: space.md },
   stat: { flex: 1, alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.line, borderWidth: 1, borderRadius: radius.md, paddingVertical: space.md },
   row: { flexDirection: 'row', gap: space.sm, marginTop: space.lg },
+  pickerToggle: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: space.lg, paddingTop: space.md, borderTopWidth: 1, borderTopColor: colors.line },
   track: { height: 8, backgroundColor: colors.surface, borderRadius: 4, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
   fill: { height: '100%', backgroundColor: colors.green },
 });

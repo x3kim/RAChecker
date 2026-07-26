@@ -28,6 +28,22 @@ export async function clearCreds(): Promise<void> {
 export async function getFolder(): Promise<string | null> { return AsyncStorage.getItem(K_FOLDER); }
 export async function setFolder(uri: string): Promise<void> { await AsyncStorage.setItem(K_FOLDER, uri); }
 
+const K_SYSTEMS = 'ra_systems';   // JSON number[] of console ids to sync, or absent = all
+const K_ONBOARDED = 'ra_onboarded';
+
+export async function getSelectedConsoles(): Promise<number[] | null> {
+  const raw = await AsyncStorage.getItem(K_SYSTEMS);
+  if (!raw) return null;
+  try { const v = JSON.parse(raw); return Array.isArray(v) ? v : null; } catch { return null; }
+}
+export async function setSelectedConsoles(ids: number[] | null): Promise<void> {
+  if (ids && ids.length) await AsyncStorage.setItem(K_SYSTEMS, JSON.stringify(ids));
+  else await AsyncStorage.removeItem(K_SYSTEMS);
+}
+
+export async function isOnboarded(): Promise<boolean> { return (await AsyncStorage.getItem(K_ONBOARDED)) === '1'; }
+export async function setOnboarded(): Promise<void> { await AsyncStorage.setItem(K_ONBOARDED, '1'); }
+
 // Small TTL cache keyed by name (persists last profile so it loads offline).
 export async function getCache<T>(key: string, ttlMs: number): Promise<T | null> {
   const raw = await AsyncStorage.getItem('cache_' + key);
