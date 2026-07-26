@@ -22,7 +22,7 @@
     "build": "npm --workspace web run build",
     "start": "node --no-warnings server/src/index.js",
     "serve": "npm run build && npm run start",
-    "test": "node --no-warnings --test server/test/*.test.js",
+    "test": "node --no-warnings --test server/test/*.test.js packages/core/test/*.test.js",
     "icon": "node scripts/make-icon.mjs",
     "app:dev": "npm run build && electron .",
     "app:dist": "npm run build && electron-builder --win",
@@ -45,6 +45,7 @@
   "devDependencies": {
     "concurrently": "^9.1.2",
     "electron": "^43.1.0",
-    "electron-builder": "^26.15.3"
+    "electron-builder": "^26.15.3",
+    "js-md5": "^0.9.2"
   }
 }
