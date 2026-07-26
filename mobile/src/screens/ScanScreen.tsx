@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { colors, space, radius } from '../theme';
 import { Panel, Display, Mono, Body, SectionHeader, Btn } from '../ui';
 import { pickFiles, pickFolder, enumerateFolder, scanTargets, ScanRow } from '../scan';
 import { getFolder, setFolder } from '../storage';
-import { dbStats } from '../db';
+import { dbStats, MatchGame } from '../db';
 import { consoleName } from '../consoles';
 import { mediaUrl } from '../ra/api';
+import { GameDetail } from './GameDetail';
 
 type Phase = 'idle' | 'listing' | 'scanning';
 
@@ -19,6 +20,7 @@ export function ScanScreen() {
   const [folder, setFolderState] = useState<string | null>(null);
   const [hashes, setHashes] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [openGame, setOpenGame] = useState<MatchGame | null>(null);
   const autoRan = useRef(false);
 
   const scan = useCallback(async (targets: { uri: string; name: string }[]) => {
@@ -113,11 +115,13 @@ export function ScanScreen() {
             {errors > 0 && <Tag n={errors} label="errors" color={colors.amber} />}
           </View>
           <View style={{ gap: space.sm, marginTop: space.md }}>
-            {rows.slice(0, 400).map((r, i) => <Row key={i} row={r} />)}
+            {rows.slice(0, 400).map((r, i) => <Row key={i} row={r} onOpen={setOpenGame} />)}
             {rows.length > 400 && <Body size={12} color={colors.inkDim} style={{ textAlign: 'center' }}>… and {rows.length - 400} more</Body>}
           </View>
         </>
       )}
+
+      {openGame && <GameDetail game={openGame} onClose={() => setOpenGame(null)} />}
     </ScrollView>
   );
 }
@@ -131,10 +135,10 @@ function Tag({ n, label, color }: { n: number; label: string; color: string }) {
   );
 }
 
-function Row({ row }: { row: ScanRow }) {
+function Row({ row, onOpen }: { row: ScanRow; onOpen: (g: MatchGame) => void }) {
   const accent = row.error ? colors.amber : row.match ? colors.green : colors.red;
   const icon = mediaUrl(row.match?.image_icon);
-  return (
+  const inner = (
     <View style={[styles.rowCard, { borderLeftColor: accent }]}>
       {row.match && icon ? (
         <Image source={{ uri: icon }} style={styles.icon} contentFit="cover" transition={150} />
@@ -157,8 +161,14 @@ function Row({ row }: { row: ScanRow }) {
           <Body size={12} color={colors.inkDim} numberOfLines={1}>No match — different version or not on RA</Body>
         )}
       </View>
+      {row.match && <Feather name="chevron-right" size={18} color={colors.inkDim} />}
     </View>
   );
+  if (row.match) {
+    const g = row.match;
+    return <Pressable onPress={() => onOpen(g)}>{inner}</Pressable>;
+  }
+  return inner;
 }
 
 const styles = StyleSheet.create({

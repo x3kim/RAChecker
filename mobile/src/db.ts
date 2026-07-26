@@ -4,13 +4,11 @@
 import * as SQLite from 'expo-sqlite';
 
 let dbP: Promise<SQLite.SQLiteDatabase> | null = null;
-function db(): Promise<SQLite.SQLiteDatabase> {
-  if (!dbP) dbP = SQLite.openDatabaseAsync('rachecker.db');
-  return dbP;
-}
 
-export async function initDb(): Promise<void> {
-  const d = await db();
+// Open + ensure the schema exists on the very first access, so any query (scan
+// match, stats) is safe even before the user has visited the Hash DB tab.
+async function open(): Promise<SQLite.SQLiteDatabase> {
+  const d = await SQLite.openDatabaseAsync('rachecker.db');
   await d.execAsync(`
     PRAGMA journal_mode = WAL;
     CREATE TABLE IF NOT EXISTS games (
@@ -33,7 +31,15 @@ export async function initDb(): Promise<void> {
       hash_count INTEGER
     );
   `);
+  return d;
 }
+
+function db(): Promise<SQLite.SQLiteDatabase> {
+  if (!dbP) dbP = open();
+  return dbP;
+}
+
+export async function initDb(): Promise<void> { await db(); }
 
 // Replace all games+hashes for one console (a fresh sync of that system).
 export async function replaceConsole(consoleId: number, games: any[]): Promise<{ gameCount: number; hashCount: number }> {

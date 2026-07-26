@@ -38,8 +38,30 @@ export function getGameList(c: Creds, consoleId: number): Promise<RAGame[]> {
   return apiGet('API_GetGameList.php', { i: consoleId, h: 1, f: 1 }, c);
 }
 
+// Game details + the signed-in user's achievement progress for one game.
+export type RAAchievement = {
+  ID: number; Title: string; Description: string; Points: number;
+  BadgeName?: string; DateEarned?: string; DateEarnedHardcore?: string; DisplayOrder?: number;
+};
+export type RAGameInfo = {
+  Title: string; ConsoleID?: number; ConsoleName?: string;
+  ImageIcon?: string; ImageBoxArt?: string;
+  NumAchievements?: number; NumAwardedToUser?: number; NumAwardedToUserHardcore?: number;
+  UserCompletion?: string; Points?: number;
+  Achievements?: Record<string, RAAchievement>;
+};
+export function getGameInfoAndUserProgress(c: Creds, gameId: number): Promise<RAGameInfo> {
+  return apiGet('API_GetGameInfoAndUserProgress.php', { u: c.username, g: gameId }, c);
+}
+
 export function mediaUrl(path?: string | null): string | null {
   if (!path) return null;
   if (/^https?:\/\//.test(path)) return path;
   return `${MEDIA}${path.startsWith('/') ? '' : '/'}${path}`;
+}
+
+// Achievement badge image (locked variant appends _lock).
+export function badgeUrl(badgeName?: string | null, locked = false): string | null {
+  if (!badgeName) return null;
+  return `${MEDIA}/Badge/${badgeName}${locked ? '_lock' : ''}.png`;
 }
