@@ -1,7 +1,7 @@
 // Shared RN UI primitives styled to match the desktop (panels, buttons, section
 // headers, retro text). Keeps every screen visually 1:1 with the web app.
-import { ReactNode } from 'react';
-import { View, Text, Pressable, StyleSheet, ViewStyle, TextStyle, StyleProp } from 'react-native';
+import { ReactNode, useState } from 'react';
+import { View, Text, Pressable, TextInput, StyleSheet, ViewStyle, TextStyle, StyleProp } from 'react-native';
 import { colors, fonts, radius, space, textGlow } from './theme';
 
 export function Panel({ children, style, glowColor }: { children: ReactNode; style?: StyleProp<ViewStyle>; glowColor?: string }) {
@@ -56,7 +56,42 @@ export function Btn({ label, onPress, variant = 'default', disabled, style }: Bt
   );
 }
 
+export function Input({ label, value, onChangeText, placeholder, secure, autoCapitalize = 'none' }: {
+  label?: string; value: string; onChangeText: (t: string) => void; placeholder?: string;
+  secure?: boolean; autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View style={{ gap: space.xs }}>
+      {label && <Body size={12} color={colors.inkDim} weight="medium">{label}</Body>}
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.inkDim}
+        secureTextEntry={secure}
+        autoCapitalize={autoCapitalize}
+        autoCorrect={false}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={[styles.input, focused && { borderColor: colors.cyan }]}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  input: {
+    backgroundColor: colors.bg2,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    paddingVertical: 10,
+    color: colors.inkHi,
+    fontFamily: fonts.body,
+    fontSize: 15,
+  },
   panel: {
     backgroundColor: colors.panel,
     borderColor: colors.line,
