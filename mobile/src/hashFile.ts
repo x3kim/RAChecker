@@ -1,8 +1,9 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
-// ra-core is resolved via metro.config.js (extraNodeModules) + tsconfig paths.
-// @ts-expect-error — no bundled types on the workspace package yet.
-import { hashBuffer, consoleForExt } from 'ra-core';
+// Vendored copy of the shared hashing core (mobile/src/core) so EAS cloud builds
+// are self-contained. Source of truth is packages/core.
+// @ts-expect-error — vendored JS, no bundled types.
+import { hashBuffer, consoleForExt } from './core';
 import { md5Bytes } from './md5';
 
 export type HashResult = { name: string; ext: string; rule: string | null; md5: string };
