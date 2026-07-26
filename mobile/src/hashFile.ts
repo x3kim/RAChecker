@@ -2,7 +2,6 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 // Vendored copy of the shared hashing core (mobile/src/core) so EAS cloud builds
 // are self-contained. Source of truth is packages/core.
-// @ts-expect-error — vendored JS, no bundled types.
 import { hashBuffer, consoleForExt } from './core';
 import { md5Bytes } from './md5';
 

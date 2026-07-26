@@ -3,10 +3,15 @@
   "version": "0.1.0",
   "main": "index.ts",
   "dependencies": {
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/press-start-2p": "^0.4.1",
+    "@expo-google-fonts/vt323": "^0.4.1",
     "expo": "~57.0.8",
     "expo-document-picker": "~57.0.1",
     "expo-file-system": "~57.0.1",
+    "expo-font": "~57.0.1",
     "expo-status-bar": "~57.0.1",
+    "expo-system-ui": "~57.0.1",
     "js-md5": "^0.8.3",
     "react": "19.2.3",
     "react-native": "0.86.0"
