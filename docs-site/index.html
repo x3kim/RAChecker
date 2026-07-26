@@ -139,7 +139,7 @@
   <header class="topbar">
     <button class="menu-btn" id="menuBtn" aria-label="Menu">☰</button>
     <span class="brand"><span class="dot">🎮</span> <b>RACHECKER</b></span>
-    <span class="badge">Docs · v0.9.x Beta</span>
+    <span class="badge">Docs · v0.11</span>
     <span class="spacer"></span>
     <span class="langtoggle" role="group" aria-label="Language">
       <button id="lang-en" onclick="setLang('en')">EN</button>
@@ -163,6 +163,7 @@
       <a href="#en-discover">Discover</a>
       <a href="#en-hardcore">Hardcore &amp; playtime</a>
       <a href="#en-export">Export &amp; emulator launch</a>
+      <a href="#en-dat">DAT completeness</a>
       <a href="#en-offline">Offline package &amp; backups</a>
       <h4>Reference</h4>
       <a href="#en-shortcuts">Keyboard &amp; tips</a>
@@ -266,6 +267,9 @@ npm run serve      # builds the frontend + starts the server on :8088</code></pr
       <p><strong>Exports</strong> (in the collection under "Export"): RetroArch playlist (<code>.lpl</code>), ES-DE/EmulationStation, Playnite, LaunchBox and CSV. The ES-DE export ships a ZIP with one <code>gamelist.xml</code> per system and relative paths — exactly what ES-DE expects.</p>
       <p><strong>Launch directly:</strong> in Settings, enter the path to <code>retroarch.exe</code> and the core folder. After that the "Launch" button in the game window opens the ROM directly with the matching core; which core is recommended per system (and whether it supports achievements/hardcore) is shown in the game window.</p>
 
+      <h2 id="en-dat">DAT completeness</h2>
+      <p>Beyond "does it earn achievements?", the <strong>DAT</strong> tab answers "is my set complete?". Import No-Intro/Redump/logiqx/ClrMamePro/MAME DAT catalogs and see, per catalog, which entries you already have and which are missing (exportable list). Matching uses your files' real checksums (CRC32, plus md5/sha1 for Redump CHD &amp; MAME disks), read directly from <code>.zip/.7z/.rar</code> archives <strong>without extraction</strong> — a separate dimension from the RetroAchievements hash. An <em>Extra / unknown dumps</em> view lists files whose hash is in no imported DAT (bad dumps, hacks or systems you have no DAT for).</p>
+
       <h2 id="en-offline">Offline package &amp; backups</h2>
       <ul>
         <li><strong>Backups</strong> — the local database (hashes, collection, profile cache) is backed up automatically: on start and after every scan. Manual any time, with download and restore.</li>
@@ -326,6 +330,7 @@ npm run serve      # builds the frontend + starts the server on :8088</code></pr
       <a href="#de-discover">Entdecken</a>
       <a href="#de-hardcore">Hardcore &amp; Spielzeit</a>
       <a href="#de-export">Export &amp; Emulator-Start</a>
+      <a href="#de-dat">DAT-Vollständigkeit</a>
       <a href="#de-offline">Offline-Paket &amp; Backups</a>
       <h4>Referenz</h4>
       <a href="#de-shortcuts">Tastatur &amp; Tricks</a>
@@ -428,6 +433,9 @@ npm run serve      # baut das Frontend + startet den Server auf :8088</code></pr
       <h2 id="de-export">Export &amp; Emulator-Start</h2>
       <p><strong>Exporte</strong> (in der Sammlung unter „Export"): RetroArch-Playlist (<code>.lpl</code>), ES-DE/EmulationStation, Playnite, LaunchBox und CSV. Der ES-DE-Export liefert ein ZIP mit einer <code>gamelist.xml</code> pro System und relativen Pfaden — genau so, wie ES-DE es erwartet.</p>
       <p><strong>Direkt starten:</strong> In den Einstellungen den Pfad zu <code>retroarch.exe</code> und zum Core-Ordner eintragen. Danach startet der „Starten"-Button im Spiel-Fenster die ROM direkt mit dem passenden Core; welcher Core je System empfohlen wird (und ob er Achievements/Hardcore unterstützt) steht im Spiel-Fenster.</p>
+
+      <h2 id="de-dat">DAT-Vollständigkeit</h2>
+      <p>Über „bringt das Erfolge?" hinaus beantwortet der <strong>DAT</strong>-Tab „ist mein Set vollständig?". Importiere No-Intro/Redump/logiqx/ClrMamePro/MAME-DAT-Kataloge und sieh pro Katalog, welche Einträge du hast und welche fehlen (exportierbare Liste). Abgeglichen über die echten Prüfsummen deiner Dateien (CRC32, plus md5/sha1 für Redump-CHD &amp; MAME-Disks), direkt aus <code>.zip/.7z/.rar</code>-Archiven <strong>ohne Entpacken</strong> gelesen — eine getrennte Dimension vom RetroAchievements-Hash. Eine <em>Extra/unbekannte-Dumps</em>-Ansicht listet Dateien, deren Hash in keiner importierten DAT steckt (Bad Dumps, Hacks oder Systeme ohne DAT).</p>
 
       <h2 id="de-offline">Offline-Paket &amp; Backups</h2>
       <ul>
