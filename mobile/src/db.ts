@@ -30,6 +30,14 @@ async function open(): Promise<SQLite.SQLiteDatabase> {
       game_count INTEGER,
       hash_count INTEGER
     );
+    CREATE TABLE IF NOT EXISTS library (
+      md5 TEXT PRIMARY KEY,
+      name TEXT,
+      game_id INTEGER,
+      console_id INTEGER,
+      scanned_at INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS idx_library_scanned ON library(scanned_at);
   `);
   return d;
 }
@@ -91,4 +99,60 @@ export async function dbStats(): Promise<{ games: number; hashes: number; consol
 export async function clearDb(): Promise<void> {
   const d = await db();
   await d.execAsync('DELETE FROM hashes; DELETE FROM games; DELETE FROM sync_state;');
+}
+
+// ---- games browser --------------------------------------------------------
+export async function searchGames(q: string, limit = 150): Promise<MatchGame[]> {
+  const d = await db();
+  const sel = 'SELECT id, title, points, num_achievements, image_icon, console_id FROM games';
+  if (q.trim()) {
+    return d.getAllAsync<MatchGame>(`${sel} WHERE title LIKE ? ORDER BY points DESC LIMIT ?`, `%${q.trim()}%`, limit);
+  }
+  return d.getAllAsync<MatchGame>(`${sel} ORDER BY points DESC LIMIT ?`, limit);
+}
+
+// ---- persistent collection (ROMs you've hashed) ---------------------------
+export type LibraryRow = { name: string; md5: string; match: MatchGame | null };
+
+export async function upsertLibrary(rows: { md5: string; name: string; gameId: number | null; consoleId: number | null }[]): Promise<void> {
+  if (!rows.length) return;
+  const d = await db();
+  await d.withTransactionAsync(async () => {
+    const stmt = await d.prepareAsync('INSERT OR REPLACE INTO library(md5,name,game_id,console_id,scanned_at) VALUES(?,?,?,?,?)');
+    try {
+      const base = Date.now();
+      let i = 0;
+      for (const r of rows) {
+        if (!r.md5) continue;
+        await stmt.executeAsync([r.md5, r.name, r.gameId, r.consoleId, base + i++]);
+      }
+    } finally {
+      await stmt.finalizeAsync();
+    }
+  });
+}
+
+export async function getLibrary(limit = 2000): Promise<LibraryRow[]> {
+  const d = await db();
+  const rows = await d.getAllAsync<any>(
+    `SELECT l.name, l.md5, g.id AS gid, g.title, g.points, g.num_achievements, g.image_icon, g.console_id
+       FROM library l LEFT JOIN games g ON g.id = l.game_id
+       ORDER BY l.scanned_at DESC LIMIT ?`, limit);
+  return rows.map((r) => ({
+    name: r.name,
+    md5: r.md5,
+    match: r.gid != null ? { id: r.gid, title: r.title, points: r.points, num_achievements: r.num_achievements, image_icon: r.image_icon, console_id: r.console_id } : null,
+  }));
+}
+
+export async function libraryStats(): Promise<{ total: number; matched: number }> {
+  const d = await db();
+  const t = await d.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM library');
+  const m = await d.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM library WHERE game_id IS NOT NULL');
+  return { total: t?.n ?? 0, matched: m?.n ?? 0 };
+}
+
+export async function clearLibrary(): Promise<void> {
+  const d = await db();
+  await d.execAsync('DELETE FROM library;');
 }

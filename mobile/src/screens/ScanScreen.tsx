@@ -6,15 +6,17 @@ import { colors, space, radius } from '../theme';
 import { Panel, Display, Mono, Body, SectionHeader, Btn } from '../ui';
 import { pickFiles, pickFolder, enumerateFolder, scanTargets, ScanRow } from '../scan';
 import { getFolder, setFolder } from '../storage';
-import { dbStats, MatchGame } from '../db';
+import { dbStats, MatchGame, upsertLibrary, getLibrary, clearLibrary } from '../db';
 import { consoleName } from '../consoles';
 import { mediaUrl } from '../ra/api';
 import { GameDetail } from './GameDetail';
 
 type Phase = 'idle' | 'listing' | 'scanning';
+type DisplayRow = { name: string; md5: string; match: MatchGame | null; error?: string };
 
 export function ScanScreen() {
-  const [rows, setRows] = useState<ScanRow[]>([]);
+  const [rows, setRows] = useState<DisplayRow[]>([]);
+  const [fromCollection, setFromCollection] = useState(true);
   const [phase, setPhase] = useState<Phase>('idle');
   const [progress, setProgress] = useState<{ done: number; total: number; current: string } | null>(null);
   const [folder, setFolderState] = useState<string | null>(null);
@@ -23,14 +25,23 @@ export function ScanScreen() {
   const [openGame, setOpenGame] = useState<MatchGame | null>(null);
   const autoRan = useRef(false);
 
+  const loadCollection = useCallback(async () => {
+    setRows(await getLibrary());
+    setFromCollection(true);
+  }, []);
+
   const scan = useCallback(async (targets: { uri: string; name: string }[]) => {
     if (!targets.length) return;
     setError(null);
     setPhase('scanning');
     setRows([]);
     try {
-      const r = await scanTargets(targets, setProgress);
-      setRows(r);
+      const fresh: ScanRow[] = await scanTargets(targets, setProgress);
+      setRows(fresh);
+      setFromCollection(false);
+      await upsertLibrary(
+        fresh.filter((r) => r.md5).map((r) => ({ md5: r.md5, name: r.name, gameId: r.match?.id ?? null, consoleId: r.match?.console_id ?? r.consoleId ?? null })),
+      );
     } catch (e: any) {
       setError(String(e?.message || e));
     } finally {
@@ -62,14 +73,17 @@ export function ScanScreen() {
     await scan(targets);
   }, [scan]);
 
+  const wipe = useCallback(async () => { await clearLibrary(); setRows([]); setFromCollection(true); }, []);
+
   useEffect(() => {
     (async () => {
       setHashes((await dbStats()).hashes);
       const f = await getFolder();
       setFolderState(f);
+      await loadCollection();
       if (f && !autoRan.current) { autoRan.current = true; runFolder(f); }
     })();
-  }, [runFolder]);
+  }, [loadCollection, runFolder]);
 
   const busy = phase !== 'idle';
   const matched = rows.filter((r) => r.match).length;
@@ -109,13 +123,17 @@ export function ScanScreen() {
 
       {rows.length > 0 && (
         <>
+          <View style={styles.summaryRow}>
+            <Body size={12} color={colors.inkDim} weight="medium">{fromCollection ? 'YOUR COLLECTION' : 'SCAN RESULTS'}</Body>
+            {fromCollection && <Pressable onPress={wipe}><Body size={12} color={colors.red}>Clear</Body></Pressable>}
+          </View>
           <View style={styles.summary}>
             <Tag n={matched} label="with achievements" color={colors.green} />
             <Tag n={noMatch} label="no match" color={colors.red} />
             {errors > 0 && <Tag n={errors} label="errors" color={colors.amber} />}
           </View>
           <View style={{ gap: space.sm, marginTop: space.md }}>
-            {rows.slice(0, 400).map((r, i) => <Row key={i} row={r} onOpen={setOpenGame} />)}
+            {rows.slice(0, 400).map((r, i) => <Row key={r.md5 || i} row={r} onOpen={setOpenGame} />)}
             {rows.length > 400 && <Body size={12} color={colors.inkDim} style={{ textAlign: 'center' }}>… and {rows.length - 400} more</Body>}
           </View>
         </>
@@ -135,7 +153,7 @@ function Tag({ n, label, color }: { n: number; label: string; color: string }) {
   );
 }
 
-function Row({ row, onOpen }: { row: ScanRow; onOpen: (g: MatchGame) => void }) {
+function Row({ row, onOpen }: { row: DisplayRow; onOpen: (g: MatchGame) => void }) {
   const accent = row.error ? colors.amber : row.match ? colors.green : colors.red;
   const icon = mediaUrl(row.match?.image_icon);
   const inner = (
@@ -148,13 +166,9 @@ function Row({ row, onOpen }: { row: ScanRow; onOpen: (g: MatchGame) => void }) 
         </View>
       )}
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Body size={13} color={colors.inkHi} weight="semibold" numberOfLines={1}>
-          {row.match ? row.match.title : row.name}
-        </Body>
+        <Body size={13} color={colors.inkHi} weight="semibold" numberOfLines={1}>{row.match ? row.match.title : row.name}</Body>
         {row.match ? (
-          <Body size={12} color={colors.inkMid} numberOfLines={1}>
-            {consoleName(row.match.console_id) ?? ''} · {row.match.num_achievements} achievements · {row.match.points} pts
-          </Body>
+          <Body size={12} color={colors.inkMid} numberOfLines={1}>{consoleName(row.match.console_id) ?? ''} · {row.match.num_achievements} achievements · {row.match.points} pts</Body>
         ) : row.error ? (
           <Body size={12} color={colors.amber} numberOfLines={1}>{row.error}</Body>
         ) : (
@@ -176,7 +190,8 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: space.sm },
   track: { height: 8, backgroundColor: colors.surface, borderRadius: 4, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
   fill: { height: '100%', backgroundColor: colors.cyan },
-  summary: { flexDirection: 'row', gap: space.sm, marginTop: space.lg },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: space.lg },
+  summary: { flexDirection: 'row', gap: space.sm, marginTop: space.sm },
   tag: { flex: 1, alignItems: 'center', borderWidth: 1, borderRadius: radius.md, paddingVertical: space.sm, backgroundColor: colors.panel },
   rowCard: {
     flexDirection: 'row', alignItems: 'center', gap: space.md,

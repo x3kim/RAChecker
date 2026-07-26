@@ -8,15 +8,17 @@ import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } f
 import { colors, space, radius } from './src/theme';
 import { Display, Body } from './src/ui';
 import { ScanScreen } from './src/screens/ScanScreen';
+import { GamesScreen } from './src/screens/GamesScreen';
 import { SyncScreen } from './src/screens/SyncScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 
 const TOP_INSET = Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 24) : 0;
 
-type Tab = 'scan' | 'sync' | 'profile' | 'settings';
+type Tab = 'scan' | 'games' | 'sync' | 'profile' | 'settings';
 const TABS: { key: Tab; label: string; icon: keyof typeof Feather.glyphMap }[] = [
   { key: 'scan', label: 'Scan', icon: 'search' },
+  { key: 'games', label: 'Games', icon: 'grid' },
   { key: 'sync', label: 'Hash DB', icon: 'database' },
   { key: 'profile', label: 'Profile', icon: 'user' },
   { key: 'settings', label: 'Settings', icon: 'settings' },
@@ -56,6 +58,7 @@ export default function App() {
 
       <View style={styles.body}>
         {pane('scan', <ScanScreen />)}
+        {pane('games', <GamesScreen onGoSync={() => show('sync')} />)}
         {pane('sync', <SyncScreen onGoSettings={() => show('settings')} />)}
         {pane('profile', <ProfileScreen onGoSettings={() => show('settings')} />)}
         {pane('settings', <SettingsScreen onConnected={() => show('profile')} />)}
