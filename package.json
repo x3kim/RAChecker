@@ -11,7 +11,8 @@
   },
   "workspaces": [
     "server",
-    "web"
+    "web",
+    "packages/*"
   ],
   "scripts": {
     "postinstall": "echo RAChecker dependencies installed.",
