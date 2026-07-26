@@ -92,6 +92,55 @@ function listAsync(listFn, filePath) {
   });
 }
 
+// ---- entry listing WITH stored CRC ----------------------------------------
+// Reads each member's CRC32 straight from the container's directory/headers —
+// no decompression. This is what lets the DAT completeness pass match packed
+// collections (.zip/.7z/.rar) cheaply. Returns [{ name, size, crc }] where crc
+// is lowercase 8-hex or null when the container doesn't carry one.
+function hex8(n) { return (n >>> 0).toString(16).padStart(8, '0'); }
+
+export async function listEntriesWithCrc(filePath) {
+  const type = archiveType(filePath);
+  if (type === 'zip') return listZipCrc(filePath);
+  if (type === 'rar') return listRarCrc(filePath);
+  if (type === '7z') return list7zCrc(filePath);
+  return [];
+}
+
+async function listZipCrc(filePath) {
+  const { default: StreamZip } = await import('node-stream-zip');
+  const zip = new StreamZip.async({ file: filePath });
+  try {
+    const entries = Object.values(await zip.entries());
+    return entries
+      .filter((e) => !e.isDirectory)
+      .map((e) => ({ name: e.name, size: e.size, crc: e.crc != null ? hex8(e.crc) : null }));
+  } catch {
+    // LZMA/PPMd zip that node-stream-zip can't read → bundled 7za still lists it.
+    return list7zCrc(filePath);
+  } finally {
+    await zip.close().catch(() => {});
+  }
+}
+
+async function list7zCrc(filePath) {
+  const sevenZip = await import('7zip-min');
+  const list = sevenZip.list ?? sevenZip.default?.list;
+  const items = await listAsync(list, filePath);
+  return items
+    .filter((i) => !/D/.test(i.attr || '') && i.name)
+    .map((i) => ({ name: i.name, size: Number(i.size) || 0, crc: i.crc ? String(i.crc).toLowerCase().padStart(8, '0') : null }));
+}
+
+async function listRarCrc(filePath) {
+  const unrar = await import('node-unrar-js');
+  const ex = await unrar.createExtractorFromData({ data: await rarData(filePath) });
+  const headers = [...ex.getFileList().fileHeaders];
+  return headers
+    .filter((h) => !h.flags.directory)
+    .map((h) => ({ name: h.name, size: h.unpSize, crc: h.crc != null ? hex8(h.crc) : null }));
+}
+
 // ---- read a single entry --------------------------------------------------
 // Returns { buffer } for small entries, or { tempPath, cleanup } for large
 // ones / 7z / rar. Caller MUST await cleanup() when given a tempPath.

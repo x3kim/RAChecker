@@ -14,6 +14,7 @@ import { listEntries, archiveType } from './hashing/archive.js';
 import { config } from './config.js';
 import {
   lookupHash, getCachedFileHash, setCachedFileHash, insertScanItem, upsertLibraryItem,
+  getLibraryItem, libraryArchiveUnchanged,
 } from './db.js';
 
 // Single-file disc containers — safe to copy to local temp before hashing
@@ -126,13 +127,16 @@ function withTimeout(promise, ms, onTimeout) {
 const TIMEOUT_RESULT = { status: 'error', message: 'Zeitüberschreitung — Datei übersprungen (Timeout in Einstellungen erhöhen, z.B. für große Images auf Netzlaufwerken)' };
 
 export class Scanner {
-  constructor({ rootPath, scanId, emit = () => {}, signal, onlyConsole = null, fileTimeoutMs = 5 * 60 * 1000, enabledConsoles = null, bigFileCopyBytes = 0, bigFileMaxBytes = 0 } = {}) {
+  constructor({ rootPath, scanId, emit = () => {}, signal, onlyConsole = null, fileTimeoutMs = 5 * 60 * 1000, enabledConsoles = null, bigFileCopyBytes = 0, bigFileMaxBytes = 0, skipCollected = false } = {}) {
     this.rootPath = rootPath;
     this.scanId = scanId;
     this.emit = emit;
     this.signal = signal;
     this.onlyConsole = onlyConsole; // restrict scan to a single console id
     this.fileTimeoutMs = fileTimeoutMs;
+    // Skip files already in the collection & unchanged — not re-listed, not
+    // re-emitted, so a re-scan only surfaces genuinely new/changed files.
+    this.skipCollected = !!skipCollected;
     // Set of console ids the user cares about (null = all). Files of any other
     // system are skipped entirely so a scan does no work for them.
     this.enabledConsoles = enabledConsoles instanceof Set ? enabledConsoles : (Array.isArray(enabledConsoles) ? new Set(enabledConsoles) : null);
@@ -387,11 +391,25 @@ export class Scanner {
     });
   }
 
+  // True when skipCollected is on and this loose file is already in the
+  // collection at the same size+mtime — nothing to redo, so skip it silently.
+  looseUnchanged(filePath, st) {
+    const row = getLibraryItem(filePath, '');
+    return !!row && row.size === st.size && row.mtime === Math.round(st.mtimeMs) && PERSISTED_STATUS.has(row.status);
+  }
+
   async processFile(filePath) {
     if (this.cancelled) return;
     const ext = extname(filePath).toLowerCase();
     let st;
     try { st = await stat(filePath); } catch { return; }
+
+    // "Skip already-collected files" option: unchanged files (and unchanged
+    // archives, without re-listing them) are neither hashed nor reported.
+    if (this.skipCollected) {
+      if (isArchive(ext)) { if (libraryArchiveUnchanged(filePath, st.mtimeMs)) return; }
+      else if (this.looseUnchanged(filePath, st)) return;
+    }
 
     if (isArchive(ext)) return this.processArchive(filePath, ext, st);
 

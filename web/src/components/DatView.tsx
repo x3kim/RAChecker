@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { ClipboardList, Upload, Trash2, RefreshCw, ChevronRight, Download, X, Search, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ClipboardList, Upload, Trash2, RefreshCw, ChevronRight, Download, X, Search, AlertTriangle, CheckCircle2, HelpCircle, Copy } from 'lucide-react';
 import { api } from '../lib/api';
-import type { DatFile, CrcStatus, DatCoverage } from '../lib/api';
+import type { DatFile, CrcStatus, DatCoverage, DatExtras } from '../lib/api';
 import { useI18n } from '../lib/i18n';
 import { fmtBytes, fmtDate } from '../lib/util';
 
@@ -16,6 +16,9 @@ export function DatView() {
   const [crcScan, setCrcScan] = useState<CrcScan | null>(null);
   const [coverage, setCoverage] = useState<DatCoverage | null>(null);
   const [covLoading, setCovLoading] = useState(false);
+  const [extras, setExtras] = useState<DatExtras | null>(null);
+  const [extrasLoading, setExtrasLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const esRef = useRef<EventSource | null>(null);
 
@@ -63,6 +66,20 @@ export function DatView() {
     if (!window.confirm(t('dat.deleteConfirm', { name: d.name }))) return;
     try { await api.datDelete(d.id); if (coverage?.dat.id === d.id) setCoverage(null); await load(); } catch { /* ignore */ }
   };
+
+  const loadExtras = async () => {
+    setExtrasLoading(true);
+    try { setExtras(await api.datExtras()); } catch { /* ignore */ }
+    finally { setExtrasLoading(false); }
+  };
+
+  const copyExtras = async () => {
+    if (!extras?.extras.length) return;
+    const text = extras.extras.map((e) => e.inner ? `${e.path}#${e.inner}` : e.path).join('\r\n');
+    try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* ignore */ }
+  };
+
+  const baseName = (p: string) => { const i = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\')); return i >= 0 ? p.slice(i + 1) : p; };
 
   return (
     <div className="w-full max-w-[1320px] mx-auto flex flex-col gap-5">
@@ -144,6 +161,43 @@ export function DatView() {
         </div>
       )}
 
+      {/* extra / unknown dumps */}
+      {dats.length > 0 && (
+        <section className="panel p-5 flex flex-col gap-3">
+          <div className="font-display text-sm text-ink-hi flex items-center gap-2"><HelpCircle size={15} className="text-neon-amber" /> {t('dat.extras.title')}</div>
+          <p className="font-body text-ink-dim text-sm leading-relaxed max-w-3xl">{t('dat.extras.note')}</p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <button className="btn" onClick={loadExtras} disabled={extrasLoading}>
+              <RefreshCw size={16} className={extrasLoading ? 'animate-spin' : ''} /> {extrasLoading ? t('dat.extras.checking') : t('dat.extras.check')}
+            </button>
+            {extras && (
+              <span className="font-mono text-base text-ink-mid">
+                {extras.total === 0 ? t('dat.extras.none') : t('dat.extras.count', { n: extras.total.toLocaleString() })}
+              </span>
+            )}
+            {extras && extras.extras.length > 0 && (
+              <button className="btn !py-1.5 !px-3 text-sm" onClick={copyExtras}>
+                <Copy size={14} /> {copied ? t('dat.extras.copied') : t('dat.extras.copy')}
+              </button>
+            )}
+          </div>
+          {extras && extras.extras.length > 0 && (
+            <div className="flex flex-col gap-1 max-h-[40vh] overflow-auto">
+              {extras.extras.slice(0, 500).map((e, i) => (
+                <div key={i} className="flex items-center gap-3 font-mono text-sm panel !rounded-lg px-3 py-1.5">
+                  <span className="text-ink-hi truncate flex-1 min-w-0" title={e.inner ? `${e.path}#${e.inner}` : e.path}>{e.inner || baseName(e.path)}</span>
+                  {e.crc && <span className="text-ink-dim shrink-0 hidden sm:inline">{e.crc}</span>}
+                  {e.size != null && <span className="text-ink-dim shrink-0">{fmtBytes(e.size)}</span>}
+                </div>
+              ))}
+              {extras.total > extras.extras.length && (
+                <div className="font-mono text-sm text-ink-dim px-3 py-1">{t('dat.extras.more', { n: (extras.total - extras.extras.length).toLocaleString() })}</div>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+
       {(coverage || covLoading) && <CoverageModal coverage={coverage} loading={covLoading} onClose={() => setCoverage(null)} />}
     </div>
   );
@@ -206,7 +260,7 @@ function CoverageModal({ coverage, loading, onClose }: { coverage: DatCoverage |
                   {filtered.map((m, i) => (
                     <div key={i} className="flex items-center gap-3 font-mono text-sm panel !rounded-lg px-3 py-1.5">
                       <span className="text-ink-hi truncate flex-1 min-w-0" title={m.rom || m.game || ''}>{m.rom || m.game || '—'}</span>
-                      {m.crc && <span className="text-ink-dim shrink-0 hidden sm:inline">{m.crc}</span>}
+                      {(m.crc || m.sha1) && <span className="text-ink-dim shrink-0 hidden sm:inline">{m.crc || (m.sha1 ? m.sha1.slice(0, 8) : '')}</span>}
                       {m.size != null && <span className="text-ink-dim shrink-0">{fmtBytes(m.size)}</span>}
                     </div>
                   ))}
