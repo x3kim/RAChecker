@@ -8,7 +8,7 @@ dieses ROM mit den Achievements kompatibel ist. Komplett **offline** gegen eine 
 gecachte Hash-Datenbank — nach der ersten Synchronisierung braucht ein Scan **keine
 einzige API-Anfrage** mehr.
 
-![Status](https://img.shields.io/badge/status-beta%200.9-22e0ff) ![Node](https://img.shields.io/badge/node-22.5%2B-39ff8b) ![Lizenz](https://img.shields.io/badge/license-MIT-9d6bff) ![Daten](https://img.shields.io/badge/Daten-%C2%A9%20retroachievements.org-666)
+![Version](https://img.shields.io/badge/version-0.11-22e0ff) ![Node](https://img.shields.io/badge/node-22.5%2B-39ff8b) ![Lizenz](https://img.shields.io/badge/license-MIT-9d6bff) ![Daten](https://img.shields.io/badge/Daten-%C2%A9%20retroachievements.org-666)
 
 🇬🇧 [English version](README.md)
 
@@ -29,7 +29,8 @@ einzige API-Anfrage** mehr.
 - **Ganze Bibliothek scannen** — einen Oberordner angeben, alle Unterordner werden rekursiv durchsucht.
 - **Läuft im Hintergrund** — der Scan/Sync läuft weiter, auch wenn du den Tab wechselst (kein Abbruch mehr).
 - **Saubere Filter** — `._*`-Reste (macOS), versteckte Dateien und Junk (`.txt/.nfo/.sav/.png` …) werden automatisch übersprungen.
-- **Merkt sich alles** — jede geprüfte Datei landet dauerhaft in deiner **Sammlung**; unveränderte Dateien werden beim Re-Scan **nicht neu gehasht** (Hash-Cache nach Pfad+Größe+Datum).
+- **Merkt sich alles** — jede geprüfte Datei landet dauerhaft in deiner **Sammlung**; unveränderte Dateien werden beim Re-Scan **nicht neu gehasht** (Hash-Cache nach Pfad+Größe+Datum). Optional lassen sich bereits gesammelte Dateien beim Re-Scan ganz überspringen (nicht einmal neu aufgelistet — unveränderte Archive werden nicht geöffnet), sodass nur wirklich neue/geänderte Dateien auftauchen.
+- **DAT-Vollständigkeitsprüfung** — importiere No-Intro/Redump/logiqx/ClrMamePro/MAME-**DAT**-Kataloge und sieh pro Katalog, welche Einträge du bereits hast und welche fehlen (exportierbare Liste). Abgeglichen über die echten Prüfsummen deiner Dateien (CRC32, plus md5/sha1 für Redump-CHD & MAME-`<disk>`), direkt aus `.zip/.7z/.rar`-Archiven **ohne Entpacken** gelesen — unabhängig vom RetroAchievements-Hash. Plus eine *Extra/unbekannte-Dumps*-Ansicht für Dateien, deren Hash in keiner importierten DAT steckt (Bad Dumps / Hacks / Systeme ohne DAT).
 - **Sammlung-Ansicht** — durchsuch- und filterbare Liste aller je gescannten ROMs, mit Status pro System, Mehrfachauswahl (löschen/Pfade kopieren) und RetroArch-`.lpl`-Export.
 - **Sammlung-Diff** — zeigt nach jedem Scan, was neu ist, jetzt Erfolge hat, verloren oder verschwunden ist.
 - **Spiele & Erfolge browsen** — global suchen oder pro System; alle Achievements mit Badges, Punkten und kompatiblen ROM-Versionen.
@@ -237,6 +238,10 @@ verifiziert (Arcade-Treffer, Cartridge-Erkennung, ZIP-Expansion, `.chd` → RAHa
 ---
 
 ## 🔄 Aktualisieren
+
+**Desktop-App:** die **Installer**-Version aktualisiert sich selbst — sie prüft beim Start auf GitHub, lädt eine neuere Version im Hintergrund und bietet unten links *Neustart & installieren*. Die **Portable**-Version kann eine laufende exe nicht direkt ersetzen (Windows sperrt sie), lädt daher die neue `-portable.exe` und bietet *Neustart & ersetzen* (oder zeigt sie im Ordner).
+
+**Aus dem Quellcode:**
 
 1. Neuen Code holen: `git pull` (oder das aktuelle ZIP über den bestehenden Ordner entpacken).
 2. `npm install` — nötig, falls sich Abhängigkeiten geändert haben.

@@ -7,7 +7,7 @@ RAChecker scans your sorted ROM root folder (including all subfolders), computes
 ROM is compatible with achievements. Fully **offline** against a locally cached hash
 database — after the first sync, a scan needs **zero API requests**.
 
-![Status](https://img.shields.io/badge/status-beta%200.9-22e0ff) ![Node](https://img.shields.io/badge/node-22.5%2B-39ff8b) ![License](https://img.shields.io/badge/license-MIT-9d6bff) ![Data](https://img.shields.io/badge/data-%C2%A9%20retroachievements.org-666)
+![Version](https://img.shields.io/badge/version-0.11-22e0ff) ![Node](https://img.shields.io/badge/node-22.5%2B-39ff8b) ![License](https://img.shields.io/badge/license-MIT-9d6bff) ![Data](https://img.shields.io/badge/data-%C2%A9%20retroachievements.org-666)
 
 🇩🇪 [Deutsche Version](README.de.md)
 
@@ -28,7 +28,8 @@ database — after the first sync, a scan needs **zero API requests**.
 - **Scan your whole library** — point it at a root folder, all subfolders are searched recursively.
 - **Runs in the background** — the scan/sync keeps going even if you switch tabs (no more losing progress).
 - **Clean filtering** — `._*` leftovers (macOS), hidden files and junk (`.txt/.nfo/.sav/.png` …) are skipped automatically.
-- **Remembers everything** — every checked file lands permanently in your **collection**; unchanged files are **not re-hashed** on a re-scan (hash cache keyed by path+size+date).
+- **Remembers everything** — every checked file lands permanently in your **collection**; unchanged files are **not re-hashed** on a re-scan (hash cache keyed by path+size+date). Optionally skip already-collected files entirely on a re-scan (they aren't even re-listed — unchanged archives aren't opened) so only genuinely new/changed files show up.
+- **DAT completeness check** — import No-Intro/Redump/logiqx/ClrMamePro/MAME **DAT** catalogs and see, per catalog, which entries you already have and which are missing (exportable list). Matched by your files' real checksums (CRC32, plus md5/sha1 for Redump CHD & MAME `<disk>`), read straight from `.zip/.7z/.rar` archives **without extraction** — independent of the RetroAchievements hash. Plus an *Extra / unknown dumps* view for files whose hash is in no imported DAT (bad dumps / hacks / systems without a DAT).
 - **Collection view** — a searchable, filterable list of every ROM ever scanned, with per-system status, multi-select (delete/copy paths) and RetroArch `.lpl` export.
 - **Collection diff** — after each scan, see what's new, newly playable, lost, or gone.
 - **Browse games & achievements** — search globally or per system; every achievement with badges, points and compatible ROM versions.
@@ -236,6 +237,10 @@ cartridge detection, ZIP expansion, `.chd` → RAHasher).
 ---
 
 ## 🔄 Updating
+
+**Desktop app:** the **installer** build updates itself — it checks GitHub on launch, downloads a newer release in the background and offers *Restart & install* (bottom-left). The **portable** build can't replace a running exe in place (Windows locks it), so it downloads the new `-portable.exe` and offers *Restart & replace* (or reveals it in the folder).
+
+**From source:**
 
 1. Get the new code: `git pull` (or extract the current ZIP over the existing folder).
 2. `npm install` — needed if dependencies changed.

@@ -13,4 +13,8 @@ contextBridge.exposeInMainWorld('raUpdate', {
   },
   check: () => ipcRenderer.invoke('update:check'),
   install: () => ipcRenderer.invoke('update:install'),
+  // Portable-only: download the new exe, reveal it, or swap it in on quit.
+  downloadPortable: () => ipcRenderer.invoke('update:downloadPortable'),
+  revealPortable: () => ipcRenderer.invoke('update:revealPortable'),
+  swapPortable: () => ipcRenderer.invoke('update:swapPortable'),
 });

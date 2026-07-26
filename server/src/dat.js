@@ -4,7 +4,8 @@
 // iNES headers, byte-swaps N64, hashes arcade filenames, …): DATs universally
 // carry the CRC32 of the untouched file, so completeness is matched on that.
 import { createReadStream } from 'node:fs';
-import { getConsoles } from './db.js';
+import { createHash } from 'node:crypto';
+import { FOLDER_ALIASES, normalizeName } from './consoles.js';
 
 // ---- CRC32 (streaming, table-based; independent of zlib.crc32 availability) --
 const CRC_TABLE = (() => {
@@ -34,6 +35,33 @@ export function crc32File(filePath, { signal } = {}) {
     });
     rs.on('error', (e) => { if (signal) signal.removeEventListener('abort', onAbort); reject(e); });
     rs.on('end', () => { if (signal) signal.removeEventListener('abort', onAbort); resolve(toHex(crc ^ 0xFFFFFFFF)); });
+  });
+}
+
+// Stream a loose file once and return crc32 + md5 + sha1 together. DATs match
+// primarily on CRC, but some (Redump CHD, MAME <disk>) carry only sha1, so the
+// completeness pass computes all three for loose files in a single read — the
+// I/O dominates, the extra hashes are almost free.
+export function hashFileAll(filePath, { signal } = {}) {
+  return new Promise((resolve, reject) => {
+    let crc = 0xFFFFFFFF;
+    const md5 = createHash('md5');
+    const sha1 = createHash('sha1');
+    const rs = createReadStream(filePath);
+    const onAbort = () => rs.destroy(new Error('aborted'));
+    if (signal) {
+      if (signal.aborted) { rs.destroy(); return reject(new Error('aborted')); }
+      signal.addEventListener('abort', onAbort, { once: true });
+    }
+    rs.on('data', (chunk) => {
+      for (let i = 0; i < chunk.length; i++) crc = (crc >>> 8) ^ CRC_TABLE[(crc ^ chunk[i]) & 0xFF];
+      md5.update(chunk); sha1.update(chunk);
+    });
+    rs.on('error', (e) => { if (signal) signal.removeEventListener('abort', onAbort); reject(e); });
+    rs.on('end', () => {
+      if (signal) signal.removeEventListener('abort', onAbort);
+      resolve({ crc: toHex(crc ^ 0xFFFFFFFF), md5: md5.digest('hex'), sha1: sha1.digest('hex') });
+    });
   });
 }
 
@@ -79,10 +107,12 @@ function parseXmlDat(text) {
   while ((g = gameRe.exec(text))) {
     const gameName = xmlAttr(g[1], 'name');
     const body = g[2];
-    const romRe = /<rom\b([^>]*?)\/?>/gi;
+    // <rom> (cart/disc images) and <disk> (MAME CHDs, sha1-only) both count.
+    const romRe = /<(?:rom|disk)\b([^>]*?)\/?>/gi;
     let r;
     while ((r = romRe.exec(body))) {
       const a = r[1];
+      if (/status\s*=\s*["'](?:nodump|baddump)["']/i.test(a)) continue; // no usable hash
       const crc = xmlAttr(a, 'crc');
       const md5 = xmlAttr(a, 'md5');
       const sha1 = xmlAttr(a, 'sha1');
@@ -98,14 +128,23 @@ function parseXmlDat(text) {
   return { header, entries };
 }
 
-// Iterate balanced `game (...)` / `machine (...)` blocks in a ClrMamePro DAT.
-function* cmProBlocks(text) {
-  const re = /\b(?:game|machine|set)\s*\(/g;
+// Iterate balanced `keyword (...)` blocks in a ClrMamePro DAT, skipping parens
+// that live inside quoted strings — ROM/game names routinely contain them, e.g.
+// `name "Sonic (World)"`, so naive paren-counting would mis-balance and a
+// `[^)]*` rom regex would stop at the first ")".
+function* cmBlocks(text, keyword) {
+  const re = new RegExp('\\b(?:' + keyword + ')\\s*\\(', 'g');
   let m;
   while ((m = re.exec(text))) {
-    let i = m.index + m[0].length; let depth = 1;
+    let i = m.index + m[0].length; let depth = 1; let q = false;
     const start = i;
-    while (i < text.length && depth > 0) { const ch = text[i]; if (ch === '(') depth++; else if (ch === ')') depth--; i++; }
+    while (i < text.length && depth > 0) {
+      const ch = text[i];
+      if (ch === '"') q = !q;
+      else if (!q && ch === '(') depth++;
+      else if (!q && ch === ')') depth--;
+      i++;
+    }
     yield text.slice(start, i - 1);
     re.lastIndex = i;
   }
@@ -116,21 +155,18 @@ function cmVal(block, key) {
 }
 function parseClrMameDat(text) {
   const header = {};
-  const hm = text.match(/clrmamepro\s*\(([\s\S]*?)\)/i);
+  const hm = text.match(/clrmamepro\s*\(([\s\S]*?)\n\)/i) || text.match(/clrmamepro\s*\(([\s\S]*?)\)/i);
   if (hm) {
     header.name = cmVal(hm[1], 'name');
     header.description = cmVal(hm[1], 'description');
     header.version = cmVal(hm[1], 'version');
   }
   const entries = [];
-  for (const block of cmProBlocks(text)) {
-    const firstRom = block.search(/\brom\s*\(/);
+  for (const block of cmBlocks(text, 'game|machine|set')) {
+    const firstRom = block.search(/\b(?:rom|disk)\s*\(/);
     const gameHead = firstRom >= 0 ? block.slice(0, firstRom) : block;
     const gameName = cmVal(gameHead, 'name');
-    const romRe = /\brom\s*\(([^)]*)\)/g;
-    let r;
-    while ((r = romRe.exec(block))) {
-      const rb = r[1];
+    for (const rb of cmBlocks(block, 'rom|disk')) {
       const crc = cmVal(rb, 'crc');
       const md5 = cmVal(rb, 'md5');
       const sha1 = cmVal(rb, 'sha1');
@@ -152,15 +188,32 @@ export function parseDat(text) {
   return isXml ? parseXmlDat(text) : parseClrMameDat(text);
 }
 
-// Best-effort RA console guess from the DAT header name (informational only —
-// matching is by CRC and does not depend on this).
-export function guessConsole(headerName) {
-  const h = (headerName || '').toLowerCase();
-  if (!h) return null;
-  let best = null;
-  for (const c of getConsoles()) {
-    const nm = (c.name || '').toLowerCase();
-    if (nm.length >= 3 && h.includes(nm) && (!best || nm.length > best.len)) best = { id: c.id, len: nm.length };
+// Best-effort RA console guess from a DAT header name (informational only —
+// matching is by hash and does not depend on this). No-Intro/Redump headers
+// look like "Nintendo - Super Nintendo Entertainment System" or
+// "Sony - PlayStation"; we reuse the curated FOLDER_ALIASES map and pick the
+// LONGEST alias phrase that appears as a whole token run (so "super nintendo …"
+// beats a bare "nintendo", and short aliases like "ds"/"gg" never match inside
+// another word).
+const ALIASES_BY_LEN = Object.keys(FOLDER_ALIASES)
+  .map((a) => ({ alias: a, tokens: normalizeName(a).split(' ').filter(Boolean) }))
+  .sort((x, y) => y.tokens.length - x.tokens.length || y.alias.length - x.alias.length);
+
+function tokensContain(hay, needle) {
+  if (!needle.length) return false;
+  for (let i = 0; i + needle.length <= hay.length; i++) {
+    let ok = true;
+    for (let j = 0; j < needle.length; j++) if (hay[i + j] !== needle[j]) { ok = false; break; }
+    if (ok) return true;
   }
-  return best ? best.id : null;
+  return false;
+}
+
+export function guessConsole(headerName) {
+  const tokens = normalizeName(headerName || '').split(' ').filter(Boolean);
+  if (!tokens.length) return null;
+  for (const { alias, tokens: at } of ALIASES_BY_LEN) {
+    if (tokensContain(tokens, at)) return FOLDER_ALIASES[alias];
+  }
+  return null;
 }
