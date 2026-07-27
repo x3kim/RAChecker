@@ -1,7 +1,7 @@
 // Single source of truth for the mobile app version + changelog. Mirror the
 // version in app.json ("version" + android.versionCode). The auto-updater
 // compares this against GitHub releases tagged `android-vX.Y.Z`.
-export const APP_VERSION = '0.3.0';
+export const APP_VERSION = '0.4.0';
 
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
 export const DOCS_URL = 'https://x3kim.github.io/RAChecker/';
@@ -15,6 +15,24 @@ export type ChangelogEntry = { version: string; date: string; en: string[]; de: 
 
 // Newest first. `en`/`de` are bullet lists.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '0.4.0',
+    date: '2026-07-27',
+    en: [
+      'On-device disc hashing — CHD, ISO and PBP disc images now hash right on your phone and match RetroAchievements, no desktop app needed. Covers PlayStation, PS2, PSP, Saturn, Sega CD, Dreamcast, PC Engine CD, PC-FX, 3DO, Neo Geo CD and Atari Jaguar CD.',
+      'CHD support reads zlib- and LZMA-compressed disc images (the common space-saving format) directly.',
+      'New “What’s new” popup shows the changelog once after each update.',
+      'Fixed theme colours: some boxes (e.g. the Profile header) kept the blue tint after switching theme — now every panel follows the chosen theme.',
+      'Replaced the Synthwave theme with Gold (matching the desktop app).',
+    ],
+    de: [
+      'Disc-Hashing direkt auf dem Gerät — CHD-, ISO- und PBP-Disc-Images werden jetzt direkt am Handy gehasht und mit RetroAchievements abgeglichen, ganz ohne Desktop-App. Unterstützt PlayStation, PS2, PSP, Saturn, Sega CD, Dreamcast, PC Engine CD, PC-FX, 3DO, Neo Geo CD und Atari Jaguar CD.',
+      'CHD-Unterstützung liest zlib- und LZMA-komprimierte Disc-Images (das gängige platzsparende Format) direkt.',
+      'Neues „Neuigkeiten“-Popup zeigt den Changelog einmalig nach jedem Update.',
+      'Theme-Farben korrigiert: manche Boxen (z. B. der Profil-Kopf) behielten nach dem Theme-Wechsel den blauen Ton — jetzt folgt jedes Panel dem gewählten Theme.',
+      'Das Synthwave-Theme durch Gold ersetzt (wie in der Desktop-App).',
+    ],
+  },
   {
     version: '0.3.0',
     date: '2026-07-27',

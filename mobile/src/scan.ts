@@ -3,7 +3,7 @@
 // synced hash DB. Green = earns achievements, red = no match.
 import * as DocumentPicker from 'expo-document-picker';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
-import { hashTarget, hashZip, extOf, isScannable, DISC_EXTS, Hashed } from './hashFile';
+import { hashTarget, hashZip, hashDiscFile, extOf, isScannable, DISC_EXTS, HASHABLE_DISC_EXTS, Hashed } from './hashFile';
 import { lookupHash, MatchGame } from './db';
 import { tt } from './i18n';
 
@@ -82,6 +82,12 @@ export async function scanTargets(
         } else {
           for (const h of inners) rows.push({ ...h, match: await lookupHash(h.md5) });
         }
+      } else if (HASHABLE_DISC_EXTS.has(ext)) {
+        // On-device disc hashing (.chd/.iso/.pbp). If a supported disc can't be
+        // recognised/decoded it counts toward the desktop-only note instead.
+        const h = await hashDiscFile(t.uri, t.name);
+        if (h) rows.push({ ...h, match: await lookupHash(h.md5) });
+        else discCount++;
       } else if (DISC_EXTS.has(ext)) {
         discCount++;
       } else {

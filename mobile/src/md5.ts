@@ -10,3 +10,11 @@ const md5hex = md5 as unknown as (input: Uint8Array) => string;
 export function md5Bytes(bytes: Uint8Array): string {
   return md5hex(bytes);
 }
+
+// Incremental MD5 (js-md5 `create()`), used by the disc hash rules which feed the
+// digest in pieces (boot-file name + executable bytes across many sectors).
+export type Md5Incremental = { update(bytes: Uint8Array): void; hex(): string };
+export function md5Create(): Md5Incremental {
+  const h = (md5 as unknown as { create(): { update(b: Uint8Array): void; hex(): string } }).create();
+  return { update: (b) => h.update(b), hex: () => h.hex() };
+}

@@ -22,10 +22,10 @@ export const PALETTES: Record<string, Palette> = {
     cyan: '#ffb000', magenta: '#ff7a18', green: '#7dff5a', amber: '#ffd25e', red: '#ff5a3c', purple: '#ffae00', blue: '#ffc24d',
     inkHi: '#ffe9c2', inkMid: '#c9a86a', inkDim: '#7d6233',
   },
-  synthwave: {
-    bg: '#140a24', bg2: '#160b28', panel: '#20123a', panel2: '#20123a21', surface: '#271546', line: '#3c2160', line2: '#51307e',
-    cyan: '#2bd9ff', magenta: '#ff2e97', green: '#36f9b3', amber: '#ffcf4a', red: '#ff5d73', purple: '#b66dff', blue: '#7a8cff',
-    inkHi: '#f4e9ff', inkMid: '#b79fd6', inkDim: '#7a679e',
+  gold: {
+    bg: '#0f0b04', bg2: '#140f06', panel: '#221805', panel2: '#22180521', surface: '#281d08', line: '#4a3712', line2: '#63491a',
+    cyan: '#ffd24a', magenta: '#ff9e3d', green: '#ffe07a', amber: '#ffcf4a', red: '#ff6f4a', purple: '#ffb84d', blue: '#ffc24d',
+    inkHi: '#fff3d6', inkMid: '#d8b87a', inkDim: '#8a6e3a',
   },
   green: {
     bg: '#04100a', bg2: '#06140d', panel: '#0a1f15', panel2: '#0a1f1521', surface: '#0c2419', line: '#15402b', line2: '#1d5639',
@@ -47,7 +47,7 @@ export const PALETTES: Record<string, Palette> = {
 export const THEME_LIST: { id: string; name: string }[] = [
   { id: 'cyan', name: 'CRT Cyan' },
   { id: 'amber', name: 'Amber' },
-  { id: 'synthwave', name: 'Synthwave' },
+  { id: 'gold', name: 'Gold' },
   { id: 'green', name: 'Matrix' },
   { id: 'gameboy', name: 'Game Boy' },
   { id: 'light', name: 'Light' },

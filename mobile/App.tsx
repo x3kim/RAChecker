@@ -6,13 +6,16 @@ import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } f
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { colors, applyThemeToColors, loadThemeId } from './src/theme';
 import { I18nProvider, useI18n, loadLang, langChosen, Lang } from './src/i18n';
-import { LanguageGate } from './src/screens/LanguageGate';
 
-// Shell (and its screens' StyleSheets) is imported lazily AFTER the saved theme
-// palette has been applied, so every StyleSheet captures the chosen theme's
-// colors. Changing theme persists + reloads the app to re-run this with the new
-// palette.
+// Shell AND LanguageGate (and every StyleSheet they pull in, incl. ui.tsx) are
+// imported lazily AFTER the saved theme palette has been applied, so every
+// module-level StyleSheet.create captures the chosen theme's colors. Importing
+// LanguageGate eagerly used to drag ui.tsx in before applyThemeToColors ran,
+// freezing Panel/Btn/Input at the default cyan palette — which is why some boxes
+// stayed blue after switching theme. Changing theme persists + reloads the app.
 const Shell = lazy(() => import('./src/Shell'));
+const LanguageGate = lazy(() =>
+  import('./src/screens/LanguageGate').then((m) => ({ default: m.LanguageGate })));
 
 const Loading = () => (
   <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
@@ -23,10 +26,11 @@ const Loading = () => (
 function AppInner({ needGate }: { needGate: boolean }) {
   const { setLang } = useI18n();
   const [gate, setGate] = useState(needGate);
-  if (gate) return <LanguageGate onPick={(l) => { setLang(l); setGate(false); }} />;
   return (
     <Suspense fallback={<Loading />}>
-      <Shell />
+      {gate
+        ? <LanguageGate onPick={(l) => { setLang(l); setGate(false); }} />
+        : <Shell />}
     </Suspense>
   );
 }

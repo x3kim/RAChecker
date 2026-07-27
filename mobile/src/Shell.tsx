@@ -1,5 +1,6 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
@@ -14,7 +15,13 @@ import { SyncScreen } from './screens/SyncScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { OnboardingModal } from './screens/OnboardingModal';
+import { ChangelogModal } from './screens/ChangelogModal';
 import { isOnboarded } from './storage';
+import { APP_VERSION } from './version';
+
+// Remembers the last version the user has seen so we can show the changelog once
+// after an update. First install just records the version silently (no popup).
+const SEEN_VERSION_KEY = 'ra_seen_version';
 
 type Tab = 'scan' | 'games' | 'discover' | 'sync' | 'profile' | 'settings';
 const TABS: { key: Tab; labelKey: string; icon: keyof typeof Feather.glyphMap }[] = [
@@ -33,7 +40,17 @@ export default function Shell() {
   const [visited, setVisited] = useState<Set<Tab>>(() => new Set<Tab>(['scan']));
   const show = (t: Tab) => { setTab(t); setVisited((v) => (v.has(t) ? v : new Set(v).add(t))); };
   const [onboarding, setOnboarding] = useState(false);
+  const [showChangelog, setShowChangelog] = useState(false);
   useEffect(() => { isOnboarded().then((v) => setOnboarding(!v)); }, []);
+
+  // Show the changelog once when the installed version changed since last launch.
+  useEffect(() => {
+    (async () => {
+      const seen = await AsyncStorage.getItem(SEEN_VERSION_KEY);
+      if (seen && seen !== APP_VERSION) setShowChangelog(true);
+      if (seen !== APP_VERSION) await AsyncStorage.setItem(SEEN_VERSION_KEY, APP_VERSION);
+    })();
+  }, []);
 
   const pane = (t: Tab, node: ReactNode) =>
     visited.has(t) ? <View key={t} style={[styles.pane, { display: tab === t ? 'flex' : 'none' }]}>{node}</View> : null;
@@ -74,6 +91,7 @@ export default function Shell() {
       </View>
 
       {onboarding && <OnboardingModal onDone={() => setOnboarding(false)} />}
+      {showChangelog && !onboarding && <ChangelogModal onClose={() => setShowChangelog(false)} />}
     </View>
   );
 }

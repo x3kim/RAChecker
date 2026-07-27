@@ -2,11 +2,13 @@
 // URIs via the new File API and for SAF content:// URIs via the legacy base64
 // reader) and compute the RA hash through the shared core.
 import { File } from 'expo-file-system';
-import { readAsStringAsync, EncodingType } from 'expo-file-system/legacy';
+import { readAsStringAsync, EncodingType, getInfoAsync } from 'expo-file-system/legacy';
 import { unzipSync } from 'fflate';
 // Vendored shared core (source of truth: packages/core).
 import { hashBuffer, consoleForExt } from './core';
 import { md5Bytes } from './md5';
+import { hashDisc, HASHABLE_DISC_EXTS } from './disc';
+import { RandomReader } from './disc/reader';
 
 export function extOf(name: string): string {
   const i = name.lastIndexOf('.');
@@ -48,6 +50,40 @@ export async function hashTarget(uri: string, name: string): Promise<Hashed> {
   const bytes = await readBytes(uri);
   return hashBytes(name, name, bytes);
 }
+
+// A random-access reader over a file URI. Reads byte ranges on demand (base64,
+// position+length) so multi-hundred-MB disc images are never loaded whole into
+// memory. DocumentPicker copies picks to cache as file:// URIs, which support
+// ranged reads; SAF content:// URIs generally do too via the legacy reader.
+function fileRandomReader(uri: string, size: number): RandomReader {
+  return {
+    size,
+    async read(offset: number, length: number): Promise<Uint8Array> {
+      if (length <= 0) return new Uint8Array(0);
+      const b64 = await readAsStringAsync(uri, { encoding: EncodingType.Base64, position: offset, length });
+      return base64ToBytes(b64);
+    },
+  };
+}
+
+async function fileSize(uri: string): Promise<number> {
+  try { const info = await getInfoAsync(uri); if (info.exists && typeof info.size === 'number') return info.size; } catch { /* ignore */ }
+  try { const s = new File(uri).size; if (typeof s === 'number') return s; } catch { /* ignore */ }
+  return 0;
+}
+
+// Hash a disc image (.chd/.iso/.pbp) on-device via the ported rcheevos disc rules.
+// Returns a Hashed row, or null when the format/codecs aren't supported (caller
+// then shows the desktop-only note). Throws on a read/decode failure with a reason.
+export async function hashDiscFile(uri: string, name: string): Promise<Hashed | null> {
+  const size = await fileSize(uri);
+  if (!size) return null;
+  const res = await hashDisc(fileRandomReader(uri, size), name);
+  if (!res) return null;
+  return { name, ext: extOf(name), rule: `disc:${res.system}`, consoleId: res.consoleId, md5: res.md5 };
+}
+
+export { HASHABLE_DISC_EXTS };
 
 // True for an archive member that looks like a cartridge ROM we can hash. Skips
 // Apple/hidden junk (._foo, .DS_Store) and anything that isn't a known cart ext.
