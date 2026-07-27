@@ -172,12 +172,12 @@ a games-by-system browser, Discover, 6 themes and **English + German**.
 - **Download:** grab the latest `RAChecker-*.apk` from the [Releases page](https://github.com/x3kim/RAChecker/releases) (Android tags are `android-vX.Y.Z`).
 - **Install:** enable "install from unknown sources" when prompted (the APK is unsigned).
 - **Auto-update (opt-in):** the app checks GitHub on launch and can download & install newer APKs; you can decline or turn it off in Settings.
-- **Archives:** ZIP archives are read on the device (each ROM inside is hashed). **7z/RAR and disc systems** (CHD, CUE/BIN, ISO — need RAHasher) stay desktop-only; disc images found in a scan are flagged as such.
-- **Coming next:** on-device **disc / CHD hashing** (PlayStation first) is planned for a future update — design work is underway.
+- **Disc hashing on-device (v0.4.0):** **CHD, ISO and PBP** disc images now hash right on the phone and match RetroAchievements — PlayStation, PS2, PSP, Saturn, Sega CD, Dreamcast, PC Engine CD, PC-FX, 3DO, Neo Geo CD and Atari Jaguar CD. CHD reads zlib- and LZMA-compressed images directly (a fresh JS port of the rcheevos disc rules + a pure-JS CHD reader).
+- **Archives:** ZIP archives are read on the device (each ROM inside is hashed). **7z/RAR** and the remaining disc containers (GameCube/Wii, CSO/RVZ/GCZ, GDI, CUE/BIN split files, M3U) stay desktop-only; those are flagged during a scan.
 
 Build it yourself: see [`mobile/`](mobile/) (`npx eas build --profile preview --platform android`).
 
-Disc systems, whole-library scanning and DAT checks are **desktop-only** — the two apps complement each other.
+Whole-library scanning, DAT checks and the remaining disc formats are **desktop-only** — the two apps complement each other.
 
 ---
 

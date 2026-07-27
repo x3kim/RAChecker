@@ -173,12 +173,12 @@ Insights, ein Spiele-Browser nach Systemen, Entdecken, 6 Themes und **Englisch +
 - **Download:** neueste `RAChecker-*.apk` von der [Releases-Seite](https://github.com/x3kim/RAChecker/releases) (Android-Tags sind `android-vX.Y.Z`).
 - **Installation:** bei Aufforderung „Installation aus unbekannten Quellen" erlauben (die APK ist unsigniert).
 - **Auto-Update (optional):** die App prüft beim Start GitHub und kann neuere APKs herunterladen & installieren; ablehnbar oder in den Einstellungen abschaltbar.
-- **Archive:** ZIP-Archive werden auf dem Gerät gelesen (jedes ROM darin wird gehasht). **7z/RAR und Disc-Systeme** (CHD, CUE/BIN, ISO — brauchen RAHasher) bleiben Desktop-only; beim Scan gefundene Disc-Images werden entsprechend markiert.
-- **Kommt als Nächstes:** On-Device-**Disc-/CHD-Hashing** (zuerst PlayStation) ist für ein künftiges Update geplant — die Design-Arbeit läuft bereits.
+- **Disc-Hashing auf dem Gerät (v0.4.0):** **CHD-, ISO- und PBP**-Disc-Images werden jetzt direkt am Handy gehasht und mit RetroAchievements abgeglichen — PlayStation, PS2, PSP, Saturn, Sega CD, Dreamcast, PC Engine CD, PC-FX, 3DO, Neo Geo CD und Atari Jaguar CD. CHD liest zlib- und LZMA-komprimierte Images direkt (frischer JS-Port der rcheevos-Disc-Regeln + reiner JS-CHD-Reader).
+- **Archive:** ZIP-Archive werden auf dem Gerät gelesen (jedes ROM darin wird gehasht). **7z/RAR** und die übrigen Disc-Container (GameCube/Wii, CSO/RVZ/GCZ, GDI, geteilte CUE/BIN, M3U) bleiben Desktop-only; diese werden beim Scan markiert.
 
 Selbst bauen: siehe [`mobile/`](mobile/) (`npx eas build --profile preview --platform android`).
 
-Disc-Systeme, komplettes Sammlungs-Scannen und DAT-Abgleich sind **Desktop-only** — die beiden Apps ergänzen sich.
+Komplettes Sammlungs-Scannen, DAT-Abgleich und die übrigen Disc-Formate sind **Desktop-only** — die beiden Apps ergänzen sich.
 
 ---
 
