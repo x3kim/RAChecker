@@ -1,6 +1,6 @@
 // Single source of truth for the app version + changelog. The footer version
 // chip opens a modal rendering CHANGELOG; package.json is kept in sync manually.
-export const APP_VERSION = '0.11.0';
+export const APP_VERSION = '0.11.1';
 
 // GitHub repository — linked from the header (GitHub icon in the "More" menu).
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
@@ -15,6 +15,15 @@ export interface Release { version: string; date: string; title?: { de: string; 
 
 // Newest first. Dates are ISO (YYYY-MM-DD).
 export const CHANGELOG: Release[] = [
+  {
+    version: '0.11.1',
+    date: '2026-07-27',
+    title: { de: 'Android-App & neues Logo', en: 'Android app & new logo' },
+    changes: [
+      { type: 'feature', de: 'RAChecker gibt es jetzt auch als eigenständige Android-App (APK) — sie hasht Cartridge-ROMs direkt auf dem Handy und gleicht offline gegen RetroAchievements ab. Verlinkt im ⋯-Menü und in der Fußzeile; Download auf der Releases-Seite.', en: 'RAChecker now also has a standalone Android app (APK) — it hashes cartridge ROMs right on your phone and matches them offline against RetroAchievements. Linked from the ⋯ menu and the footer; download on the releases page.' },
+      { type: 'improve', de: 'Neues Marken-Logo als App-Icon (Desktop) und Favicon.', en: 'New brand logo as the app icon (desktop) and the favicon.' },
+    ],
+  },
   {
     version: '0.11.0',
     date: '2026-07-26',
