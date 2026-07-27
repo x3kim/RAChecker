@@ -174,6 +174,7 @@ Insights, ein Spiele-Browser nach Systemen, Entdecken, 6 Themes und **Englisch +
 - **Installation:** bei Aufforderung „Installation aus unbekannten Quellen" erlauben (die APK ist unsigniert).
 - **Auto-Update (optional):** die App prüft beim Start GitHub und kann neuere APKs herunterladen & installieren; ablehnbar oder in den Einstellungen abschaltbar.
 - **Archive:** ZIP-Archive werden auf dem Gerät gelesen (jedes ROM darin wird gehasht). **7z/RAR und Disc-Systeme** (CHD, CUE/BIN, ISO — brauchen RAHasher) bleiben Desktop-only; beim Scan gefundene Disc-Images werden entsprechend markiert.
+- **Kommt als Nächstes:** On-Device-**Disc-/CHD-Hashing** (zuerst PlayStation) ist für ein künftiges Update geplant — die Design-Arbeit läuft bereits.
 
 Selbst bauen: siehe [`mobile/`](mobile/) (`npx eas build --profile preview --platform android`).
 

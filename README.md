@@ -173,6 +173,7 @@ a games-by-system browser, Discover, 6 themes and **English + German**.
 - **Install:** enable "install from unknown sources" when prompted (the APK is unsigned).
 - **Auto-update (opt-in):** the app checks GitHub on launch and can download & install newer APKs; you can decline or turn it off in Settings.
 - **Archives:** ZIP archives are read on the device (each ROM inside is hashed). **7z/RAR and disc systems** (CHD, CUE/BIN, ISO — need RAHasher) stay desktop-only; disc images found in a scan are flagged as such.
+- **Coming next:** on-device **disc / CHD hashing** (PlayStation first) is planned for a future update — design work is underway.
 
 Build it yourself: see [`mobile/`](mobile/) (`npx eas build --profile preview --platform android`).
 
