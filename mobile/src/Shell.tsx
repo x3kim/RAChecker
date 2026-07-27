@@ -1,5 +1,6 @@
 import { useState, useEffect, ReactNode } from 'react';
-import { View, StyleSheet, Platform, StatusBar as RNStatusBar, Pressable, SafeAreaView } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
 import { colors, space, radius } from './theme';
@@ -15,8 +16,6 @@ import { SettingsScreen } from './screens/SettingsScreen';
 import { OnboardingModal } from './screens/OnboardingModal';
 import { isOnboarded } from './storage';
 
-const TOP_INSET = Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 24) : 0;
-
 type Tab = 'scan' | 'games' | 'discover' | 'sync' | 'profile' | 'settings';
 const TABS: { key: Tab; labelKey: string; icon: keyof typeof Feather.glyphMap }[] = [
   { key: 'scan', labelKey: 'nav.scan', icon: 'search' },
@@ -29,6 +28,7 @@ const TABS: { key: Tab; labelKey: string; icon: keyof typeof Feather.glyphMap }[
 
 export default function Shell() {
   const { t } = useI18n();
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('scan');
   const [visited, setVisited] = useState<Set<Tab>>(() => new Set<Tab>(['scan']));
   const show = (t: Tab) => { setTab(t); setVisited((v) => (v.has(t) ? v : new Set(v).add(t))); };
@@ -39,7 +39,7 @@ export default function Shell() {
     visited.has(t) ? <View key={t} style={[styles.pane, { display: tab === t ? 'flex' : 'none' }]}>{node}</View> : null;
 
   return (
-    <SafeAreaView style={styles.root}>
+    <View style={[styles.root, { paddingTop: insets.top }]}>
       <StatusBar style="light" />
 
       <View style={styles.header}>
@@ -61,7 +61,7 @@ export default function Shell() {
         {pane('settings', <SettingsScreen onConnected={() => show('profile')} />)}
       </View>
 
-      <View style={styles.tabBar}>
+      <View style={[styles.tabBar, { paddingBottom: space.sm + insets.bottom }]}>
         {TABS.map((tb) => {
           const active = tab === tb.key;
           return (
@@ -74,12 +74,12 @@ export default function Shell() {
       </View>
 
       {onboarding && <OnboardingModal onDone={() => setOnboarding(false)} />}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg, paddingTop: TOP_INSET },
+  root: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', gap: space.md,
     paddingHorizontal: space.lg, paddingVertical: space.md,

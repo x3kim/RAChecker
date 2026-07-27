@@ -3,8 +3,9 @@
 // synced hash DB. Green = earns achievements, red = no match.
 import * as DocumentPicker from 'expo-document-picker';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
-import { hashTarget, extOf, CART_EXTS, Hashed } from './hashFile';
+import { hashTarget, hashZip, extOf, isScannable, DISC_EXTS, Hashed } from './hashFile';
 import { lookupHash, MatchGame } from './db';
+import { tt } from './i18n';
 
 export type Target = { uri: string; name: string };
 export type ScanRow = Hashed & { match: MatchGame | null; error?: string };
@@ -45,7 +46,7 @@ export async function enumerateFolder(dirUri: string, max = 5000): Promise<Targe
     for (const child of children) {
       const name = nameFromUri(child);
       const ext = extOf(name);
-      if (ext && CART_EXTS.has(ext)) {
+      if (ext && isScannable(ext)) {
         out.push({ uri: child, name });
         if (out.length >= max) break;
         continue;
@@ -67,18 +68,40 @@ export async function scanTargets(
   onProgress: (p: { done: number; total: number; current: string }) => void,
 ): Promise<ScanRow[]> {
   const rows: ScanRow[] = [];
+  const total = targets.length;
   let done = 0;
+  let discCount = 0; // disc images found — reported once as a summary row
   for (const t of targets) {
-    onProgress({ done, total: targets.length, current: t.name });
+    onProgress({ done, total, current: t.name });
+    const ext = extOf(t.name);
     try {
-      const h = await hashTarget(t.uri, t.name);
-      const match = await lookupHash(h.md5);
-      rows.push({ ...h, match });
+      if (ext === '.zip') {
+        const inners = await hashZip(t.uri, t.name);
+        if (!inners.length) {
+          rows.push(noteRow(t.name, ext, tt('scan.zipEmpty')));
+        } else {
+          for (const h of inners) rows.push({ ...h, match: await lookupHash(h.md5) });
+        }
+      } else if (DISC_EXTS.has(ext)) {
+        discCount++;
+      } else {
+        const h = await hashTarget(t.uri, t.name);
+        rows.push({ ...h, match: await lookupHash(h.md5) });
+      }
     } catch (e: any) {
-      rows.push({ name: t.name, ext: extOf(t.name), rule: null, consoleId: null, md5: '', match: null, error: String(e?.message || e) });
+      rows.push(noteRow(t.name, ext, String(e?.message || e)));
     }
     done++;
-    onProgress({ done, total: targets.length, current: t.name });
+    onProgress({ done, total, current: t.name });
+  }
+  if (discCount > 0) {
+    rows.push(noteRow(tt('scan.discSummary', { n: discCount }), '', tt('scan.discNote')));
   }
   return rows;
+}
+
+// A non-hashable informational row (empty ZIP, read error, disc-image note).
+// md5 is empty so it is never persisted into the collection.
+function noteRow(name: string, ext: string, error: string): ScanRow {
+  return { name, ext, rule: null, consoleId: null, md5: '', match: null, error };
 }

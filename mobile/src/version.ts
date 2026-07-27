@@ -1,7 +1,7 @@
 // Single source of truth for the mobile app version + changelog. Mirror the
 // version in app.json ("version" + android.versionCode). The auto-updater
 // compares this against GitHub releases tagged `android-vX.Y.Z`.
-export const APP_VERSION = '0.2.0';
+export const APP_VERSION = '0.3.0';
 
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
 export const DOCS_URL = 'https://x3kim.github.io/RAChecker/';
@@ -15,6 +15,20 @@ export type ChangelogEntry = { version: string; date: string; en: string[]; de: 
 
 // Newest first. `en`/`de` are bullet lists.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '0.3.0',
+    date: '2026-07-27',
+    en: [
+      'ZIP support — scanning now reads ROMs inside .zip archives and hashes each one, so zipped collections match too.',
+      'Bottom tab bar no longer hides behind the Android navigation buttons (proper safe-area spacing).',
+      'Disc images (CHD, CUE/BIN, ISO…) are now detected and clearly flagged as desktop-only instead of being silently ignored.',
+    ],
+    de: [
+      'ZIP-Unterstützung — der Scan liest jetzt ROMs in .zip-Archiven und hasht jedes einzeln, sodass auch gepackte Sammlungen treffen.',
+      'Die untere Tab-Leiste verschwindet nicht mehr hinter den Android-Navigationstasten (korrekter Safe-Area-Abstand).',
+      'Disc-Images (CHD, CUE/BIN, ISO…) werden jetzt erkannt und klar als Desktop-only markiert, statt still ignoriert zu werden.',
+    ],
+  },
   {
     version: '0.2.0',
     date: '2026-07-27',

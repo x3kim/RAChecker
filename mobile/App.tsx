@@ -3,6 +3,7 @@ import { View, ActivityIndicator } from 'react-native';
 import { useFonts, PressStart2P_400Regular } from '@expo-google-fonts/press-start-2p';
 import { VT323_400Regular } from '@expo-google-fonts/vt323';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { colors, applyThemeToColors, loadThemeId } from './src/theme';
 import { I18nProvider, useI18n, loadLang, langChosen, Lang } from './src/i18n';
 import { LanguageGate } from './src/screens/LanguageGate';
@@ -51,8 +52,10 @@ export default function App() {
 
   if (!fontsLoaded || !ready) return <Loading />;
   return (
-    <I18nProvider initial={lang}>
-      <AppInner needGate={needGate} />
-    </I18nProvider>
+    <SafeAreaProvider>
+      <I18nProvider initial={lang}>
+        <AppInner needGate={needGate} />
+      </I18nProvider>
+    </SafeAreaProvider>
   );
 }

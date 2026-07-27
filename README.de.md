@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/x3kim/RAChecker/releases/latest"><img src="https://img.shields.io/badge/⬇️_Desktop_(Windows)-Download-22e0ff?style=for-the-badge" alt="Desktop herunterladen"></a>
   &nbsp;
-  <a href="https://github.com/x3kim/RAChecker/releases/download/android-v0.2.0/RAChecker-0.2.0.apk"><img src="https://img.shields.io/badge/⬇️_Android_(APK)-Download-39ff8b?style=for-the-badge" alt="Android-APK herunterladen"></a>
+  <a href="https://github.com/x3kim/RAChecker/releases/download/android-v0.3.0/RAChecker-0.3.0.apk"><img src="https://img.shields.io/badge/⬇️_Android_(APK)-Download-39ff8b?style=for-the-badge" alt="Android-APK herunterladen"></a>
 </p>
 <p align="center"><sub>Desktop: Installer + Portable im <a href="https://github.com/x3kim/RAChecker/releases/latest">neuesten Release</a>. Android: neueste APK auf der <a href="https://github.com/x3kim/RAChecker/releases">Releases-Seite</a> (unsigniert — „unbekannte Quellen" erlauben).</sub></p>
 
@@ -173,7 +173,7 @@ Insights, ein Spiele-Browser nach Systemen, Entdecken, 6 Themes und **Englisch +
 - **Download:** neueste `RAChecker-*.apk` von der [Releases-Seite](https://github.com/x3kim/RAChecker/releases) (Android-Tags sind `android-vX.Y.Z`).
 - **Installation:** bei Aufforderung „Installation aus unbekannten Quellen" erlauben (die APK ist unsigniert).
 - **Auto-Update (optional):** die App prüft beim Start GitHub und kann neuere APKs herunterladen & installieren; ablehnbar oder in den Einstellungen abschaltbar.
-- **Nicht auf dem Handy:** Disc-Systeme (brauchen RAHasher) und Archiv-Entpacken — dafür die Desktop-App nutzen.
+- **Archive:** ZIP-Archive werden auf dem Gerät gelesen (jedes ROM darin wird gehasht). **7z/RAR und Disc-Systeme** (CHD, CUE/BIN, ISO — brauchen RAHasher) bleiben Desktop-only; beim Scan gefundene Disc-Images werden entsprechend markiert.
 
 Selbst bauen: siehe [`mobile/`](mobile/) (`npx eas build --profile preview --platform android`).
 

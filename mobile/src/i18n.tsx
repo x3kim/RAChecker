@@ -52,6 +52,9 @@ const EN: Record<string, string> = {
   'scan.rowHashed': 'Hashed ✓ — sync the hash DB to check for achievements',
   'scan.rowNoMatch': 'No match — different version or not on RA',
   'scan.andMore': '… and {n} more', 'scan.noRoms': 'No ROMs found in that folder.',
+  'scan.zipEmpty': 'No supported ROM inside this ZIP.',
+  'scan.discSummary': '{n} disc image(s) detected',
+  'scan.discNote': 'Disc systems (CHD, CUE/BIN, ISO…) need the desktop app — mobile hashes cartridges only.',
   // games
   'games.title': 'GAMES', 'games.search': 'Search games…',
   'games.systems': 'Systems', 'games.backToSystems': 'Systems',
@@ -192,6 +195,9 @@ const DE: Record<string, string> = {
   'scan.rowHashed': 'Gehasht ✓ — synchronisiere die Hash-DB, um Erfolge zu prüfen',
   'scan.rowNoMatch': 'Kein Treffer — andere Version oder nicht auf RA',
   'scan.andMore': '… und {n} weitere', 'scan.noRoms': 'Keine ROMs in diesem Ordner gefunden.',
+  'scan.zipEmpty': 'Kein unterstütztes ROM in diesem ZIP.',
+  'scan.discSummary': '{n} Disc-Image(s) erkannt',
+  'scan.discNote': 'Disc-Systeme (CHD, CUE/BIN, ISO…) brauchen die Desktop-App — mobil werden nur Cartridges gehasht.',
   'games.title': 'SPIELE', 'games.search': 'Spiele suchen…',
   'games.systems': 'Systeme', 'games.backToSystems': 'Systeme',
   'games.noneYet': 'Noch keine Spiele — synchronisiere die Hash-DB, um alle RetroAchievements-Spiele zu laden.',
@@ -302,6 +308,13 @@ export function translate(lang: Lang, key: string, vars?: Record<string, string 
   let s = DICTS[lang][key] ?? EN[key] ?? key;
   if (vars) for (const [k, v] of Object.entries(vars)) s = s.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
   return s;
+}
+
+// The live language for non-React callers (mirrors the provider; updated by
+// loadLang/saveLang). Lets plain modules like scan.ts localize their strings.
+export function currentLang(): Lang { return _lang; }
+export function tt(key: string, vars?: Record<string, string | number>): string {
+  return translate(_lang, key, vars);
 }
 
 type Ctx = { lang: Lang; setLang: (l: Lang) => void; t: (key: string, vars?: Record<string, string | number>) => string };
