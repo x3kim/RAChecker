@@ -14,6 +14,7 @@
     "expo-font": "~57.0.1",
     "expo-image": "~57.0.1",
     "expo-secure-store": "~57.0.1",
+    "expo-sharing": "~57.0.7",
     "expo-sqlite": "~57.0.1",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.1",
