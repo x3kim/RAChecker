@@ -40,7 +40,8 @@
     "electron-updater": "^6.8.9",
     "fastify": "^5.2.1",
     "node-stream-zip": "^1.15.0",
-    "node-unrar-js": "^2.0.2"
+    "node-unrar-js": "^2.0.2",
+    "ra-core": "*"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
