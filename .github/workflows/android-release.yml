@@ -56,11 +56,13 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Build APK on EAS (cloud)
+        id: build
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           if [ -z "${EXPO_TOKEN:-}" ]; then
-            echo "::error::EXPO_TOKEN secret is not set — add it in repo Settings → Secrets → Actions." && exit 1
+            echo "::warning::EXPO_TOKEN secret is not set — skipping the EAS build. Add it in repo Settings → Secrets → Actions, then re-run. (A maintainer can also build locally and attach the APK by hand.)"
+            echo "skipped=1" >> "$GITHUB_OUTPUT" && exit 0
           fi
           eas build --platform android --profile preview --non-interactive --wait --json > build.json
           APK_URL=$(node -e "const b=require('./build.json');const a=Array.isArray(b)?b[0]:b;console.log(a.artifacts&&(a.artifacts.applicationArchiveUrl||a.artifacts.buildUrl)||'')")
@@ -69,6 +71,7 @@ jobs:
           curl -fL "$APK_URL" -o "RAChecker-${{ steps.ver.outputs.version }}.apk"
 
       - name: Publish GitHub Release
+        if: steps.build.outputs.skipped != '1'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
