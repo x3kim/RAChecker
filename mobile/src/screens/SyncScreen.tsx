@@ -7,8 +7,10 @@ import { initDb, dbStats, clearDb, rematchCollection } from '../db';
 import { syncAll, SyncProgress } from '../sync';
 import { SystemsPicker } from '../components/SystemsPicker';
 import { CART_CONSOLES } from '../consoles';
+import { useI18n } from '../i18n';
 
 export function SyncScreen({ onGoSettings }: { onGoSettings: () => void }) {
+  const { t } = useI18n();
   const [hasCreds, setHasCreds] = useState<boolean | null>(null);
   const [stats, setStats] = useState<{ games: number; hashes: number; consoles: number } | null>(null);
   const [progress, setProgress] = useState<SyncProgress | null>(null);
@@ -49,20 +51,20 @@ export function SyncScreen({ onGoSettings }: { onGoSettings: () => void }) {
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Panel>
-        <SectionHeader title="HASH DATABASE" color={colors.green} />
+        <SectionHeader title={t('sync.title')} color={colors.green} />
         <Body size={13} color={colors.inkDim} style={{ marginBottom: space.md }}>
-          Load the RetroAchievements hashes onto your device once. After that, scanning matches fully offline — no PC needed.
+          {t('sync.body')}
         </Body>
 
         <View style={styles.stats}>
-          <Stat label="HASHES" value={stats?.hashes ?? 0} color={colors.cyan} />
-          <Stat label="GAMES" value={stats?.games ?? 0} color={colors.green} />
-          <Stat label="SYSTEMS" value={stats?.consoles ?? 0} color={colors.amber} />
+          <Stat label={t('sync.hashes')} value={stats?.hashes ?? 0} color={colors.cyan} />
+          <Stat label={t('sync.games')} value={stats?.games ?? 0} color={colors.green} />
+          <Stat label={t('sync.systems')} value={stats?.consoles ?? 0} color={colors.amber} />
         </View>
 
         <Pressable onPress={() => setShowPicker((s) => !s)} style={styles.pickerToggle}>
-          <Body size={12} color={colors.inkMid}>Systems to sync: {selCount === CART_CONSOLES.length ? 'all' : selCount}</Body>
-          <Body size={12} color={colors.cyan}>{showPicker ? 'Hide' : 'Choose'}</Body>
+          <Body size={12} color={colors.inkMid}>{t('sync.systemsToSync', { n: selCount === CART_CONSOLES.length ? t('sync.all') : selCount })}</Body>
+          <Body size={12} color={colors.cyan}>{showPicker ? t('sync.hide') : t('sync.choose')}</Body>
         </Pressable>
         {showPicker && (
           <View style={{ marginTop: space.sm }}>
@@ -74,19 +76,19 @@ export function SyncScreen({ onGoSettings }: { onGoSettings: () => void }) {
           <View style={{ marginTop: space.lg }}>
             <View style={styles.track}><View style={[styles.fill, { width: `${pct}%` }]} /></View>
             <Body size={12} color={colors.inkDim} style={{ marginTop: 6 }}>
-              {progress ? `${progress.done}/${progress.total} · ${progress.name} · ${progress.hashCount.toLocaleString()} hashes` : 'starting…'}
+              {progress ? `${progress.done}/${progress.total} · ${progress.name} · ${progress.hashCount.toLocaleString()} hashes` : t('sync.starting')}
             </Body>
           </View>
         )}
 
         <View style={styles.row}>
-          <Btn label={syncing ? 'Syncing…' : (stats?.hashes ? 'Re-sync' : 'Sync now')} variant="primary" onPress={run} disabled={syncing} style={{ flex: 1 }} />
-          {!!stats?.hashes && !syncing && <Btn label="Clear" variant="danger" onPress={wipe} />}
+          <Btn label={syncing ? t('sync.syncing') : (stats?.hashes ? t('sync.resync') : t('sync.start'))} variant="primary" onPress={run} disabled={syncing} style={{ flex: 1 }} />
+          {!!stats?.hashes && !syncing && <Btn label={t('scan.clear')} variant="danger" onPress={wipe} />}
         </View>
 
         {hasCreds === false && (
           <Body size={12} color={colors.amber} style={{ marginTop: space.md }}>
-            Connect your RA account first (Settings).
+            {t('sync.connectFirst')}
           </Body>
         )}
       </Panel>

@@ -9,12 +9,14 @@ import { getFolder, setFolder } from '../storage';
 import { dbStats, MatchGame, upsertLibrary, getLibrary, clearLibrary } from '../db';
 import { consoleName } from '../consoles';
 import { mediaUrl } from '../ra/api';
+import { useI18n } from '../i18n';
 import { GameDetail } from './GameDetail';
 
 type Phase = 'idle' | 'listing' | 'scanning';
 type DisplayRow = { name: string; md5: string; match: MatchGame | null; error?: string };
 
 export function ScanScreen() {
+  const { t } = useI18n();
   const [rows, setRows] = useState<DisplayRow[]>([]);
   const [fromCollection, setFromCollection] = useState(true);
   const [phase, setPhase] = useState<Phase>('idle');
@@ -61,13 +63,13 @@ export function ScanScreen() {
     setPhase('listing');
     try {
       const targets = await enumerateFolder(dir);
-      if (!targets.length) { setError('No ROMs found in that folder.'); setPhase('idle'); return; }
+      if (!targets.length) { setError(t('scan.noRoms')); setPhase('idle'); return; }
       await scan(targets);
     } catch (e: any) {
       setError(String(e?.message || e));
       setPhase('idle');
     }
-  }, [scan]);
+  }, [scan, t]);
 
   const runFiles = useCallback(async () => {
     const targets = await pickFiles();
@@ -104,19 +106,19 @@ export function ScanScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.cyan} />}
     >
       <Panel>
-        <SectionHeader title="SCAN" />
+        <SectionHeader title={t('scan.title')} />
         {hashes === 0 && (
           <Body size={12} color={colors.amber} style={{ marginBottom: space.md }}>
-            No hashes yet — sync the hash DB first (Hash DB tab) so ROMs can match.
+            {t('scan.noHashes')}
           </Body>
         )}
         <View style={styles.actions}>
-          <Btn label="Pick ROMs" variant="primary" onPress={runFiles} disabled={busy} style={{ flex: 1 }} />
-          <Btn label="Scan folder" onPress={() => runFolder()} disabled={busy} style={{ flex: 1 }} />
+          <Btn label={t('scan.pickFiles')} variant="primary" onPress={runFiles} disabled={busy} style={{ flex: 1 }} />
+          <Btn label={t('scan.pickFolder')} onPress={() => runFolder()} disabled={busy} style={{ flex: 1 }} />
         </View>
         {folder && (
           <Body size={11} color={colors.inkDim} style={{ marginTop: space.sm }} numberOfLines={1}>
-            Folder set · scans on launch. Tap “Scan folder” to change.
+            {t('scan.folderNote')}
           </Body>
         )}
 
@@ -124,7 +126,7 @@ export function ScanScreen() {
           <View style={{ marginTop: space.md }}>
             <View style={styles.track}><View style={[styles.fill, { width: `${progress && progress.total ? Math.round((progress.done / progress.total) * 100) : 6}%` }]} /></View>
             <Body size={12} color={colors.inkDim} style={{ marginTop: 6 }} numberOfLines={1}>
-              {phase === 'listing' ? 'Listing folder…' : progress ? `${progress.done}/${progress.total} · ${progress.current}` : 'Scanning…'}
+              {phase === 'listing' ? t('scan.listing') : progress ? `${progress.done}/${progress.total} · ${progress.current}` : t('scan.scanning')}
             </Body>
           </View>
         )}
@@ -135,23 +137,23 @@ export function ScanScreen() {
       {rows.length > 0 && (
         <>
           <View style={styles.summaryRow}>
-            <Body size={12} color={colors.inkDim} weight="medium">{fromCollection ? 'YOUR COLLECTION' : 'SCAN RESULTS'}</Body>
-            {fromCollection && <Pressable onPress={wipe}><Body size={12} color={colors.red}>Clear</Body></Pressable>}
+            <Body size={12} color={colors.inkDim} weight="medium">{fromCollection ? t('scan.collection') : t('scan.results')}</Body>
+            {fromCollection && <Pressable onPress={wipe}><Body size={12} color={colors.red}>{t('scan.clear')}</Body></Pressable>}
           </View>
           <View style={styles.summary}>
             {hashes === 0 ? (
-              <Tag n={noMatch} label="hashed · sync to match" color={colors.inkDim} />
+              <Tag n={noMatch} label={t('scan.hashedSync')} color={colors.inkDim} />
             ) : (
               <>
-                <Tag n={matched} label="with achievements" color={colors.green} />
-                <Tag n={noMatch} label="no match" color={colors.red} />
+                <Tag n={matched} label={t('scan.withAch')} color={colors.green} />
+                <Tag n={noMatch} label={t('scan.noMatch')} color={colors.red} />
               </>
             )}
-            {errors > 0 && <Tag n={errors} label="errors" color={colors.amber} />}
+            {errors > 0 && <Tag n={errors} label={t('scan.errors')} color={colors.amber} />}
           </View>
           <View style={{ gap: space.sm, marginTop: space.md }}>
             {rows.slice(0, 400).map((r, i) => <Row key={r.md5 || i} row={r} onOpen={setOpenGame} dbEmpty={hashes === 0} />)}
-            {rows.length > 400 && <Body size={12} color={colors.inkDim} style={{ textAlign: 'center' }}>… and {rows.length - 400} more</Body>}
+            {rows.length > 400 && <Body size={12} color={colors.inkDim} style={{ textAlign: 'center' }}>{t('scan.andMore', { n: rows.length - 400 })}</Body>}
           </View>
         </>
       )}
@@ -171,6 +173,7 @@ function Tag({ n, label, color }: { n: number; label: string; color: string }) {
 }
 
 function Row({ row, onOpen, dbEmpty }: { row: DisplayRow; onOpen: (g: MatchGame) => void; dbEmpty?: boolean }) {
+  const { t } = useI18n();
   const unmatchedNeutral = !row.match && !row.error && dbEmpty;
   const accent = row.error ? colors.amber : row.match ? colors.green : unmatchedNeutral ? colors.inkDim : colors.red;
   const icon = mediaUrl(row.match?.image_icon);
@@ -186,13 +189,13 @@ function Row({ row, onOpen, dbEmpty }: { row: DisplayRow; onOpen: (g: MatchGame)
       <View style={{ flex: 1, minWidth: 0 }}>
         <Body size={13} color={colors.inkHi} weight="semibold" numberOfLines={1}>{row.match ? row.match.title : row.name}</Body>
         {row.match ? (
-          <Body size={12} color={colors.inkMid} numberOfLines={1}>{consoleName(row.match.console_id) ?? ''} · {row.match.num_achievements} achievements · {row.match.points} pts</Body>
+          <Body size={12} color={colors.inkMid} numberOfLines={1}>{consoleName(row.match.console_id) ?? ''} · {row.match.num_achievements} {t('common.achievements')} · {row.match.points} {t('common.pts')}</Body>
         ) : row.error ? (
           <Body size={12} color={colors.amber} numberOfLines={1}>{row.error}</Body>
         ) : unmatchedNeutral ? (
-          <Body size={12} color={colors.inkDim} numberOfLines={1}>Hashed ✓ — sync the hash DB to check for achievements</Body>
+          <Body size={12} color={colors.inkDim} numberOfLines={1}>{t('scan.rowHashed')}</Body>
         ) : (
-          <Body size={12} color={colors.inkDim} numberOfLines={1}>No match — different version or not on RA</Body>
+          <Body size={12} color={colors.inkDim} numberOfLines={1}>{t('scan.rowNoMatch')}</Body>
         )}
       </View>
       {row.match && <Feather name="chevron-right" size={18} color={colors.inkDim} />}

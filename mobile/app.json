@@ -2,7 +2,7 @@
   "expo": {
     "name": "RAChecker",
     "slug": "rachecker",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -12,12 +12,14 @@
     },
     "android": {
       "package": "de.rachecker.app",
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#0a0e14",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
+      "permissions": ["android.permission.INTERNET", "android.permission.REQUEST_INSTALL_PACKAGES"],
       "predictiveBackGestureEnabled": false
     },
     "web": {

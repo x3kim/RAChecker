@@ -8,10 +8,12 @@ import { getUserProfile } from '../ra/api';
 import { syncAll, SyncProgress } from '../sync';
 import { rematchCollection } from '../db';
 import { CART_CONSOLES } from '../consoles';
+import { useI18n } from '../i18n';
 
 const TOP = Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 24) : 0;
 
 export function OnboardingModal({ onDone }: { onDone: () => void }) {
+  const { t } = useI18n();
   const [step, setStep] = useState(0);
   const [username, setUsername] = useState('');
   const [apiKey, setApiKey] = useState('');
@@ -23,8 +25,8 @@ export function OnboardingModal({ onDone }: { onDone: () => void }) {
   const finish = async () => { await setOnboarded(); onDone(); };
 
   const connect = async () => {
-    if (!username.trim() || !apiKey.trim()) { setStatus('Enter username and API key.'); return; }
-    setBusy(true); setStatus('Verifying…');
+    if (!username.trim() || !apiKey.trim()) { setStatus(t('set.enterBoth')); return; }
+    setBusy(true); setStatus(t('set.verifying'));
     try {
       await setCreds(username, apiKey);
       const p = await getUserProfile({ username: username.trim(), apiKey: apiKey.trim() });
@@ -54,7 +56,7 @@ export function OnboardingModal({ onDone }: { onDone: () => void }) {
       <View style={styles.root}>
         <View style={styles.brand}>
           <Display size={18} color={colors.cyan}>RACHECKER</Display>
-          <Body size={12} color={colors.inkDim} style={{ marginTop: 4 }}>Let’s get you set up</Body>
+          <Body size={12} color={colors.inkDim} style={{ marginTop: 4 }}>{t('onb.subtitle')}</Body>
           <View style={styles.dots}>
             {[0, 1, 2].map((i) => <View key={i} style={[styles.dot, i === step && styles.dotOn]} />)}
           </View>
@@ -63,37 +65,37 @@ export function OnboardingModal({ onDone }: { onDone: () => void }) {
         <ScrollView contentContainerStyle={styles.content}>
           {step === 0 && (
             <Panel style={{ gap: space.md }}>
-              <Display size={13} color={colors.inkHi}>1 · Connect RetroAchievements</Display>
-              <Body size={13} color={colors.inkDim}>Your Web API key stays on this device. Get it at retroachievements.org → Settings → Keys.</Body>
-              <Input label="Username" value={username} onChangeText={setUsername} placeholder="RA username" />
-              <Input label="Web API key" value={apiKey} onChangeText={setApiKey} placeholder="paste your key" secure />
-              {status && <Body size={13} color={status.includes('Verify') ? colors.inkMid : colors.red}>{status}</Body>}
-              <Btn label={busy ? 'Verifying…' : 'Connect'} variant="primary" onPress={connect} disabled={busy} />
+              <Display size={13} color={colors.inkHi}>{t('onb.s1title')}</Display>
+              <Body size={13} color={colors.inkDim}>{t('onb.s1body')}</Body>
+              <Input label={t('set.username')} value={username} onChangeText={setUsername} placeholder={t('set.keyPlaceholderUser')} />
+              <Input label={t('set.key')} value={apiKey} onChangeText={setApiKey} placeholder={t('set.keyPh')} secure />
+              {status && <Body size={13} color={busy ? colors.inkMid : colors.red}>{status}</Body>}
+              <Btn label={busy ? t('set.verifying') : t('onb.connect')} variant="primary" onPress={connect} disabled={busy} />
             </Panel>
           )}
 
           {step === 1 && (
             <Panel style={{ gap: space.md }}>
-              <Display size={13} color={colors.inkHi}>2 · Choose your systems</Display>
-              <Body size={13} color={colors.inkDim}>Only sync the cartridge systems you own — fewer systems = faster. You can change this later.</Body>
+              <Display size={13} color={colors.inkHi}>{t('onb.s2title')}</Display>
+              <Body size={13} color={colors.inkDim}>{t('onb.s2body')}</Body>
               <SystemsPicker value={systems} onChange={setSystems} />
-              <Btn label={`Next (${selCount} systems)`} variant="primary" onPress={chooseNext} />
+              <Btn label={t('onb.nextSystems', { n: selCount })} variant="primary" onPress={chooseNext} />
             </Panel>
           )}
 
           {step === 2 && (
             <Panel style={{ gap: space.md }}>
-              <Display size={13} color={colors.inkHi}>3 · Load the hash database</Display>
-              <Body size={13} color={colors.inkDim}>Downloads the RA hashes for your {selCount} systems so scanning works offline. Takes a moment.</Body>
+              <Display size={13} color={colors.inkHi}>{t('onb.s3title')}</Display>
+              <Body size={13} color={colors.inkDim}>{t('onb.s3body', { n: selCount })}</Body>
               {busy && (
                 <View>
                   <View style={styles.track}><View style={[styles.fill, { width: `${pct}%` }]} /></View>
-                  <Body size={12} color={colors.inkDim} style={{ marginTop: 6 }}>{progress ? `${progress.done}/${progress.total} · ${progress.name} · ${progress.hashCount.toLocaleString()} hashes` : 'starting…'}</Body>
+                  <Body size={12} color={colors.inkDim} style={{ marginTop: 6 }}>{progress ? `${progress.done}/${progress.total} · ${progress.name} · ${progress.hashCount.toLocaleString()} hashes` : t('sync.starting')}</Body>
                 </View>
               )}
               <View style={{ flexDirection: 'row', gap: space.sm }}>
-                <Btn label={busy ? 'Syncing…' : 'Sync now'} variant="primary" onPress={runSync} disabled={busy} style={{ flex: 1 }} />
-                {!busy && <Btn label="Skip" onPress={finish} />}
+                <Btn label={busy ? t('sync.syncing') : t('sync.start')} variant="primary" onPress={runSync} disabled={busy} style={{ flex: 1 }} />
+                {!busy && <Btn label={t('onb.skip')} onPress={finish} />}
               </View>
             </Panel>
           )}

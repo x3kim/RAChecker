@@ -1,0 +1,83 @@
+# Builds the Android APK via EAS Cloud and publishes it to a GitHub Release
+# whenever an Android version tag (android-vX.Y.Z) is pushed — or on demand via
+# the "Run workflow" button. The APK asset name ends in .apk and the release is
+# tagged android-vX.Y.Z, which is exactly what the in-app updater
+# (mobile/src/update.ts) looks for.
+#
+# REQUIRED once, in repo Settings → Secrets and variables → Actions:
+#   EXPO_TOKEN  — an Expo access token (expo.dev → Account → Access Tokens).
+#   Note: EAS cloud builds count against the account's monthly build quota.
+#
+# Release flow for the maintainer: bump mobile/app.json "version" (+ versionCode)
+# and mobile/src/version.ts APP_VERSION, commit, then:
+#     git tag android-v0.2.0 && git push origin android-v0.2.0
+name: android-release
+
+on:
+  push:
+    tags:
+      - 'android-v*'
+  workflow_dispatch: {} # manual button; version read from mobile/app.json
+
+permissions:
+  contents: write # create/update the GitHub Release
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Resolve version + tag
+        id: ver
+        run: |
+          VERSION=$(node -p "require('./app.json').expo.version")
+          if [ -n "${GITHUB_REF_NAME:-}" ] && echo "$GITHUB_REF_NAME" | grep -q '^android-v'; then
+            TAG="$GITHUB_REF_NAME"
+          else
+            TAG="android-v$VERSION"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Build APK on EAS (cloud)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo "::error::EXPO_TOKEN secret is not set — add it in repo Settings → Secrets → Actions." && exit 1
+          fi
+          eas build --platform android --profile preview --non-interactive --wait --json > build.json
+          APK_URL=$(node -e "const b=require('./build.json');const a=Array.isArray(b)?b[0]:b;console.log(a.artifacts&&(a.artifacts.applicationArchiveUrl||a.artifacts.buildUrl)||'')")
+          if [ -z "$APK_URL" ]; then echo "::error::Could not resolve APK artifact URL from EAS." && cat build.json && exit 1; fi
+          echo "Downloading $APK_URL"
+          curl -fL "$APK_URL" -o "RAChecker-${{ steps.ver.outputs.version }}.apk"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.ver.outputs.tag }}" \
+            "RAChecker-${{ steps.ver.outputs.version }}.apk" \
+            --repo "${{ github.repository }}" \
+            --title "RAChecker Android ${{ steps.ver.outputs.version }}" \
+            --notes "Android APK build ${{ steps.ver.outputs.version }}. Install the .apk on your device (allow 'unknown sources'). The in-app updater picks up this release automatically." \
+            --generate-notes \
+          || gh release upload "${{ steps.ver.outputs.tag }}" \
+            "RAChecker-${{ steps.ver.outputs.version }}.apk" \
+            --repo "${{ github.repository }}" --clobber

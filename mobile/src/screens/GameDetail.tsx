@@ -9,11 +9,13 @@ import { getCreds } from '../storage';
 import { getCache, setCache } from '../storage';
 import { getGameInfoAndUserProgress, getGameLeaderboards, getUserGameLeaderboards, mediaUrl, badgeUrl, RAGameInfo, RAAchievement, Leaderboard } from '../ra/api';
 import { consoleName } from '../consoles';
+import { useI18n } from '../i18n';
 
 const TOP = Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 24) : 0;
 const TTL = 6 * 60 * 60 * 1000; // 6h
 
 export function GameDetail({ game, onClose }: { game: MatchGame; onClose: () => void }) {
+  const { t } = useI18n();
   const [info, setInfo] = useState<RAGameInfo | null>(null);
   const [lbs, setLbs] = useState<{ lb: Leaderboard; rank?: number; score?: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +28,7 @@ export function GameDetail({ game, onClose }: { game: MatchGame; onClose: () => 
         const cached = await getCache<RAGameInfo>('game_' + game.id, TTL);
         const c = await getCreds();
         if (cached) setInfo(cached);
-        else if (!c) { setError('Connect your RA account to see achievements.'); setLoading(false); return; }
+        else if (!c) { setError(t('gd.connectAch')); setLoading(false); return; }
         else { const gi = await getGameInfoAndUserProgress(c, game.id); setInfo(gi); await setCache('game_' + game.id, gi); }
         // Leaderboards (best-effort — never block the screen).
         if (c) {
@@ -45,7 +47,7 @@ export function GameDetail({ game, onClose }: { game: MatchGame; onClose: () => 
         setLoading(false);
       }
     })();
-  }, [game.id]);
+  }, [game.id, t]);
 
   const achievements: RAAchievement[] = info?.Achievements
     ? Object.values(info.Achievements).sort((a, b) => (a.DisplayOrder ?? 0) - (b.DisplayOrder ?? 0))
@@ -59,7 +61,7 @@ export function GameDetail({ game, onClose }: { game: MatchGame; onClose: () => 
     <Modal visible animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.root}>
         <View style={styles.bar}>
-          <Display size={12} color={colors.cyan} style={{ flex: 1 }} >GAME</Display>
+          <Display size={12} color={colors.cyan} style={{ flex: 1 }} >{t('gd.title')}</Display>
           <Pressable onPress={onClose} hitSlop={12}><Feather name="x" size={22} color={colors.inkHi} /></Pressable>
         </View>
 
@@ -69,14 +71,14 @@ export function GameDetail({ game, onClose }: { game: MatchGame; onClose: () => 
             <View style={{ flex: 1 }}>
               <Display size={14} color={colors.inkHi}>{info?.Title || game.title}</Display>
               <Body size={12} color={colors.inkMid} style={{ marginTop: 4 }}>{info?.ConsoleName || consoleName(game.console_id) || ''}</Body>
-              <Body size={12} color={colors.inkDim} style={{ marginTop: 2 }}>{total} achievements · {info?.Points ?? game.points} pts</Body>
+              <Body size={12} color={colors.inkDim} style={{ marginTop: 2 }}>{total} {t('common.achievements')} · {info?.Points ?? game.points} {t('common.pts')}</Body>
             </View>
           </View>
 
           {!loading && !error && total > 0 && (
             <View style={styles.progress}>
               <View style={styles.track}><View style={[styles.fill, { width: `${pct}%` }]} /></View>
-              <Body size={12} color={colors.inkMid} style={{ marginTop: 6 }}>{earned}/{total} unlocked · {pct}%{info?.UserCompletion ? ` · ${info.UserCompletion}` : ''}</Body>
+              <Body size={12} color={colors.inkMid} style={{ marginTop: 6 }}>{t('gd.unlocked', { e: earned, t: total, p: pct })}{info?.UserCompletion ? ` · ${info.UserCompletion}` : ''}</Body>
             </View>
           )}
 
@@ -105,7 +107,7 @@ export function GameDetail({ game, onClose }: { game: MatchGame; onClose: () => 
 
           {lbs.length > 0 && (
             <View style={{ marginTop: space.xl, gap: space.sm }}>
-              <Display size={12} color={colors.amber}>LEADERBOARDS</Display>
+              <Display size={12} color={colors.amber}>{t('gd.leaderboards')}</Display>
               {lbs.map(({ lb, rank, score }) => (
                 <View key={lb.ID} style={styles.lb}>
                   <View style={{ flex: 1, minWidth: 0 }}>
@@ -120,7 +122,7 @@ export function GameDetail({ game, onClose }: { game: MatchGame; onClose: () => 
                   ) : <Body size={12} color={colors.inkDim}>—</Body>}
                 </View>
               ))}
-              <Body size={11} color={colors.inkDim}>Leaderboards only count in hardcore mode.</Body>
+              <Body size={11} color={colors.inkDim}>{t('gd.lbNote')}</Body>
             </View>
           )}
         </ScrollView>

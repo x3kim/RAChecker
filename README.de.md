@@ -1,6 +1,12 @@
+<p align="center">
+  <img src="branding/RAChecker-Logo-512px.png" alt="RAChecker" width="160">
+</p>
+
 # 🎮 RAChecker
 
 **Prüfe deine ROM-Sammlung gegen RetroAchievements — finde heraus, bei welchen Spielen du Erfolge holen kannst.**
+
+**Zwei Apps, ein Projekt:** eine **Desktop-App** (Windows/Linux/macOS), die deine komplette ROM-Sammlung inkl. Disc-Systemen scannt, und eine eigenständige **Android-App**, die Cartridge-ROMs direkt auf dem Handy hasht. Siehe [Desktop-App](#️-desktop-app) und [Android-App](#-android-app).
 
 RAChecker durchsucht deinen sortierten ROM-Oberordner (inkl. aller Unterordner),
 berechnet pro Datei den **exakten RetroAchievements-Hash** und sagt dir sofort, ob
@@ -146,6 +152,25 @@ npm run app:dist     # Installer + Portable-EXE in release/
 ```
 
 Details, Datenablage und Grenzen: [docs/BUILDING.md](docs/BUILDING.md).
+
+---
+
+## 📱 Android-App
+
+RAChecker gibt es auch als **eigenständige Android-App** (Expo / React Native) — ohne PC oder Server.
+Sie hasht **Cartridge-/Handheld-ROMs direkt auf dem Gerät** (NES, SNES, GB/GBC/GBA, Mega Drive, N64,
+PC Engine und ~30 weitere), synchronisiert die RetroAchievements-Hash-Liste on-device und gleicht
+deine ROMs voll offline ab. Sie spiegelt Look und Funktionen der Desktop-App: Profil mit Sammlung &
+Insights, ein Spiele-Browser nach Systemen, Entdecken, 6 Themes und **Englisch + Deutsch**.
+
+- **Download:** neueste `RAChecker-*.apk` von der [Releases-Seite](https://github.com/x3kim/RAChecker/releases) (Android-Tags sind `android-vX.Y.Z`).
+- **Installation:** bei Aufforderung „Installation aus unbekannten Quellen" erlauben (die APK ist unsigniert).
+- **Auto-Update (optional):** die App prüft beim Start GitHub und kann neuere APKs herunterladen & installieren; ablehnbar oder in den Einstellungen abschaltbar.
+- **Nicht auf dem Handy:** Disc-Systeme (brauchen RAHasher) und Archiv-Entpacken — dafür die Desktop-App nutzen.
+
+Selbst bauen: siehe [`mobile/`](mobile/) (`npx eas build --profile preview --platform android`).
+
+Disc-Systeme, komplettes Sammlungs-Scannen und DAT-Abgleich sind **Desktop-only** — die beiden Apps ergänzen sich.
 
 ---
 

@@ -111,6 +111,73 @@ export async function searchGames(q: string, limit = 150): Promise<MatchGame[]> 
   return d.getAllAsync<MatchGame>(`${sel} ORDER BY points DESC LIMIT ?`, limit);
 }
 
+// Systems that have synced games, with a game count each (drives the Games
+// system picker, desktop-style).
+export async function getConsolesWithCounts(): Promise<{ console_id: number; count: number }[]> {
+  const d = await db();
+  return d.getAllAsync<{ console_id: number; count: number }>(
+    'SELECT console_id, COUNT(*) AS count FROM games GROUP BY console_id ORDER BY count DESC');
+}
+
+const GAME_SORTS: Record<string, string> = {
+  points: 'points DESC, title ASC',
+  achievements: 'num_achievements DESC, title ASC',
+  title: 'title ASC',
+};
+export async function getGamesByConsole(consoleId: number, opts: { q?: string; sort?: string; limit?: number } = {}): Promise<MatchGame[]> {
+  const d = await db();
+  const order = GAME_SORTS[opts.sort ?? 'points'] ?? GAME_SORTS.points;
+  const sel = 'SELECT id, title, points, num_achievements, image_icon, console_id FROM games WHERE console_id = ?';
+  const limit = opts.limit ?? 800;
+  if (opts.q?.trim()) {
+    return d.getAllAsync<MatchGame>(`${sel} AND title LIKE ? ORDER BY ${order} LIMIT ?`, consoleId, `%${opts.q.trim()}%`, limit);
+  }
+  return d.getAllAsync<MatchGame>(`${sel} ORDER BY ${order} LIMIT ?`, consoleId, limit);
+}
+
+// Bulk-load every synced game for a set of consoles (for the Discover free-games
+// resolver — one query instead of hundreds).
+export async function getGamesForConsoles(ids: number[]): Promise<MatchGame[]> {
+  if (!ids.length) return [];
+  const d = await db();
+  const ph = ids.map(() => '?').join(',');
+  return d.getAllAsync<MatchGame>(
+    `SELECT id, title, points, num_achievements, image_icon, console_id FROM games WHERE console_id IN (${ph})`,
+    ...ids);
+}
+
+// Resolve a free/homebrew game (title + console) to a synced RA game so Discover
+// can show its artwork/achievements and open the detail modal, like the desktop.
+export async function resolveGameByTitle(title: string, consoleId: number): Promise<MatchGame | null> {
+  const d = await db();
+  const sel = 'SELECT id, title, points, num_achievements, image_icon, console_id FROM games WHERE console_id = ?';
+  const exact = await d.getFirstAsync<MatchGame>(`${sel} AND lower(title) = lower(?) LIMIT 1`, consoleId, title);
+  if (exact) return exact;
+  return d.getFirstAsync<MatchGame>(`${sel} AND title LIKE ? ORDER BY num_achievements DESC LIMIT 1`, consoleId, `${title}%`);
+}
+
+// ---- collection insights (coverage) ---------------------------------------
+export type CollectionInsights = {
+  files: number; matched: number; achievements: number; points: number;
+  bySystem: { console_id: number; files: number; matched: number }[];
+};
+export async function collectionInsights(): Promise<CollectionInsights> {
+  const d = await db();
+  const tot = await d.getFirstAsync<{ files: number; matched: number }>(
+    'SELECT COUNT(*) AS files, SUM(CASE WHEN game_id IS NOT NULL THEN 1 ELSE 0 END) AS matched FROM library');
+  const sums = await d.getFirstAsync<{ ach: number; pts: number }>(
+    `SELECT COALESCE(SUM(g.num_achievements),0) AS ach, COALESCE(SUM(g.points),0) AS pts
+       FROM (SELECT DISTINCT game_id FROM library WHERE game_id IS NOT NULL) dg
+       JOIN games g ON g.id = dg.game_id`);
+  const bySystem = await d.getAllAsync<{ console_id: number; files: number; matched: number }>(
+    `SELECT console_id, COUNT(*) AS files, SUM(CASE WHEN game_id IS NOT NULL THEN 1 ELSE 0 END) AS matched
+       FROM library WHERE console_id IS NOT NULL GROUP BY console_id ORDER BY files DESC`);
+  return {
+    files: tot?.files ?? 0, matched: tot?.matched ?? 0,
+    achievements: sums?.ach ?? 0, points: sums?.pts ?? 0, bySystem,
+  };
+}
+
 // ---- persistent collection (ROMs you've hashed) ---------------------------
 export type LibraryRow = { name: string; md5: string; match: MatchGame | null };
 

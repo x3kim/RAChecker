@@ -3,10 +3,12 @@ import { Feather } from '@expo/vector-icons';
 import { colors, space, radius } from '../theme';
 import { Body } from '../ui';
 import { CART_CONSOLES } from '../consoles';
+import { useI18n } from '../i18n';
 
 // value: null = all systems; array = the chosen subset. onChange emits null when
 // everything is selected (so "all" persists as "no filter").
 export function SystemsPicker({ value, onChange }: { value: number[] | null; onChange: (v: number[] | null) => void }) {
+  const { t } = useI18n();
   const all = CART_CONSOLES.map((c) => c.id);
   const sel = value == null ? new Set(all) : new Set(value);
 
@@ -20,10 +22,10 @@ export function SystemsPicker({ value, onChange }: { value: number[] | null; onC
   return (
     <View>
       <View style={styles.head}>
-        <Body size={12} color={colors.inkDim} weight="medium">{sel.size}/{all.length} systems</Body>
+        <Body size={12} color={colors.inkDim} weight="medium">{t('sp.count', { n: sel.size, m: all.length })}</Body>
         <View style={{ flexDirection: 'row', gap: space.md }}>
-          <Pressable onPress={() => setAll(true)}><Body size={12} color={colors.cyan}>All</Body></Pressable>
-          <Pressable onPress={() => setAll(false)}><Body size={12} color={colors.inkDim}>None</Body></Pressable>
+          <Pressable onPress={() => setAll(true)}><Body size={12} color={colors.cyan}>{t('sp.all')}</Body></Pressable>
+          <Pressable onPress={() => setAll(false)}><Body size={12} color={colors.inkDim}>{t('sp.none')}</Body></Pressable>
         </View>
       </View>
       <View style={styles.grid}>

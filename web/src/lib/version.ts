@@ -4,6 +4,9 @@ export const APP_VERSION = '0.11.0';
 
 // GitHub repository — linked from the header (GitHub icon in the "More" menu).
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
+// The companion Android app ships as an APK on the GitHub releases page
+// (tags android-vX.Y.Z). Linked from the "More" menu + docs.
+export const ANDROID_URL = 'https://github.com/x3kim/RAChecker/releases';
 
 export type ChangeType = 'feature' | 'improve' | 'fix';
 
