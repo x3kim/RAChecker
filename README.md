@@ -8,6 +8,13 @@
 
 **Two apps, one project:** a **desktop app** (Windows/Linux/macOS) that scans your whole ROM library including disc systems, and a standalone **Android app** that hashes cartridge ROMs right on your phone. See [Desktop app](#️-desktop-app) and [Android app](#-android-app).
 
+<p align="center">
+  <a href="https://github.com/x3kim/RAChecker/releases/latest"><img src="https://img.shields.io/badge/⬇️_Desktop_(Windows)-Download-22e0ff?style=for-the-badge" alt="Download desktop"></a>
+  &nbsp;
+  <a href="https://github.com/x3kim/RAChecker/releases/download/android-v0.2.0/RAChecker-0.2.0.apk"><img src="https://img.shields.io/badge/⬇️_Android_(APK)-Download-39ff8b?style=for-the-badge" alt="Download Android APK"></a>
+</p>
+<p align="center"><sub>Desktop: installer + portable on the <a href="https://github.com/x3kim/RAChecker/releases/latest">latest release</a>. Android: newest APK on the <a href="https://github.com/x3kim/RAChecker/releases">releases page</a> (unsigned — allow "unknown sources").</sub></p>
+
 RAChecker scans your sorted ROM root folder (including all subfolders), computes the
 **exact RetroAchievements hash** for every file, and immediately tells you whether that
 ROM is compatible with achievements. Fully **offline** against a locally cached hash

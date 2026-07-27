@@ -1,13 +1,30 @@
-// Generates the app icon (pixel-art trophy) without any image dependencies:
-// paints a 16x16 grid, scales it, encodes PNGs by hand (zlib is built in)
-// and wraps them into build/icon.ico. Also drops web/public/icon.png for the
-// favicon. Run: node scripts/make-icon.mjs
+// Generates the app icon. Preferred: convert the real brand logo
+// (branding/RAChecker-Logo-512px.png) into a multi-res build/icon.ico +
+// build/icon.png + web/public/icon.png via ImageMagick, if `magick` is on PATH.
+// Fallback (no ImageMagick): paint a dependency-free pixel-art trophy by hand
+// (zlib is built in). Run: node scripts/make-icon.mjs
 import { deflateSync } from 'node:zlib';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+// --- Preferred path: convert the brand logo with ImageMagick ---------------
+const LOGO = join(ROOT, 'branding', 'RAChecker-Logo-512px.png');
+function haveMagick() {
+  try { execFileSync('magick', ['-version'], { stdio: 'ignore' }); return true; } catch { return false; }
+}
+if (existsSync(LOGO) && haveMagick()) {
+  mkdirSync(join(ROOT, 'build'), { recursive: true });
+  execFileSync('magick', [LOGO, '-background', 'none', '-define', 'icon:auto-resize=256,128,64,48,32,16', join(ROOT, 'build', 'icon.ico')]);
+  execFileSync('magick', [LOGO, '-background', 'none', '-resize', '256x256', join(ROOT, 'build', 'icon.png')]);
+  execFileSync('magick', [LOGO, '-background', 'none', '-resize', '256x256', join(ROOT, 'web', 'public', 'icon.png')]);
+  console.log('icon.ico + icon.png written from brand logo (ImageMagick)');
+  process.exit(0);
+}
+console.log('ImageMagick or logo not found — falling back to the built-in pixel-art trophy.');
 
 // 16x16 pixel art: retro trophy on a dark tile, 1px rounded corners.
 const ART = [
