@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { View, ScrollView, StyleSheet, Modal, Platform, StatusBar as RNStatusBar } from 'react-native';
+import { View, ScrollView, StyleSheet, Modal, Platform, StatusBar as RNStatusBar, Pressable, Linking } from 'react-native';
 import { colors, space, radius } from '../theme';
 import { Panel, Display, Body, Btn, Input } from '../ui';
+import { RA_KEY_URL } from '../version';
 import { SystemsPicker } from '../components/SystemsPicker';
 import { setCreds, setSelectedConsoles, setOnboarded } from '../storage';
 import { getUserProfile } from '../ra/api';
@@ -67,6 +68,7 @@ export function OnboardingModal({ onDone }: { onDone: () => void }) {
             <Panel style={{ gap: space.md }}>
               <Display size={13} color={colors.inkHi}>{t('onb.s1title')}</Display>
               <Body size={13} color={colors.inkDim}>{t('onb.s1body')}</Body>
+              <Pressable onPress={() => Linking.openURL(RA_KEY_URL)}><Body size={13} color={colors.cyan} weight="semibold">{t('set.keyLink')}</Body></Pressable>
               <Input label={t('set.username')} value={username} onChangeText={setUsername} placeholder={t('set.keyPlaceholderUser')} />
               <Input label={t('set.key')} value={apiKey} onChangeText={setApiKey} placeholder={t('set.keyPh')} secure />
               {status && <Body size={13} color={busy ? colors.inkMid : colors.red}>{status}</Body>}
