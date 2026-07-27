@@ -1,6 +1,6 @@
 // Single source of truth for the app version + changelog. The footer version
 // chip opens a modal rendering CHANGELOG; package.json is kept in sync manually.
-export const APP_VERSION = '0.11.1';
+export const APP_VERSION = '0.11.2';
 
 // GitHub repository — linked from the header (GitHub icon in the "More" menu).
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
@@ -15,6 +15,14 @@ export interface Release { version: string; date: string; title?: { de: string; 
 
 // Newest first. Dates are ISO (YYYY-MM-DD).
 export const CHANGELOG: Release[] = [
+  {
+    version: '0.11.2',
+    date: '2026-07-27',
+    title: { de: 'Hotfix: Desktop-App startet wieder', en: 'Hotfix: desktop app starts again' },
+    changes: [
+      { type: 'fix', de: 'Die installierte/portable Desktop-App aus 0.11.1 stürzte beim Start ab (interne Hashing-Komponente war nicht mitgepackt). Sie wird jetzt korrekt gebündelt — die App startet wieder normal.', en: 'The installed/portable desktop app from 0.11.1 crashed on launch (an internal hashing component was not bundled). It is now packaged correctly — the app starts normally again.' },
+    ],
+  },
   {
     version: '0.11.1',
     date: '2026-07-27',
