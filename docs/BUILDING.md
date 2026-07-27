@@ -32,6 +32,27 @@ Ergebnis in `release/`:
 
 Nur den entpackten Ordner (schneller, zum Testen): `npm run app:dir` → `release/win-unpacked/`.
 
+## Android-APK bauen
+
+Die Android-App liegt in [`mobile/`](../mobile/) (Expo / React Native, eigener
+Dependency-Baum — **kein** npm-Workspace des Desktop-Repos). Der geteilte
+Hashing-Kern ist nach `mobile/src/core` vendored (EAS lädt nur `mobile/` hoch).
+
+```bash
+cd mobile
+npm install
+npx eas build --profile preview --platform android   # Cloud-Build → APK
+# oder lokal (braucht Android Studio + Gerät/Emulator):
+npx expo run:android
+```
+
+Cloud-Builds laufen über EAS (Account `x3dev`, Projekt `rachecker`) und zählen
+gegen das monatliche Build-Kontingent. Automatisiert: ein Tag `android-vX.Y.Z`
+löst `.github/workflows/android-release.yml` aus (baut die APK auf EAS und
+hängt sie ans GitHub-Release) — dafür muss das Repo-Secret `EXPO_TOKEN` gesetzt
+sein. Version pflegen in `mobile/app.json` (`version` + `versionCode`) und
+`mobile/src/version.ts` (`APP_VERSION` + Changelog).
+
 ## Wie der Wrapper funktioniert
 
 - `electron/main.mjs` startet den Fastify-Server **in-process** (Electrons Node
@@ -50,9 +71,13 @@ Nur den entpackten Ordner (schneller, zum Testen): `npm run app:dir` → `releas
 
 ## Icon
 
-`build/icon.ico` wird von `npm run icon` (`scripts/make-icon.mjs`) erzeugt —
-ein dependency-freier Pixel-Art-Generator (PNG/ICO von Hand kodiert).
-Eigenes Icon: einfach `build/icon.ico` ersetzen.
+`build/icon.ico` (+ `build/icon.png`, `web/public/icon.png`) wird von
+`npm run icon` (`scripts/make-icon.mjs`) erzeugt. Ist **ImageMagick** (`magick`)
+installiert, konvertiert das Skript das Marken-Logo
+`branding/RAChecker-Logo-512px.png` in ein Multi-Res-ICO (16–256 px); ohne
+ImageMagick fällt es auf einen dependency-freien Pixel-Art-Platzhalter zurück.
+Eigenes Icon: `branding/RAChecker-Logo-512px.png` austauschen und `npm run icon`
+laufen lassen (oder `build/icon.ico` direkt ersetzen).
 
 ## Grenzen
 
