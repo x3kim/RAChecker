@@ -142,3 +142,13 @@ ROM darin) und zeigt das Ergebnis sofort, ohne den kompletten Ordner zu scannen.
 - **Netzwerkpfad nicht lesbar** → in Windows verbunden/gemountet? Im Picker den vollen UNC-Pfad eintippen.
 - **Port 8088 belegt** → in `server/config.local.json` `"port"` ändern.
 - **Scan langsam** → Disc-Images (RAHasher) und große Archive brauchen länger; Datei-Cache macht Re-Scans schnell.
+
+## Android-App
+
+Es gibt auch eine eigenständige **Android-App** (APK auf der
+[Releases-Seite](https://github.com/x3kim/RAChecker/releases), Tags `android-vX.Y.Z`).
+Sie hasht Cartridge-/Handheld-ROMs direkt auf dem Gerät, synchronisiert die
+RetroAchievements-Hash-Liste on-device und gleicht offline ab — mit DE/EN,
+Profil (Sammlung & Insights), Spiele-Browser nach Systemen und Entdecken.
+Disc-Systeme (RAHasher), Archiv-Entpacken und DAT-Abgleich bleiben **Desktop-only**.
+Details: Abschnitt „Android app" der [Doku-Seite](https://x3kim.github.io/RAChecker/).
