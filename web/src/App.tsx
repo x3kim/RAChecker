@@ -3,7 +3,7 @@ import type { ComponentType } from 'react';
 import {
   Gamepad2, LayoutDashboard, ScanLine, DatabaseZap, Settings as SettingsIcon,
   Cpu, HardDriveDownload, Trophy, Palette, Check, Eye, UploadCloud, Keyboard, Languages, History, Compass,
-  Sparkles, MoreHorizontal, ClipboardList,
+  Sparkles, MoreHorizontal, ClipboardList, Smartphone,
 } from 'lucide-react';
 import { api } from './lib/api';
 import type { AppStatus, ScanItem } from './lib/api';
@@ -15,7 +15,7 @@ import type { Lang } from './lib/i18n';
 import { LanguageGate } from './components/LanguageGate';
 import { Flag } from './components/Flag';
 import { UpdateChip } from './components/UpdateChip';
-import { APP_VERSION, REPO_URL } from './lib/version';
+import { APP_VERSION, REPO_URL, ANDROID_URL } from './lib/version';
 import { collectDroppedFiles } from './lib/drop';
 import { JobsProvider } from './lib/jobs';
 import { Dashboard } from './components/Dashboard';
@@ -363,6 +363,10 @@ function MoreMenu({ onTour, onShortcuts }: { onTour: () => void; onShortcuts: ()
               <path d="M12 .5C5.73.5.5 5.73.5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.3-1.7-1.3-1.7-1.06-.72.08-.71.08-.71 1.17.08 1.79 1.2 1.79 1.2 1.04 1.78 2.73 1.27 3.4.97.1-.75.4-1.27.73-1.56-2.56-.29-5.26-1.28-5.26-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.7 5.4-5.28 5.69.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z"/>
             </svg>
             <span className="font-body text-sm text-ink-hi">GitHub</span>
+          </a>
+          <a href={ANDROID_URL} target="_blank" rel="noreferrer" className={item} onClick={() => setOpen(false)}>
+            <Smartphone size={16} className="text-ink-mid" />
+            <span className="font-body text-sm text-ink-hi">{t('nav.android')}</span>
           </a>
         </div>
       )}

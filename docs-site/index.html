@@ -138,7 +138,7 @@
 <body>
   <header class="topbar">
     <button class="menu-btn" id="menuBtn" aria-label="Menu">☰</button>
-    <span class="brand"><span class="dot">🎮</span> <b>RACHECKER</b></span>
+    <span class="brand"><img src="logo.png" alt="" width="24" height="24" style="border-radius:5px;vertical-align:middle"> <b>RACHECKER</b></span>
     <span class="badge">Docs · v0.11</span>
     <span class="spacer"></span>
     <span class="langtoggle" role="group" aria-label="Language">
@@ -157,6 +157,7 @@
       <a href="#en-install">Installation</a>
       <a href="#en-first">First run</a>
       <a href="#en-how">How it works</a>
+      <a href="#en-android">Android app</a>
       <h4>Usage</h4>
       <a href="#en-scan">Scanning &amp; results</a>
       <a href="#en-collection">Collection &amp; games</a>
@@ -221,6 +222,19 @@ npm run serve      # builds the frontend + starts the server on :8088</code></pr
       </div>
       <h3>Sync &amp; offline</h3>
       <p>The sync loads all games + hashes per system <em>once</em> from RetroAchievements and stores them locally (one request per system). From then on every scan runs fully offline against that cache. Your account/profile, the Discover area and playtime tracking still need an online connection because they fetch live data.</p>
+
+      <h2 id="en-android">Android app</h2>
+      <p>RAChecker also comes as a <strong>standalone Android app</strong> (Expo / React Native) — no PC or server needed. It hashes <strong>cartridge &amp; handheld ROMs directly on the device</strong> (NES, SNES, GB/GBC/GBA, Mega Drive, N64, PC Engine and ~30 more), syncs the RetroAchievements hash list on-device and matches your ROMs fully offline.</p>
+      <p>It mirrors the desktop look and features: a profile with collection &amp; insights, a games-by-system browser with console artwork, Discover, six themes and full <strong>English + German</strong>.</p>
+      <ul>
+        <li><strong>Download:</strong> the latest <code>RAChecker-*.apk</code> from the <a href="https://github.com/x3kim/RAChecker/releases" target="_blank" rel="noreferrer">Releases page</a> (Android tags are <code>android-vX.Y.Z</code>).</li>
+        <li><strong>Install:</strong> allow "install from unknown sources" when prompted (the APK is unsigned).</li>
+        <li><strong>Auto-update (opt-in):</strong> the app checks GitHub on launch and can download &amp; install newer APKs — you can decline each time or turn it off in Settings.</li>
+      </ul>
+      <div class="callout">
+        <div class="t">Desktop vs. Android</div>
+        Disc systems (RAHasher), archive extraction, whole-library NAS scanning and DAT checks are <strong>desktop-only</strong>. The Android app focuses on on-device cartridge hashing. The two apps complement each other.
+      </div>
 
       <h2 id="en-scan">Scanning &amp; results</h2>
       <p>In the <strong>Scan</strong> tab, pick your ROM top folder and start — subfolders are searched recursively. You get live progress, a hit rate per system and a table with every ROM. Clicking a green row opens details (achievements, points, exact reference name, full hash).</p>
@@ -324,6 +338,7 @@ npm run serve      # builds the frontend + starts the server on :8088</code></pr
       <a href="#de-install">Installation</a>
       <a href="#de-first">Erster Start</a>
       <a href="#de-how">Wie es funktioniert</a>
+      <a href="#de-android">Android-App</a>
       <h4>Nutzung</h4>
       <a href="#de-scan">Scannen &amp; Ergebnisse</a>
       <a href="#de-collection">Sammlung &amp; Spiele</a>
@@ -388,6 +403,19 @@ npm run serve      # baut das Frontend + startet den Server auf :8088</code></pr
       </div>
       <h3>Sync &amp; Offline</h3>
       <p>Der Sync lädt pro System <em>einmal</em> alle Spiele + Hashes von RetroAchievements und legt sie lokal ab (eine Anfrage pro System). Ab dann läuft jeder Scan komplett offline gegen diesen Cache. Das Konto/Profil, der Bereich Entdecken und die Spielzeit-Verfolgung brauchen weiterhin eine Online-Verbindung, weil sie Live-Daten abfragen.</p>
+
+      <h2 id="de-android">Android-App</h2>
+      <p>RAChecker gibt es auch als <strong>eigenständige Android-App</strong> (Expo / React Native) — ohne PC oder Server. Sie hasht <strong>Cartridge- &amp; Handheld-ROMs direkt auf dem Gerät</strong> (NES, SNES, GB/GBC/GBA, Mega Drive, N64, PC Engine und ~30 weitere), synchronisiert die RetroAchievements-Hash-Liste on-device und gleicht deine ROMs voll offline ab.</p>
+      <p>Sie spiegelt Look und Funktionen der Desktop-App: Profil mit Sammlung &amp; Insights, ein Spiele-Browser nach Systemen mit Konsolen-Artwork, Entdecken, sechs Themes und voll <strong>Englisch + Deutsch</strong>.</p>
+      <ul>
+        <li><strong>Download:</strong> neueste <code>RAChecker-*.apk</code> von der <a href="https://github.com/x3kim/RAChecker/releases" target="_blank" rel="noreferrer">Releases-Seite</a> (Android-Tags sind <code>android-vX.Y.Z</code>).</li>
+        <li><strong>Installation:</strong> bei Aufforderung „Installation aus unbekannten Quellen" erlauben (die APK ist unsigniert).</li>
+        <li><strong>Auto-Update (optional):</strong> die App prüft beim Start GitHub und kann neuere APKs herunterladen &amp; installieren — jederzeit ablehnbar oder in den Einstellungen abschaltbar.</li>
+      </ul>
+      <div class="callout">
+        <div class="t">Desktop vs. Android</div>
+        Disc-Systeme (RAHasher), Archiv-Entpacken, komplettes NAS-Scannen und DAT-Abgleich sind <strong>Desktop-only</strong>. Die Android-App konzentriert sich auf On-Device-Cartridge-Hashing. Die beiden Apps ergänzen sich.
+      </div>
 
       <h2 id="de-scan">Scannen &amp; Ergebnisse</h2>
       <p>Im Tab <strong>Scannen</strong> den ROM-Oberordner wählen und starten — Unterordner werden rekursiv durchsucht. Du siehst live Fortschritt, Trefferquote pro System und eine Tabelle mit jedem ROM. Ein Klick auf eine grüne Zeile öffnet die Details (Erfolge, Punkte, exakter Referenz-Name, voller Hash).</p>

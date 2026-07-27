@@ -1,6 +1,19 @@
+<p align="center">
+  <img src="branding/RAChecker-Logo-512px.png" alt="RAChecker" width="160">
+</p>
+
 # 🎮 RAChecker
 
 **Check your ROM library against RetroAchievements — find out which games you can earn achievements on.**
+
+**Two apps, one project:** a **desktop app** (Windows/Linux/macOS) that scans your whole ROM library including disc systems, and a standalone **Android app** that hashes cartridge ROMs right on your phone. See [Desktop app](#️-desktop-app) and [Android app](#-android-app).
+
+<p align="center">
+  <a href="https://github.com/x3kim/RAChecker/releases/latest"><img src="https://img.shields.io/badge/⬇️_Desktop_(Windows)-Download-22e0ff?style=for-the-badge" alt="Download desktop"></a>
+  &nbsp;
+  <a href="https://github.com/x3kim/RAChecker/releases/download/android-v0.2.0/RAChecker-0.2.0.apk"><img src="https://img.shields.io/badge/⬇️_Android_(APK)-Download-39ff8b?style=for-the-badge" alt="Download Android APK"></a>
+</p>
+<p align="center"><sub>Desktop: installer + portable on the <a href="https://github.com/x3kim/RAChecker/releases/latest">latest release</a>. Android: newest APK on the <a href="https://github.com/x3kim/RAChecker/releases">releases page</a> (unsigned — allow "unknown sources").</sub></p>
 
 RAChecker scans your sorted ROM root folder (including all subfolders), computes the
 **exact RetroAchievements hash** for every file, and immediately tells you whether that
@@ -145,6 +158,25 @@ npm run app:dist     # installer + portable EXE in release/
 ```
 
 Details, data location and limitations: [docs/BUILDING.md](docs/BUILDING.md).
+
+---
+
+## 📱 Android app
+
+RAChecker also has a **standalone Android app** (Expo / React Native) — no PC or server needed.
+It hashes **cartridge/handheld ROMs on the device** (NES, SNES, GB/GBC/GBA, Mega Drive, N64,
+PC Engine, and ~30 more), syncs the RetroAchievements hash list on-device and matches your ROMs
+fully offline. It mirrors the desktop look and features: profile with collection & insights,
+a games-by-system browser, Discover, 6 themes and **English + German**.
+
+- **Download:** grab the latest `RAChecker-*.apk` from the [Releases page](https://github.com/x3kim/RAChecker/releases) (Android tags are `android-vX.Y.Z`).
+- **Install:** enable "install from unknown sources" when prompted (the APK is unsigned).
+- **Auto-update (opt-in):** the app checks GitHub on launch and can download & install newer APKs; you can decline or turn it off in Settings.
+- **Out of scope on mobile:** disc systems (need RAHasher) and archive extraction — use the desktop app for those.
+
+Build it yourself: see [`mobile/`](mobile/) (`npx eas build --profile preview --platform android`).
+
+Disc systems, whole-library scanning and DAT checks are **desktop-only** — the two apps complement each other.
 
 ---
 

@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "RAChecker",
+    "slug": "rachecker",
+    "version": "0.2.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#080b12",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "de.rachecker.app",
+      "versionCode": 2,
+      "adaptiveIcon": {
+        "backgroundColor": "#0a0e14",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": ["android.permission.INTERNET", "android.permission.REQUEST_INSTALL_PACKAGES"],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "b7b1a3b5-50cf-45a2-bce0-24f8baab51ce"
+      }
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "rachecker",
+  "version": "0.1.0",
+  "main": "index.ts",
+  "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/press-start-2p": "^0.4.1",
+    "@expo-google-fonts/vt323": "^0.4.1",
+    "@react-native-async-storage/async-storage": "3.1.1",
+    "expo": "~57.0.8",
+    "expo-document-picker": "~57.0.1",
+    "expo-file-system": "~57.0.1",
+    "expo-font": "~57.0.1",
+    "expo-image": "~57.0.1",
+    "expo-secure-store": "~57.0.1",
+    "expo-sharing": "~57.0.7",
+    "expo-sqlite": "~57.0.1",
+    "expo-status-bar": "~57.0.1",
+    "expo-system-ui": "~57.0.1",
+    "js-md5": "^0.8.3",
+    "react": "19.2.3",
+    "react-native": "0.86.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web"
+  },
+  "private": true
+}

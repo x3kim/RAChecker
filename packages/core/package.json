@@ -1,0 +1,13 @@
+{
+  "name": "ra-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Framework-agnostic RetroAchievements hashing core (shared by desktop and mobile).",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./hash/rules.js": "./hash/rules.js",
+    "./hash/consoles.js": "./hash/consoles.js"
+  }
+}

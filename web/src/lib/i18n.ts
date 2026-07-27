@@ -67,6 +67,7 @@ const DE: Dict = {
   'nav.language': 'Sprache',
   'nav.theme': 'Design wählen',
   'nav.more': 'Mehr',
+  'nav.android': 'Android-App',
   'nav.watch': 'Ordner-Überwachung aktiv',
   // footer
   'footer.hashes': '{n} Hashes gecacht',
@@ -563,6 +564,7 @@ const EN: Dict = {
   'nav.language': 'Language',
   'nav.theme': 'Choose theme',
   'nav.more': 'More',
+  'nav.android': 'Android app',
   'nav.watch': 'Folder watch active',
   'footer.hashes': '{n} hashes cached',
   'footer.local': 'local',
