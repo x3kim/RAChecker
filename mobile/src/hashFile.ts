@@ -5,10 +5,10 @@ import { File } from 'expo-file-system';
 import { readAsStringAsync, EncodingType, getInfoAsync } from 'expo-file-system/legacy';
 import { unzipSync } from 'fflate';
 // Vendored shared core (source of truth: packages/core).
-import { hashBuffer, consoleForExt } from './core';
-import { md5Bytes } from './md5';
+import { consoleForExt } from './core';
 import { hashDisc, HASHABLE_DISC_EXTS } from './disc';
-import { RandomReader } from './disc/reader';
+import { RandomReader, bufferReader } from './disc/reader';
+import { hashCartCandidates, rulesForExt, Candidate } from './hashCandidates';
 
 export function extOf(name: string): string {
   const i = name.lastIndexOf('.');
@@ -34,27 +34,47 @@ export async function readBytes(uri: string): Promise<Uint8Array> {
   return base64ToBytes(b64);
 }
 
-export type Hashed = { name: string; ext: string; rule: string | null; consoleId: number | null; md5: string };
+// `md5` is the primary hash (used for the collection); `candidates` holds every
+// plausible hash for the file, which the scanner looks up in turn — that's how a
+// ROM is identified without relying on the folder name or one extension guess.
+export type Hashed = {
+  name: string; ext: string; rule: string | null;
+  consoleId: number | null; md5: string; candidates: Candidate[];
+};
 
-// Hash raw bytes for a cartridge ROM. `displayName` is what the UI shows (for a
-// ZIP member it's "archive.zip › game.nes"); `extName` is the file whose
-// extension picks the header rule (the inner name for archive members).
-function hashBytes(displayName: string, extName: string, bytes: Uint8Array): Hashed {
+// Archives we cannot open on the device: both need native code (no pure-JS
+// decoder exists that runs under Hermes), so we fail with a clear reason instead
+// of trying to read a multi-GB file into memory.
+export const UNSUPPORTED_ARCHIVE_EXTS = new Set(['.7z', '.rar', '.tar', '.gz', '.bz2', '.xz']);
+
+async function hashBytesCandidates(displayName: string, extName: string, bytes: Uint8Array): Promise<Hashed> {
   const ext = extOf(extName);
   const meta = consoleForExt(ext);
-  const rule: string | null = meta?.headerRule ?? null;
-  return { name: displayName, ext, rule, consoleId: meta?.consoleId ?? null, md5: hashBuffer(bytes, rule, md5Bytes) };
+  const candidates = await hashCartCandidates(bufferReader(bytes), bytes.length, rulesForExt(ext));
+  return {
+    name: displayName, ext, rule: meta?.headerRule ?? null,
+    consoleId: meta?.consoleId ?? null,
+    md5: candidates[0]?.md5 ?? '', candidates,
+  };
 }
 
 export async function hashTarget(uri: string, name: string): Promise<Hashed> {
-  const bytes = await readBytes(uri);
-  return hashBytes(name, name, bytes);
+  const ext = extOf(name);
+  const size = await fileSize(uri);
+  // Stream from the file when we know its size; fall back to a whole-file read
+  // only when the size is unavailable (very small/odd providers).
+  const reader = size > 0 ? await createFileReader(uri, size) : bufferReader(await readBytes(uri));
+  const candidates = await hashCartCandidates(reader, reader.size, rulesForExt(ext));
+  const meta = consoleForExt(ext);
+  return {
+    name, ext, rule: meta?.headerRule ?? null,
+    consoleId: meta?.consoleId ?? null,
+    md5: candidates[0]?.md5 ?? '', candidates,
+  };
 }
 
 // A random-access reader over a file URI. Reads byte ranges on demand (base64,
-// position+length) so multi-hundred-MB disc images are never loaded whole into
-// memory. DocumentPicker copies picks to cache as file:// URIs, which support
-// ranged reads; SAF content:// URIs generally do too via the legacy reader.
+// position+length) so multi-hundred-MB images are never loaded whole into memory.
 function fileRandomReader(uri: string, size: number): RandomReader {
   return {
     size,
@@ -64,6 +84,31 @@ function fileRandomReader(uri: string, size: number): RandomReader {
       return base64ToBytes(b64);
     },
   };
+}
+
+// Largest file we'll pull fully into memory. Only reached when ranged reads fail
+// or the size is unknown: a whole-file base64 read is what produced the native
+// "ExponentFileSystem.readAsStringAsync" rejection on large files, so past this
+// point we fail with a readable message instead of crashing.
+const MAX_BUFFERED_BYTES = 96 * 1024 * 1024;
+
+// Build a reader for this URI. Ranged reads (`position` + `length` with Base64)
+// are supported by expo-file-system for both file:// and SAF content:// URIs, so
+// they're the normal path and keep memory flat regardless of file size. If the
+// platform rejects a ranged read we fall back to buffering the whole file, which
+// is only viable below MAX_BUFFERED_BYTES.
+async function createFileReader(uri: string, size: number): Promise<RandomReader> {
+  const ranged = fileRandomReader(uri, size);
+  try {
+    const probe = await ranged.read(0, Math.min(16, size));
+    if (probe.length > 0) return ranged;
+  } catch {
+    /* ranged read rejected — fall back to a whole-file read below */
+  }
+  if (size > MAX_BUFFERED_BYTES) {
+    throw new Error(`Cannot read this file in slices and it is too large to load at once (${Math.round(size / 1048576)} MB). Use the desktop app for this one.`);
+  }
+  return bufferReader(await readBytes(uri));
 }
 
 async function fileSize(uri: string): Promise<number> {
@@ -78,9 +123,12 @@ async function fileSize(uri: string): Promise<number> {
 export async function hashDiscFile(uri: string, name: string): Promise<Hashed | null> {
   const size = await fileSize(uri);
   if (!size) return null;
-  const res = await hashDisc(fileRandomReader(uri, size), name);
+  const res = await hashDisc(await createFileReader(uri, size), name);
   if (!res) return null;
-  return { name, ext: extOf(name), rule: `disc:${res.system}`, consoleId: res.consoleId, md5: res.md5 };
+  return {
+    name, ext: extOf(name), rule: `disc:${res.system}`, consoleId: res.consoleId,
+    md5: res.md5, candidates: [{ rule: `disc:${res.system}`, md5: res.md5 }],
+  };
 }
 
 export { HASHABLE_DISC_EXTS };
@@ -109,7 +157,7 @@ export async function hashZip(uri: string, archiveName: string): Promise<Hashed[
   for (const [inner, data] of Object.entries(files)) {
     if (!data || !data.length) continue;
     const base = inner.split(/[\\/]/).pop() || inner;
-    out.push(hashBytes(`${archiveName} › ${base}`, base, data));
+    out.push(await hashBytesCandidates(`${archiveName} › ${base}`, base, data));
   }
   return out;
 }

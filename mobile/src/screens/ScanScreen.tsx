@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { colors, space, radius } from '../theme';
 import { Panel, Display, Mono, Body, SectionHeader, Btn } from '../ui';
-import { pickFiles, pickFolder, enumerateFolder, scanTargets, ScanRow } from '../scan';
+import { pickFiles, pickFolder, enumerateFolder, scanTargets, ScanRow, ScanStatus } from '../scan';
 import { getFolder, setFolder } from '../storage';
 import { dbStats, MatchGame, upsertLibrary, getLibrary, clearLibrary } from '../db';
 import { consoleName } from '../consoles';
@@ -13,7 +13,7 @@ import { useI18n } from '../i18n';
 import { GameDetail } from './GameDetail';
 
 type Phase = 'idle' | 'listing' | 'scanning';
-type DisplayRow = { name: string; md5: string; match: MatchGame | null; error?: string };
+type DisplayRow = { name: string; md5: string; match: MatchGame | null; error?: string; status?: ScanStatus };
 
 export function ScanScreen() {
   const { t } = useI18n();
@@ -96,9 +96,14 @@ export function ScanScreen() {
   }, [loadCollection, runFolder]);
 
   const busy = phase !== 'idle';
-  const matched = rows.filter((r) => r.match).length;
-  const noMatch = rows.filter((r) => !r.match && !r.error).length;
-  const errors = rows.filter((r) => r.error).length;
+  // Rows loaded from the collection have no live status; treat a stored row as
+  // matched/unmatched based on whether it resolved to a game.
+  const statusOf = (r: DisplayRow): ScanStatus =>
+    r.status ?? (r.error ? 'note' : r.match ? 'match' : hashes === 0 ? 'unsynced' : 'nomatch');
+  const matched = rows.filter((r) => statusOf(r) === 'match').length;
+  const unsynced = rows.filter((r) => statusOf(r) === 'unsynced').length;
+  const noMatch = rows.filter((r) => statusOf(r) === 'nomatch').length;
+  const errors = rows.filter((r) => statusOf(r) === 'note').length;
 
   return (
     <ScrollView
@@ -141,18 +146,13 @@ export function ScanScreen() {
             {fromCollection && <Pressable onPress={wipe}><Body size={12} color={colors.red}>{t('scan.clear')}</Body></Pressable>}
           </View>
           <View style={styles.summary}>
-            {hashes === 0 ? (
-              <Tag n={noMatch} label={t('scan.hashedSync')} color={colors.inkDim} />
-            ) : (
-              <>
-                <Tag n={matched} label={t('scan.withAch')} color={colors.green} />
-                <Tag n={noMatch} label={t('scan.noMatch')} color={colors.red} />
-              </>
-            )}
+            <Tag n={matched} label={t('scan.withAch')} color={colors.green} />
+            {unsynced > 0 && <Tag n={unsynced} label={t('scan.tagUnsynced')} color={colors.cyan} />}
+            {noMatch > 0 && <Tag n={noMatch} label={t('scan.noMatch')} color={colors.red} />}
             {errors > 0 && <Tag n={errors} label={t('scan.errors')} color={colors.amber} />}
           </View>
           <View style={{ gap: space.sm, marginTop: space.md }}>
-            {rows.slice(0, 400).map((r, i) => <Row key={r.md5 || i} row={r} onOpen={setOpenGame} dbEmpty={hashes === 0} />)}
+            {rows.slice(0, 400).map((r, i) => <Row key={r.md5 || i} row={r} onOpen={setOpenGame} status={statusOf(r)} />)}
             {rows.length > 400 && <Body size={12} color={colors.inkDim} style={{ textAlign: 'center' }}>{t('scan.andMore', { n: rows.length - 400 })}</Body>}
           </View>
         </>
@@ -172,10 +172,19 @@ function Tag({ n, label, color }: { n: number; label: string; color: string }) {
   );
 }
 
-function Row({ row, onOpen, dbEmpty }: { row: DisplayRow; onOpen: (g: MatchGame) => void; dbEmpty?: boolean }) {
+// One result row. The sub-line states the *reason* a file didn't match, which is
+// what makes an unmatched row actionable: "system not synced" can still become a
+// match later, "no match" means the dump itself is unknown to RetroAchievements.
+function Row({ row, onOpen, status }: { row: DisplayRow; onOpen: (g: MatchGame) => void; status: ScanStatus }) {
   const { t } = useI18n();
-  const unmatchedNeutral = !row.match && !row.error && dbEmpty;
-  const accent = row.error ? colors.amber : row.match ? colors.green : unmatchedNeutral ? colors.inkDim : colors.red;
+  const accent = status === 'note' ? colors.amber
+    : status === 'match' ? colors.green
+    : status === 'unsynced' ? colors.cyan
+    : colors.red;
+  const iconName = status === 'note' ? 'alert-triangle'
+    : status === 'match' ? 'award'
+    : status === 'unsynced' ? 'download-cloud'
+    : 'help-circle';
   const icon = mediaUrl(row.match?.image_icon);
   const inner = (
     <View style={[styles.rowCard, { borderLeftColor: accent }]}>
@@ -183,19 +192,19 @@ function Row({ row, onOpen, dbEmpty }: { row: DisplayRow; onOpen: (g: MatchGame)
         <Image source={{ uri: icon }} style={styles.icon} contentFit="cover" transition={150} />
       ) : (
         <View style={[styles.icon, styles.iconFallback]}>
-          <Feather name={row.error ? 'alert-triangle' : row.match ? 'award' : 'x'} size={18} color={accent} />
+          <Feather name={iconName} size={18} color={accent} />
         </View>
       )}
       <View style={{ flex: 1, minWidth: 0 }}>
         <Body size={13} color={colors.inkHi} weight="semibold" numberOfLines={1}>{row.match ? row.match.title : row.name}</Body>
         {row.match ? (
           <Body size={12} color={colors.inkMid} numberOfLines={1}>{consoleName(row.match.console_id) ?? ''} · {row.match.num_achievements} {t('common.achievements')} · {row.match.points} {t('common.pts')}</Body>
-        ) : row.error ? (
-          <Body size={12} color={colors.amber} numberOfLines={1}>{row.error}</Body>
-        ) : unmatchedNeutral ? (
-          <Body size={12} color={colors.inkDim} numberOfLines={1}>{t('scan.rowHashed')}</Body>
+        ) : status === 'note' ? (
+          <Body size={12} color={colors.amber} numberOfLines={3}>{row.error}</Body>
+        ) : status === 'unsynced' ? (
+          <Body size={12} color={colors.cyan} numberOfLines={2}>{t('scan.rowUnsynced')}</Body>
         ) : (
-          <Body size={12} color={colors.inkDim} numberOfLines={1}>{t('scan.rowNoMatch')}</Body>
+          <Body size={12} color={colors.inkDim} numberOfLines={2}>{t('scan.rowNoMatch')}</Body>
         )}
       </View>
       {row.match && <Feather name="chevron-right" size={18} color={colors.inkDim} />}

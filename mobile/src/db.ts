@@ -88,6 +88,14 @@ export async function lookupHash(md5: string): Promise<MatchGame | null> {
   return row ?? null;
 }
 
+// Consoles whose hash list has been pulled at least once. Lets the scanner say
+// "this system isn't synced yet" instead of the misleading "no match".
+export async function getSyncedConsoles(): Promise<Set<number>> {
+  const d = await db();
+  const rows = await d.getAllAsync<{ console_id: number }>('SELECT console_id FROM sync_state');
+  return new Set(rows.map((r) => r.console_id));
+}
+
 export async function dbStats(): Promise<{ games: number; hashes: number; consoles: number }> {
   const d = await db();
   const g = await d.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM games');
@@ -210,6 +218,17 @@ export async function getLibrary(limit = 2000): Promise<LibraryRow[]> {
     md5: r.md5,
     match: r.gid != null ? { id: r.gid, title: r.title, points: r.points, num_achievements: r.num_achievements, image_icon: r.image_icon, console_id: r.console_id } : null,
   }));
+}
+
+// Distinct RA games you actually own (matched at least one file in your
+// collection). Drives Quick Wins, which is about *your* games — the desktop
+// builds it the same way (routes.js getPlayableGames).
+export async function getOwnedGames(): Promise<MatchGame[]> {
+  const d = await db();
+  return d.getAllAsync<MatchGame>(
+    `SELECT DISTINCT g.id, g.title, g.points, g.num_achievements, g.image_icon, g.console_id
+       FROM library l JOIN games g ON g.id = l.game_id
+      WHERE g.num_achievements > 0`);
 }
 
 export async function libraryStats(): Promise<{ total: number; matched: number }> {

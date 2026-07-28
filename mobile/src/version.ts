@@ -1,7 +1,7 @@
 // Single source of truth for the mobile app version + changelog. Mirror the
 // version in app.json ("version" + android.versionCode). The auto-updater
 // compares this against GitHub releases tagged `android-vX.Y.Z`.
-export const APP_VERSION = '0.4.0';
+export const APP_VERSION = '0.4.1';
 
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
 export const DOCS_URL = 'https://x3kim.github.io/RAChecker/';
@@ -15,6 +15,26 @@ export type ChangelogEntry = { version: string; date: string; en: string[]; de: 
 
 // Newest first. `en`/`de` are bullet lists.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '0.4.1',
+    date: '2026-07-28',
+    en: [
+      'ROMs are now identified by their content, not by folder names: every plausible hash for a file is computed in one pass and looked up, so a correctly-dumped ROM matches no matter how you organise your collection.',
+      'Unmatched files now say why — “this system isn’t synced yet” (can still match later) is no longer confused with “this dump isn’t known to RetroAchievements”.',
+      '7z and RAR archives now give a clear message instead of a cryptic error; ZIP still works.',
+      'Large files no longer fail to hash: files are read in slices, so multi-gigabyte ROMs and disc images work without running out of memory.',
+      'Quick Wins now lists games from your collection (like the desktop app) instead of only games you already started.',
+      'Fixed the Atari Lynx header check so it matches RetroAchievements exactly.',
+    ],
+    de: [
+      'ROMs werden jetzt anhand ihres Inhalts erkannt, nicht anhand von Ordnernamen: für jede Datei werden alle plausiblen Hashes in einem Durchgang berechnet und nachgeschlagen — ein korrekt gedumptes ROM trifft also unabhängig davon, wie du deine Sammlung sortierst.',
+      'Nicht-getroffene Dateien nennen jetzt den Grund — „System noch nicht synchronisiert" (kann später noch treffen) wird nicht mehr mit „dieser Dump ist RetroAchievements unbekannt" verwechselt.',
+      '7z- und RAR-Archive geben jetzt eine klare Meldung statt eines kryptischen Fehlers; ZIP funktioniert weiterhin.',
+      'Große Dateien scheitern nicht mehr beim Hashen: Dateien werden in Teilstücken gelesen, dadurch funktionieren auch mehrere Gigabyte große ROMs und Disc-Images ohne Speicherprobleme.',
+      'Schnelle Erfolge listet jetzt Spiele aus deiner Sammlung (wie die Desktop-App) statt nur bereits begonnener Spiele.',
+      'Die Atari-Lynx-Header-Prüfung korrigiert, sodass sie exakt RetroAchievements entspricht.',
+    ],
+  },
   {
     version: '0.4.0',
     date: '2026-07-27',

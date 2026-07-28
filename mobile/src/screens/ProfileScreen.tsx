@@ -7,7 +7,7 @@ import { Panel, Display, Mono, Body, SectionHeader, Btn } from '../ui';
 import { ConsoleIcon } from '../components/ConsoleIcon';
 import { getCreds, getCache, setCache, Creds } from '../storage';
 import { getUserProfile, getUserCompletionProgress, mediaUrl, RAProfile, CompletionGame } from '../ra/api';
-import { getLibrary, libraryStats, collectionInsights, LibraryRow, CollectionInsights, MatchGame } from '../db';
+import { getLibrary, libraryStats, collectionInsights, getOwnedGames, LibraryRow, CollectionInsights, MatchGame } from '../db';
 import { consoleName } from '../consoles';
 import { useI18n } from '../i18n';
 import { GameDetail } from './GameDetail';
@@ -23,6 +23,7 @@ export function ProfileScreen({ onGoSettings }: { onGoSettings: () => void }) {
   const [comp, setComp] = useState<CompletionGame[]>([]);
   const [library, setLibrary] = useState<LibraryRow[]>([]);
   const [ins, setIns] = useState<CollectionInsights | null>(null);
+  const [owned, setOwned] = useState<MatchGame[]>([]);
   const [colStats, setColStats] = useState<{ total: number; matched: number }>({ total: 0, matched: 0 });
   const [sub, setSub] = useState<Sub>('overview');
   const [loading, setLoading] = useState(false);
@@ -33,6 +34,7 @@ export function ProfileScreen({ onGoSettings }: { onGoSettings: () => void }) {
     setLibrary(await getLibrary());
     setIns(await collectionInsights());
     setColStats(await libraryStats());
+    setOwned(await getOwnedGames());
   }, []);
 
   const load = useCallback(async (force = false) => {
@@ -71,7 +73,26 @@ export function ProfileScreen({ onGoSettings }: { onGoSettings: () => void }) {
   const toGame = (g: CompletionGame): MatchGame => ({ id: g.GameID, title: g.Title, points: 0, num_achievements: g.MaxPossible, image_icon: g.ImageIcon ?? null, console_id: g.ConsoleID });
   const mastery = [...comp].filter((g) => g.MaxPossible > 0).sort((a, b) => (b.NumAwarded / b.MaxPossible) - (a.NumAwarded / a.MaxPossible));
   const hardcore = [...comp].filter((g) => g.NumAwarded > g.NumAwardedHardcore).sort((a, b) => (b.NumAwarded - b.NumAwardedHardcore) - (a.NumAwarded - a.NumAwardedHardcore));
-  const quickWins = [...comp].filter((g) => g.MaxPossible > 0 && g.NumAwarded < g.MaxPossible && (g.MaxPossible - g.NumAwarded) <= 5).sort((a, b) => (a.MaxPossible - a.NumAwarded) - (b.MaxPossible - b.NumAwarded));
+  // Quick Wins mirrors the desktop (routes.js /api/library/quickwins): it ranks
+  // the games *in your collection*, not just the ones you've already played —
+  // otherwise it stays empty for anyone who hasn't started a nearly-mastered
+  // game, which is why mobile and desktop disagreed.
+  const progress = new Map(comp.map((g) => [g.GameID, g]));
+  const quickWinItems = owned
+    .map((g) => {
+      const p = progress.get(g.id);
+      const total = Number(p?.MaxPossible ?? g.num_achievements) || 0;
+      const awarded = Number(p?.NumAwarded ?? 0) || 0;
+      return { game: g, total, awarded, remaining: total - awarded };
+    })
+    .filter((x) => x.total > 0 && x.awarded < x.total)
+    // started-but-unfinished first (fewest achievements left), then untouched
+    // games with the smallest sets — the cheapest new masteries to pick up.
+    .sort((a, b) => {
+      const aStarted = a.awarded > 0, bStarted = b.awarded > 0;
+      if (aStarted !== bStarted) return aStarted ? -1 : 1;
+      return aStarted ? a.remaining - b.remaining : a.total - b.total;
+    });
   const avatar = mediaUrl(profile?.UserPic);
   const label = (s: Sub) => t(`prof.${s}`);
 
@@ -118,8 +139,17 @@ export function ProfileScreen({ onGoSettings }: { onGoSettings: () => void }) {
           </Panel>
           <View>
             <SectionHeader title={t('prof.quickWins')} color={colors.green} />
-            {quickWins.length === 0 ? <Body size={13} color={colors.inkDim}>{t('prof.noQuickWins')}</Body>
-              : quickWins.slice(0, 30).map((g) => <GameRow key={g.GameID} g={g} onOpen={() => setOpen(toGame(g))} trailing={t('prof.left', { n: g.MaxPossible - g.NumAwarded })} trailingColor={colors.green} />)}
+            {quickWinItems.length === 0 ? <Body size={13} color={colors.inkDim}>{t('prof.noQuickWins')}</Body>
+              : quickWinItems.slice(0, 30).map((x) => (
+                <OwnedGameRow
+                  key={x.game.id}
+                  g={x.game}
+                  onOpen={() => setOpen(x.game)}
+                  sub={`${consoleName(x.game.console_id) ?? ''} · ${x.awarded}/${x.total}`}
+                  trailing={t('prof.left', { n: x.remaining })}
+                  trailingColor={x.awarded > 0 ? colors.green : colors.cyan}
+                />
+              ))}
           </View>
         </View>
       )}
@@ -205,6 +235,24 @@ export function ProfileScreen({ onGoSettings }: { onGoSettings: () => void }) {
 
       {open && <GameDetail game={open} onClose={() => setOpen(null)} />}
     </ScrollView>
+  );
+}
+
+// Row for a game from the local collection (Quick Wins) — same layout as the
+// completion-progress rows, but sourced from the synced games table.
+function OwnedGameRow({ g, onOpen, sub, trailing, trailingColor }: { g: MatchGame; onOpen: () => void; sub: string; trailing: string; trailingColor: string }) {
+  const icon = mediaUrl(g.image_icon);
+  return (
+    <Pressable onPress={onOpen}>
+      <View style={styles.gameRow}>
+        {icon ? <Image source={{ uri: icon }} style={styles.gIcon} contentFit="cover" transition={150} /> : <View style={styles.gIcon} />}
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Body size={13} color={colors.inkHi} weight="semibold" numberOfLines={1}>{g.title}</Body>
+          <Body size={12} color={colors.inkDim} numberOfLines={1}>{sub}</Body>
+        </View>
+        <Mono size={16} color={trailingColor}>{trailing}</Mono>
+      </View>
+    </Pressable>
   );
 }
 
