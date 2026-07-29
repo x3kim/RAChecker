@@ -1,6 +1,6 @@
 // Sync the on-device hash DB from the RA Web API, one cartridge console at a
 // time (the bulk API_GetGameList endpoint), with progress + gentle pacing.
-import { CART_CONSOLES } from './consoles';
+import { SYNC_CONSOLES } from './consoles';
 import { getGameList } from './ra/api';
 import { Creds } from './storage';
 import { replaceConsole, initDb } from './db';
@@ -10,7 +10,7 @@ export type SyncProgress = { done: number; total: number; name: string; gameCoun
 export async function syncAll(creds: Creds, onProgress: (p: SyncProgress) => void, consoleIds?: number[] | null): Promise<SyncProgress> {
   await initDb();
   const want = consoleIds && consoleIds.length ? new Set(consoleIds) : null;
-  const list = want ? CART_CONSOLES.filter((c) => want.has(c.id)) : CART_CONSOLES;
+  const list = want ? SYNC_CONSOLES.filter((c) => want.has(c.id)) : SYNC_CONSOLES;
   const total = list.length;
   let done = 0, gameCount = 0, hashCount = 0, errors = 0;
   for (const c of list) {

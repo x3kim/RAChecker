@@ -1,30 +1,38 @@
 <p align="center">
-  <img src="branding/RAChecker-Logo-512px.png" alt="RAChecker" width="160">
+  <img src="branding/RAChecker-Logo-512px.png" alt="RAChecker" width="150">
 </p>
 
-# 🎮 RAChecker
-
-**Check your ROM library against RetroAchievements — find out which games you can earn achievements on.**
-
-**Two apps, one project:** a **desktop app** (Windows/Linux/macOS) that scans your whole ROM library including disc systems, and a standalone **Android app** that hashes cartridge ROMs right on your phone. See [Desktop app](#️-desktop-app) and [Android app](#-android-app).
+<h1 align="center">RAChecker</h1>
 
 <p align="center">
-  <a href="https://github.com/x3kim/RAChecker/releases/latest"><img src="https://img.shields.io/badge/⬇️_Desktop_(Windows)-Download-22e0ff?style=for-the-badge" alt="Download desktop"></a>
-  &nbsp;
-  <a href="https://github.com/x3kim/RAChecker/releases/download/android-v0.3.0/RAChecker-0.3.0.apk"><img src="https://img.shields.io/badge/⬇️_Android_(APK)-Download-39ff8b?style=for-the-badge" alt="Download Android APK"></a>
+  <b>Find out which of your ROMs can earn RetroAchievements.</b><br>
+  Point it at your ROM folder — it hashes every file the way RetroAchievements does<br>
+  and tells you exactly which games are supported.
 </p>
-<p align="center"><sub>Desktop: installer + portable on the <a href="https://github.com/x3kim/RAChecker/releases/latest">latest release</a>. Android: newest APK on the <a href="https://github.com/x3kim/RAChecker/releases">releases page</a> (unsigned — allow "unknown sources").</sub></p>
 
-RAChecker scans your sorted ROM root folder (including all subfolders), computes the
-**exact RetroAchievements hash** for every file, and immediately tells you whether that
-ROM is compatible with achievements. Fully **offline** against a locally cached hash
-database — after the first sync, a scan needs **zero API requests**.
+<p align="center">
+  <a href="https://github.com/x3kim/RAChecker/releases/latest"><img src="https://img.shields.io/badge/⬇%20Desktop-Windows-22e0ff?style=for-the-badge" alt="Download desktop"></a>
+  &nbsp;
+  <a href="https://github.com/x3kim/RAChecker/releases"><img src="https://img.shields.io/badge/⬇%20Android-APK-39ff8b?style=for-the-badge" alt="Download Android APK"></a>
+  &nbsp;
+  <a href="https://x3kim.github.io/RAChecker/"><img src="https://img.shields.io/badge/📖%20Docs-Website-9d6bff?style=for-the-badge" alt="Documentation"></a>
+</p>
 
-![Version](https://img.shields.io/badge/version-0.11-22e0ff) ![Node](https://img.shields.io/badge/node-22.5%2B-39ff8b) ![License](https://img.shields.io/badge/license-MIT-9d6bff) ![Data](https://img.shields.io/badge/data-%C2%A9%20retroachievements.org-666)
+<p align="center">
+  <img src="https://img.shields.io/badge/desktop-0.12-22e0ff" alt="Desktop version">
+  <img src="https://img.shields.io/badge/android-0.5-39ff8b" alt="Android version">
+  <img src="https://img.shields.io/badge/node-22.5%2B-ffb648" alt="Node 22.5+">
+  <img src="https://img.shields.io/badge/license-MIT-9d6bff" alt="MIT license">
+  <img src="https://img.shields.io/badge/data-%C2%A9%20retroachievements.org-666" alt="Data © retroachievements.org">
+</p>
 
-🇩🇪 [Deutsche Version](README.de.md)
+<p align="center">
+  🇩🇪 <a href="README.de.md">Deutsche Version</a> · 📖 <a href="https://x3kim.github.io/RAChecker/">Documentation</a> · 💬 <a href="https://github.com/x3kim/RAChecker/issues">Issues</a>
+</p>
 
-> **RAChecker is an unofficial, independent community project and is not affiliated with RetroAchievements in any way.** It ships **no** ROMs. Game data, hashes and images come from [retroachievements.org](https://retroachievements.org) and remain their property. RAChecker runs entirely locally, collects no data and sends nothing to third parties; your API key stays on your machine.
+> **Unofficial community project — not affiliated with RetroAchievements.** It ships **no ROMs**.
+> Game data, hashes and images come from [retroachievements.org](https://retroachievements.org) and remain their property.
+> Everything runs locally; your API key never leaves your machine.
 
 ---
 
@@ -35,269 +43,276 @@ database — after the first sync, a scan needs **zero API requests**.
 
 ---
 
-## ✨ What it does
+## Contents
 
-- **First-run wizard** — ROM folder, RA login and hash sync in three guided steps.
-- **Scan your whole library** — point it at a root folder, all subfolders are searched recursively.
-- **Runs in the background** — the scan/sync keeps going even if you switch tabs (no more losing progress).
-- **Clean filtering** — `._*` leftovers (macOS), hidden files and junk (`.txt/.nfo/.sav/.png` …) are skipped automatically.
-- **Remembers everything** — every checked file lands permanently in your **collection**; unchanged files are **not re-hashed** on a re-scan (hash cache keyed by path+size+date). Optionally skip already-collected files entirely on a re-scan (they aren't even re-listed — unchanged archives aren't opened) so only genuinely new/changed files show up.
-- **DAT completeness check** — import No-Intro/Redump/logiqx/ClrMamePro/MAME **DAT** catalogs and see, per catalog, which entries you already have and which are missing (exportable list). Matched by your files' real checksums (CRC32, plus md5/sha1 for Redump CHD & MAME `<disk>`), read straight from `.zip/.7z/.rar` archives **without extraction** — independent of the RetroAchievements hash. Plus an *Extra / unknown dumps* view for files whose hash is in no imported DAT (bad dumps / hacks / systems without a DAT).
-- **Collection view** — a searchable, filterable list of every ROM ever scanned, with per-system status, multi-select (delete/copy paths) and RetroArch `.lpl` export.
-- **Collection diff** — after each scan, see what's new, newly playable, lost, or gone.
-- **Browse games & achievements** — search globally or per system; every achievement with badges, points and compatible ROM versions.
-- **Your RA progress** — Mastery tab + per game: which achievements you already have, completion %, avatar & "recently played".
-- **Hardcore catch-up list** — shows per game how far your hardcore progress trails your softcore progress (your own ROMs first). Every softcore unlock can be earned again in hardcore — only that counts for golden badges, leaderboards and full points.
-- **Discover tab** — three views onto the RA world beyond your own shelf:
-  - *Free games*: the list of legally free homebrew/freeware titles curated by RetroAchievements (91 games, 10 systems), cross-referenced with your collection, with a link to the developer's own download. **No ROMs ship with this app** — links only.
-  - *Set radar*: which achievement sets are being built right now (active claims), split into "affects a game you own", "probably affects one of your ROMs" and the rest; plus your own set requests and your "Want to Play" list.
-  - *Community*: Achievement of the Week and freshly mastered games — each flagged with whether you own the game.
-- **Leaderboards** — every RA leaderboard per game including your own entry and rank (they only count in hardcore mode).
-- **Playtime tracking (opt-in)** — polls Rich Presence for what you are playing and builds a local session/playtime history from it; RetroAchievements itself stores no such history. Off by default.
-- **Launch directly** — open ROMs from your collection in RetroArch with one click, including a per-system core recommendation (noting whether that core supports achievements/hardcore).
-- **RA world coverage** — what percentage of all RA games, achievements and points your collection covers, broken down per system.
-- **Offline package** — export/import hash DB, game details and image cache as a single archive (second machine or full backup), plus a "does everything work without internet?" readiness check.
-- **Launcher exports** — besides RetroArch playlists (`.lpl`) also ES-DE/EmulationStation (a ZIP with one `gamelist.xml` per system and relative paths), Playnite (CSV) and LaunchBox (XML), each using the target launcher's official platform names.
-- **New systems** — after a sync you get told which systems RetroAchievements has started supporting since last time.
-- **Drag & drop** — drop ROMs/folders anywhere on the page → quick upload check against the hash DB (temp files deleted afterwards).
-- **Find the right version** — on a NO MATCH, match the filename to the game and show the accepted versions + patches.
-- **Compatibility patches** — RAPatches download links per ROM version (patch on top of a base ROM → matching hash → achievements).
-- **Duplicates (1G1R)** — the same game found across multiple files is detected and grouped, with extra copies deletable directly (keeps the first file).
-- **Folder watch** — optionally watch the ROM folder; new files are checked automatically. Choose between continuous watch and interval mode (a short check every N minutes), off by default.
-- **Scheduled scans** — automatically scan once a day at a set time (on/off, in Settings).
-- **Scan filter** — restrict to a single system; "Reveal in Explorer" per hit; a system selection controls which systems sync & scan even consider.
-- **55+ systems** — from NES/SNES/Mega Drive through Game Boy/GBA to PlayStation, Saturn, Dreamcast, Arcade …
-- **Archives, directly** — `.zip`, `.rar`, `.7z` are read **without** manual extraction. ZIP contents are hashed in memory (no temp clutter); 7z/RAR are extracted to a temp folder and **auto-deleted afterwards**. Archive contents are cached too. Large files can optionally be copied to local temp before hashing (threshold configurable) — avoids timeouts on slow network drives.
-- **Correct hashes** — the real RetroAchievements method is reproduced per system (stripping iNES headers, SNES copier headers, N64 byteswap, Arcade = filename hash …). Disc systems & `.chd` via the official **RAHasher**.
-- **Aggressive caching** — the entire hash database is stored locally in SQLite. Re-sync only after **90 days** (or on demand). System, game and achievement images are cached locally too (including a pre-cache for badges/box art).
-- **API-friendly** — a built-in rate limiter; only **one** request per system (bulk endpoint) instead of one per ROM.
-- **Live progress** — Server-Sent Events show every match in real time, with box art, achievement count and points.
-- **Automatic backups** — the database is backed up on startup and after every scan; back up manually, download or restore in Settings.
-- **Storage overview** — see how much space the database, images, backups & temp files use, plus a "clear temp" button.
-- **Command palette (Ctrl+K)** and **keyboard shortcuts** (`g` + key to navigate, `/` to search, `?` for help).
-- **Guided tour** through the UI, reachable via the compass icon.
-- **German/English** switchable, the whole UI is translated.
-- **6 themes** (CRT Cyan, Amber Terminal, Synthwave, Matrix, Game Boy, Light) + 2 secret unlocks, plus 3 fonts and an optional aurora background — freely selectable, stored locally.
-- **CSV export** of scan and collection results.
-- **Also as a desktop app** — an optional Electron build for Windows, see [docs/BUILDING.md](docs/BUILDING.md).
-- **A slick retro CRT interface** 🕹️
+- [Two apps](#two-apps) · [Quick start](#quick-start) · [How it works](#how-it-works)
+- [Features](#features) · [Android app](#android-app) · [Disc systems](#disc-systems)
+- [Configuration](#configuration) · [Project layout](#project-layout) · [Notes & limits](#notes--limits)
 
 ---
 
-## 🚀 Quick start
+## Two apps
 
-### Option A — Double-click (Windows)
-1. Install [Node.js 22.5+](https://nodejs.org).
-2. Double-click **`Start-RAChecker.bat`**.
-   On first run, dependencies are installed and the UI is built (one-time, takes a bit). It then opens <http://localhost:8088> automatically.
+|  | 🖥️ **Desktop** (Windows/Linux/macOS) | 📱 **Android** |
+|---|---|---|
+| **Best for** | Scanning a whole ROM library | Checking ROMs on your phone |
+| **Needs** | Node 22.5+, or the packaged installer | Nothing — standalone APK |
+| **Cartridge ROMs** | ✅ | ✅ |
+| **Disc images** | ✅ all formats (via RAHasher) | ✅ CHD, ISO, PBP — hashed on the phone |
+| **Archives** | ✅ ZIP, 7z, RAR | ✅ ZIP, 7z |
+| **DAT completeness check** | ✅ | — |
+| **Launch in emulator** | ✅ | — |
 
-### Option A' — Double-click (Linux/macOS)
-1. Install [Node.js 22.5+](https://nodejs.org).
-2. Run **`./start.sh`** (`chmod +x start.sh` if needed).
-   Installs dependencies, builds the UI and starts the server at <http://localhost:8088>. Disc systems need a self-built RAHasher there (see the "Disc systems & RAHasher" section below).
-
-### Option B — Terminal (any platform)
-```bash
-npm install          # once
-npm run serve        # builds the frontend and starts the server
-# -> http://localhost:8088
-```
-
-### Development (with hot reload)
-```bash
-npm run dev          # backend (watch) + Vite dev server on :5173
-```
+Both match your ROMs **fully offline** against a hash list synced once from RetroAchievements.
 
 ---
 
-## 🧭 Usage
+## Quick start
 
-1. **Hash-DB** → **Sync.** Fetches all games + hashes from RetroAchievements once per system
-   (takes a few minutes the first time — cached afterwards).
-2. **Scan** → choose the ROM root folder (the onboarding wizard asks for it on the very first run; no path is pre-filled) → **Start scan.**
-   Results appear live:
-   | Status | Meaning |
-   |---|---|
-   | 🟢 **PLAYABLE** | Hash matches — you can earn achievements here |
-   | 🔴 **NO MATCH** | RA doesn't know this ROM version — no cheevo support |
-   | 🟡 **RAHASHER** | Disc system/`.chd` — needs the RAHasher tool (see below) |
-   | 🟣 **UNCLEAR** | System not clearly identifiable (e.g. a loose `.bin` with no system folder) |
-3. Click a green row → details (achievements, points, reference ROM name, full hash, link to RA).
-4. Filter by status/system, search, **export as CSV.**
+<table>
+<tr><th>Windows</th><th>Linux / macOS</th><th>Any platform</th></tr>
+<tr valign="top">
+<td>
 
-> **Tip:** Sort your ROMs into folders named after the system (`SNES`, `PlayStation`, `Game Boy` …).
-> RAChecker uses the folder name to disambiguate ambiguous extensions like `.bin`/`.iso`/`.cue`.
+Download the [installer](https://github.com/x3kim/RAChecker/releases/latest),
+**or** from source:
 
----
+1. Install [Node.js 22.5+](https://nodejs.org)
+2. Double-click **`Start-RAChecker.bat`**
 
-## 💿 Disc systems & RAHasher
+</td>
+<td>
 
-Cartridge systems (NES, SNES, Mega Drive, GB/GBA, N64 …) are hashed entirely in-process.
-**Disc-based** systems (PS1, PS2, PSP, Saturn, Dreamcast, Sega CD, PCE-CD, 3DO, GameCube, Wii, DS …)
-and compressed **`.chd`** images need the official **RAHasher** tool from RetroAchievements
-(which computes the correct disc hashes, including CHD support).
+1. Install [Node.js 22.5+](https://nodejs.org)
+2. Run **`./start.sh`**
+   (`chmod +x start.sh` first)
 
-→ **Settings → Download RAHasher.** Automatically fetches the current Windows binary from the
-[RALibretro release](https://github.com/RetroAchievements/RALibretro/releases) and places it under `bin/`.
-Without RAHasher, disc games are marked as 🟡 **RAHASHER** (not as an error).
-
-The auto-download only works on Windows. On Linux/macOS, build RAHasher yourself from
-[RALibretro](https://github.com/RetroAchievements/RALibretro) (it also has Linux/Mac build instructions)
-and enter the path under `rahasherPath` in Settings.
-
----
-
-## 🖥️ Desktop app
-
-RAChecker normally runs as a local web app, but for Windows it can also be built into a
-standalone **desktop app** (Electron; a single window, no browser tab, no visible terminal):
+</td>
+<td>
 
 ```bash
-npm run app:dev     # test run straight from the repo
-npm run app:dist     # installer + portable EXE in release/
+npm install
+npm run serve
 ```
 
-Details, data location and limitations: [docs/BUILDING.md](docs/BUILDING.md).
+</td>
+</tr>
+</table>
+
+Opens at **<http://localhost:8088>**. First launch installs dependencies and builds the UI once.
+
+**Then:** the first-run wizard walks you through it — pick your ROM folder, connect your
+RetroAchievements account, sync the hash list. After that, scanning needs **zero API requests**.
+
+<details>
+<summary>Development (hot reload)</summary>
+
+```bash
+npm run dev     # backend (watch) + Vite dev server on :5173
+npm test        # hashing-rule tests
+```
+</details>
 
 ---
 
-## 📱 Android app
+## How it works
 
-RAChecker also has a **standalone Android app** (Expo / React Native) — no PC or server needed.
-It hashes **cartridge/handheld ROMs on the device** (NES, SNES, GB/GBC/GBA, Mega Drive, N64,
-PC Engine, and ~30 more), syncs the RetroAchievements hash list on-device and matches your ROMs
-fully offline. It mirrors the desktop look and features: profile with collection & insights,
-a games-by-system browser, Discover, 6 themes and **English + German**.
+```
+ROM file ──► compute every plausible RetroAchievements hash
+         ──► look each one up in the local SQLite hash DB
+         ──► 🟢 match (game + achievements)   🔴 not in RetroAchievements
+```
 
-- **Download:** grab the latest `RAChecker-*.apk` from the [Releases page](https://github.com/x3kim/RAChecker/releases) (Android tags are `android-vX.Y.Z`).
-- **Install:** enable "install from unknown sources" when prompted (the APK is unsigned).
-- **Auto-update (opt-in):** the app checks GitHub on launch and can download & install newer APKs; you can decline or turn it off in Settings.
-- **Disc hashing on-device (v0.4.0):** **CHD, ISO and PBP** disc images now hash right on the phone and match RetroAchievements — PlayStation, PS2, PSP, Saturn, Sega CD, Dreamcast, PC Engine CD, PC-FX, 3DO, Neo Geo CD and Atari Jaguar CD. CHD reads zlib- and LZMA-compressed images directly (a fresh JS port of the rcheevos disc rules + a pure-JS CHD reader).
-- **Archives:** ZIP archives are read on the device (each ROM inside is hashed). **7z/RAR** and the remaining disc containers (GameCube/Wii, CSO/RVZ/GCZ, GDI, CUE/BIN split files, M3U) stay desktop-only; those are flagged during a scan.
+The **hash** is not a plain MD5 of the file — each system has its own rule (strip the iNES
+header, strip an SNES copier header, byte-swap N64 ROMs, read the boot executable out of a
+PlayStation disc …). RAChecker reproduces those rules exactly, so its result equals what
+RetroAchievements expects.
 
-Build it yourself: see [`mobile/`](mobile/) (`npx eas build --profile preview --platform android`).
+Because the full hash list lives on your machine, **files are identified by their content** —
+not by folder names. A correctly dumped ROM matches no matter how you sort your collection.
 
-Whole-library scanning, DAT checks and the remaining disc formats are **desktop-only** — the two apps complement each other.
+- Hash list: one request per system (`API_GetGameList`), stored in `data/ra-checker.db`, re-synced after 90 days.
+- File cache: a file hashed once (path + size + date) is never re-hashed.
+- Details: [HASHING.md](docs/HASHING.md) · [ARCHITECTURE.md](docs/ARCHITECTURE.md) · [USAGE.md](docs/USAGE.md)
 
 ---
 
-## ⚙️ Configuration
+## Features
 
-Default values live in [`server/src/config.js`](server/src/config.js). To override them permanently
-(recommended for credentials): copy [`server/config.local.example.json`](server/config.local.example.json)
-to `server/config.local.json` and edit it (git-ignored).
+### 🔍 Scanning & matching
+
+- **Whole library at once** — point at a root folder; all subfolders are searched recursively.
+- **Content-based identification** — every plausible hash for a file is computed and looked up; the one the database knows settles game *and* system. No reliance on folder names.
+- **55+ systems** — NES/SNES/Mega Drive, Game Boy/GBA, N64, PlayStation, Saturn, Dreamcast, Arcade and more.
+- **Archives read directly** — `.zip`, `.7z`, `.rar` without manual extraction; contents cached too.
+- **Skips the junk** — `._*` leftovers, hidden files, saves, images and text files are ignored.
+- **Remembers everything** — unchanged files aren't re-hashed; optionally hide already-collected files entirely on a re-scan.
+- **Runs in the background** — switching tabs doesn't interrupt a scan or sync.
+- **Live progress** — every match appears in real time with box art, achievement count and points.
+
+### 🏆 Your RetroAchievements progress
+
+- **Profile & mastery** — completion per game, avatar, recently played.
+- **Quick wins** — games from your collection you're closest to mastering.
+- **Hardcore catch-up** — how far hardcore trails softcore per game (only hardcore counts for golden badges and leaderboards).
+- **Leaderboards** — every leaderboard per game including your own rank.
+- **Playtime tracking (opt-in, off by default)** — builds a local session history from Rich Presence; RetroAchievements itself keeps none.
+
+### 🧭 Discover
+
+- **Free games** — legally free homebrew/freeware titles curated by RetroAchievements (91 games, 10 systems), cross-referenced with your collection. Links to the developers' own pages — **no ROMs ship with this app**.
+- **Set radar** — which achievement sets are being built right now, sorted by whether they affect a game you own; plus your set requests and "Want to Play" list.
+- **Community** — Achievement of the Week and freshly mastered games, flagged by whether you own them.
+- **New systems** — after a sync, see which systems RetroAchievements started supporting.
+
+### 📚 Library management
+
+- **Collection view** — searchable, filterable list of every ROM ever scanned, with multi-select actions.
+- **Collection diff** — after each scan: what's new, newly playable, lost or gone.
+- **DAT completeness check** — import No-Intro/Redump/logiqx/ClrMamePro/MAME catalogs and see per catalog what you have and what's missing (exportable). Matched by real checksums read straight from archives *without* extraction, independent of the RetroAchievements hash. Includes an *unknown dumps* view.
+- **Duplicates (1G1R)** — the same game across multiple files is grouped; extra copies deletable.
+- **Find the right version** — on a miss, match the filename to the game and show accepted versions + RAPatches links.
+- **RA world coverage** — what share of all RA games, achievements and points your collection covers, per system.
+- **Exports** — RetroArch `.lpl`, ES-DE/EmulationStation, Playnite, LaunchBox, CSV.
+- **Offline package** — export/import hash DB, game details and image cache as one archive.
+
+### ⚙️ Automation & quality of life
+
+- **Folder watch** — optional; continuous or every N minutes. Off by default.
+- **Scheduled scans** — once a day at a set time.
+- **Launch in RetroArch** — one click from your collection, with a per-system core recommendation.
+- **Drag & drop** — drop ROMs anywhere for a quick check (temp files removed afterwards).
+- **Automatic backups** — on startup and after every scan; manual backup, download and restore in Settings.
+- **Storage overview** — space used by database, images, backups and temp, with a cleanup button.
+
+### 🎨 Interface
+
+- **Command palette** (`Ctrl`/`Cmd`+`K`) and keyboard shortcuts (`g`+key to navigate, `/` search, `?` help).
+- **Guided tour** through the UI.
+- **English & German**, fully translated.
+- **6 themes** (CRT Cyan, Amber Terminal, Synthwave, Matrix, Game Boy, Light) + 2 secret unlocks, 3 fonts, optional aurora background.
+- **Fully offline UI** — fonts are bundled; nothing is loaded from any CDN.
+
+---
+
+## Android app
+
+A **standalone** app — no PC, no server, no network beyond the one-time hash sync.
+
+- **Hashes on the device:** cartridge/handheld ROMs *and* disc images — **CHD, ISO and PBP** — for PlayStation, PS2, PSP, Saturn, Sega CD, Dreamcast, PC Engine CD, PC-FX, 3DO, Neo Geo CD and Atari Jaguar CD. CHD reads zlib- and LZMA-compressed images directly.
+- **Archives:** ZIP and **7z** are unpacked and hashed on the phone, including disc images inside them.
+- **Same look and features as the desktop:** profile with collection & insights, games-by-system browser, Discover, 6 themes, English + German.
+- **Clear results:** each file says whether it earns achievements, has no achievement set yet, belongs to a system you haven't synced, or isn't known to RetroAchievements at all.
+- **Auto-update (opt-in):** checks GitHub on launch and can install newer APKs; decline or disable in Settings.
+
+**Install:** grab the newest `RAChecker-*.apk` from the [Releases page](https://github.com/x3kim/RAChecker/releases)
+(Android tags look like `android-vX.Y.Z`) and allow "install from unknown sources" — the APK is unsigned.
+
+**Still desktop-only:** RAR archives, the remaining disc containers (GameCube/Wii, CSO, RVZ, GCZ, GDI, split CUE/BIN, M3U),
+DAT checks and launching emulators.
+
+<details>
+<summary>Build it yourself</summary>
+
+```bash
+cd mobile
+npx eas build --profile preview --platform android
+```
+</details>
+
+---
+
+## Disc systems
+
+**Desktop:** disc-based systems and `.chd` images are hashed with the official
+**RAHasher** tool from RetroAchievements.
+
+→ **Settings → Download RAHasher** fetches the current Windows binary from the
+[RALibretro release](https://github.com/RetroAchievements/RALibretro/releases) into `bin/`.
+Without it, disc games are marked 🟡 *RAHASHER* — not as an error.
+
+The automatic download is Windows-only. On Linux/macOS, build RAHasher yourself from
+[RALibretro](https://github.com/RetroAchievements/RALibretro) and set `rahasherPath` in Settings.
+
+**Android** doesn't need RAHasher — the disc rules are implemented natively in the app.
+
+---
+
+## Configuration
+
+Defaults live in [`server/src/config.js`](server/src/config.js). To override them permanently,
+copy [`server/config.local.example.json`](server/config.local.example.json) to
+`server/config.local.json` (git-ignored).
 
 | Key | Default | Meaning |
 |---|---|---|
-| `raUsername` / `raApiKey` | (empty) | RetroAchievements Web API access — set via the onboarding wizard/Settings (stored in the DB) |
-| `romRoot` | (empty) — set on first run/onboarding | scan path |
-| `port` / `host` | `8088` / `127.0.0.1` | server binds locally only |
-| `hashCacheTtlDays` | `90` | re-sync a system after this many days |
-| `rateLimit.minIntervalMs` | `500` | min. gap between API requests (≈ 2/s) |
-| `rahasherPath` | *(auto)* | path to RAHasher.exe (otherwise `bin/` + PATH) |
+| `raUsername` / `raApiKey` | *(empty)* | RetroAchievements Web API access — normally set in the wizard/Settings |
+| `romRoot` | *(empty)* | Scan path, set on first run |
+| `port` / `host` | `8088` / `127.0.0.1` | Server binds locally only |
+| `hashCacheTtlDays` | `90` | Re-sync a system after this many days |
+| `rateLimit.minIntervalMs` | `500` | Minimum gap between API requests (≈2/s) |
+| `rahasherPath` | *(auto)* | Path to RAHasher (otherwise `bin/` + PATH) |
 
-Alternatively via environment variable: `RA_USERNAME`, `RA_API_KEY`, `RA_ROM_ROOT`, `PORT`, `RA_DATA_DIR`, `RA_RAHASHER`.
+Environment variables also work: `RA_USERNAME`, `RA_API_KEY`, `RA_ROM_ROOT`, `PORT`, `RA_DATA_DIR`, `RA_RAHASHER`.
 
-You'll find the Web API key under [retroachievements.org → Settings](https://retroachievements.org/settings),
-in the **"Keys"** tab — reveal/generate the Web API Key there.
-
----
-
-## 🛠️ How it works (short version)
-
-```
-ROM file ──► detect system (folder name + extension)
-         ──► compute hash   (rcheevos rules in JS  |  RAHasher for disc/CHD)
-         ──► lookup in local SQLite hash DB
-         ──► 🟢 match (game + achievements)  /  🔴 no match
-```
-
-- The **hash DB** comes once per system via `API_GetGameList?h=1&f=1` (all games + MD5s in one request)
-  and lives in `data/ra-checker.db`. Matching is then purely local → **0 API calls per scan.**
-- **File hash cache**: a file that's been hashed once (path + size + modified time) isn't hashed again.
-- Details: [`docs/HASHING.md`](docs/HASHING.md) · [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/USAGE.md`](docs/USAGE.md)
+Your Web API key is at [retroachievements.org → Settings](https://retroachievements.org/settings) → **Keys**.
 
 ---
 
-## 📁 Project structure
+## Project layout
 
 ```
 RAChecker/
-├─ Start-RAChecker.bat      # Windows launcher (double-click)
-├─ start.sh                  # Linux/macOS launcher
-├─ server/                   # backend (Fastify, node:sqlite — no native deps)
-│  └─ src/
-│     ├─ index.js            # server startup, serves the built frontend
-│     ├─ config.js           # configuration + defaults
-│     ├─ db.js               # SQLite schema + queries
-│     ├─ routes.js           # HTTP/SSE routes (the actual API)
-│     ├─ sse.js              # Server-Sent-Events helpers
-│     ├─ ra-api.js           # RA Web API client + rate limiter
-│     ├─ sync.js             # hash DB sync (90-day TTL)
-│     ├─ scanner.js          # recursive scanner + console detection
-│     ├─ consoles.js         # system metadata (hash method, extensions, aliases)
-│     ├─ images.js           # image cache
-│     ├─ fs-browse.js        # server-side folder browser (folder picker backend)
-│     ├─ watcher.js          # folder watch (continuous + interval mode)
-│     ├─ scheduler.js        # scheduled daily scan
-│     ├─ scan-lock.js        # prevents overlapping scans (manual/watch/schedule)
-│     ├─ presence.js         # Rich Presence polling → local playtime sessions
-│     ├─ launch.js           # launch a ROM in the configured emulator (core resolution)
-│     ├─ offline.js          # offline package export/import + readiness check
-│     ├─ data/               # bundled data tables (free-games catalog, RetroArch cores)
-│     └─ hashing/            # file-hash | archive | rahasher | dispatcher
-├─ web/                      # frontend (Vite + React + Tailwind v4)
-├─ electron/                 # desktop app wrapper (main.mjs, see docs/BUILDING.md)
-├─ scripts/                  # build helper scripts (e.g. icon generator)
-├─ build/                    # Electron build resources (icon etc.)
-├─ .github/                  # CI workflow (tests + build on Windows/Linux)
-├─ docs/                     # architecture, hashing rules, usage, desktop build
-└─ data/                     # runtime: DB, image cache, backups, temp (git-ignored)
+├─ Start-RAChecker.bat / start.sh   launchers
+├─ server/src/                      backend (Fastify, node:sqlite)
+│  ├─ scanner.js                    recursive scan + system detection
+│  ├─ sync.js  ra-api.js            hash-DB sync + API client
+│  ├─ hashing/                      file hashes, archives, RAHasher
+│  └─ …                             db, routes, watcher, scheduler, presence, launch
+├─ web/                             frontend (Vite + React + Tailwind)
+├─ mobile/                          Android app (Expo / React Native)
+│  └─ src/{disc,archive,lzma}/      on-device disc, 7z and LZMA readers
+├─ packages/core/                   hashing rules shared by desktop + mobile
+├─ electron/                        desktop wrapper
+├─ docs/                            architecture, hashing, usage, building
+└─ data/                            runtime: DB, images, backups (git-ignored)
 ```
 
 ---
 
-## ✅ Tests
+## Updating
+
+**Desktop app:** the installer build updates itself — it checks GitHub on launch and offers
+*Restart & install*. The portable build can't replace a running exe, so it downloads the new
+`-portable.exe` and offers *Restart & replace*.
+
+**From source:** `git pull` → `npm install` (if dependencies changed) → restart.
+`data/` (collection, backups, settings) is untouched.
+
+---
+
+## Notes & limits
+
+- RAChecker **only reads** — it never modifies, moves or renames your ROMs.
+- **No ROMs are included.** You need your own files.
+- The server binds to `127.0.0.1` only and is not reachable over the network. CORS is restricted to localhost, `/api/image` only accepts RetroAchievements hosts, and a lock prevents manual/watched/scheduled scans from overlapping.
+- RAR archives are read entirely into memory — for large RAR disc images prefer `.chd` or `.7z`.
+- `.cdi`/`.toc` may need converting to `.cue`/`.chd`.
+- The Electron installer is unsigned, so Windows SmartScreen warns on first run — see [BUILDING.md](docs/BUILDING.md).
+- Android: RAR isn't supported (it needs a native decoder that can't ship in the app).
+
+---
+
+## Tests
 
 ```bash
-npm test     # correctness of the hashing rules (NES/SNES/N64/Lynx/7800/PCE/Arduboy/Arcade)
+npm test     # hashing rules: NES/SNES/N64/Lynx/7800/PCE/Arduboy/Arcade
 ```
 
-The hashing rules are tested via provable invariants (e.g. N64 `z64`/`v64`/`n64` of the same
-ROM must hash identically). End-to-end was verified against **real** RA data (arcade hits,
-cartridge detection, ZIP expansion, `.chd` → RAHasher).
+Rules are tested via provable invariants (e.g. `z64`/`v64`/`n64` of the same ROM must hash
+identically) and verified end-to-end against the official RAHasher.
 
----
+## Contributing
 
-## 🔄 Updating
-
-**Desktop app:** the **installer** build updates itself — it checks GitHub on launch, downloads a newer release in the background and offers *Restart & install* (bottom-left). The **portable** build can't replace a running exe in place (Windows locks it), so it downloads the new `-portable.exe` and offers *Restart & replace* (or reveals it in the folder).
-
-**From source:**
-
-1. Get the new code: `git pull` (or extract the current ZIP over the existing folder).
-2. `npm install` — needed if dependencies changed.
-3. Restart (`Start-RAChecker.bat` / `./start.sh` / `npm run serve`) — the frontend is rebuilt automatically.
-
-`data/` (collection, backups, image cache, settings) is git-ignored and is left untouched when updating.
-
-## ⚠️ Notes
-
-- RAChecker only reads — it never modifies or moves your ROMs.
-- **No ROMs** are included; you need your own files.
-- Not affiliated with RetroAchievements. Game data, hashes and images © [retroachievements.org](https://retroachievements.org).
-- The server binds to `127.0.0.1` only (not reachable over the network).
-- **Security:** CORS is restricted to `localhost`/`127.0.0.1` (no open `origin: true`), `/api/image` only accepts RetroAchievements image hosts (not an open image proxy), and a scan lock prevents a manual scan, folder watch and scheduled scan from running over the same folder tree at the same time.
-- All fonts are bundled locally (`web/public/fonts`) — RAChecker doesn't load anything from Google Fonts or other CDNs, so it works fully offline in the browser.
-
-## 🧱 Known limitations
-
-- RAR files are read entirely into memory (for large RAR disc images, prefer `.chd`/`.7z`).
-- `.cdi`/`.toc` may need converting to `.cue`/`.chd`.
-- The automatic RAHasher download only supports Windows; on Linux/macOS you need to build RAHasher yourself from [RALibretro](https://github.com/RetroAchievements/RALibretro).
-- The Electron installer is unsigned (Windows SmartScreen warns on first run) — see [docs/BUILDING.md](docs/BUILDING.md).
-
-## 🤝 Contributing
-
-Setup, tests and conventions: [CONTRIBUTING.md](CONTRIBUTING.md). The code itself is under the
-[MIT license](LICENSE); game data, hashes and images remain © retroachievements.org (not covered by the license).
+Setup, tests and conventions: [CONTRIBUTING.md](CONTRIBUTING.md).
+Code is [MIT](LICENSE); game data, hashes and images remain © retroachievements.org.

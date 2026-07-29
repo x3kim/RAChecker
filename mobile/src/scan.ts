@@ -12,10 +12,11 @@ import { tt } from './i18n';
 // used to bail out and claim the image needed the desktop app.
 export type Target = { uri: string; name: string; size?: number };
 
-// Why a row didn't match — so the UI can tell "this system isn't synced yet"
-// apart from "this file really isn't a known RetroAchievements version". Those
-// two used to look identical, which made unmatched files impossible to act on.
-export type ScanStatus = 'match' | 'nomatch' | 'unsynced' | 'note';
+// What came of a file, so the UI can give a reason instead of one catch-all
+// message. `noset` is a real RetroAchievements game that simply has no
+// achievement set yet — that used to be indistinguishable from a wrong/unknown
+// dump, which is exactly what testers complained about.
+export type ScanStatus = 'match' | 'noset' | 'nomatch' | 'unsynced' | 'note';
 export type ScanRow = Hashed & { match: MatchGame | null; error?: string; status: ScanStatus };
 
 function nameFromUri(uri: string): string {
@@ -79,7 +80,12 @@ async function resolve(h: Hashed, synced: Set<number>, dbEmpty: boolean): Promis
   for (const c of h.candidates.length ? h.candidates : [{ rule: h.rule ?? 'raw', md5: h.md5 }]) {
     if (!c.md5) continue;
     const match = await lookupHash(c.md5);
-    if (match) return { ...h, md5: c.md5, rule: c.rule, match, status: 'match' };
+    if (match) {
+      // The hash DB also holds games with no achievement set, so a match isn't
+      // automatically playable for points — say which it is.
+      const status: ScanStatus = match.num_achievements > 0 ? 'match' : 'noset';
+      return { ...h, md5: c.md5, rule: c.rule, match, status };
+    }
   }
   // No candidate matched. Say *why*, so the row is actionable: a system the user
   // never synced can still match later, an unknown dump never will.

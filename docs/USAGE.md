@@ -24,7 +24,7 @@ Tab **Scannen**:
    Hashen optional lokal zwischenkopiert werden (Einstellungen, Schwelle einstellbar) — hilft gegen
    Timeouts bei großen Disc-Images auf langsamen Netzlaufwerken.
 3. Live-Ergebnisse:
-   - Fortschrittsbalken + Zähler (SPIELBAR / KEIN MATCH / RAHASHER / UNKLAR / …).
+   - Fortschrittsbalken + Zähler (SPIELBAR / KEIN MATCH / RAHASHER / …).
    - Pro System eine Kachel mit Trefferquote.
    - Tabelle mit jedem ROM: Status, erkanntes Spiel + Box-Art, Erfolge, Hash, Größe.
 4. **Filtern:** Auf einen Zähler oder eine System-Kachel klicken; im Suchfeld nach Datei/Spiel suchen.
@@ -34,11 +34,15 @@ Tab **Scannen**:
 > Unter **Einstellungen** lässt sich festlegen, welche Systeme Sync/Scan überhaupt berücksichtigen
 > (Systemauswahl) — nicht interessierende Systeme werden dann komplett übersprungen.
 
-### Tipp: Ordner nach System benennen
-Da `.bin`, `.iso`, `.cue`, `.zip` von vielen Systemen genutzt werden, nutzt RAChecker den
-**Ordnernamen** zur eindeutigen Zuordnung. Erkannt werden viele Schreibweisen, z. B.:
-`SNES`, `Super Nintendo`, `PlayStation`, `PSX`, `Mega Drive`, `Genesis`, `Game Boy Advance`,
-`Arcade`, `MAME`, `Saturn`, `Dreamcast`, `TurboGrafx-16` …
+### Ordnernamen sind optional
+Erkannt wird am **Inhalt**: Lässt sich das System an der Endung nicht ablesen
+(`.bin`, `.iso`, `.cue` nutzen viele Systeme), probiert RAChecker alle in Frage kommenden
+Systeme durch und nimmt das Ergebnis, das die Hash-Datenbank kennt. Ein korrekt gedumptes
+ROM trifft also unabhängig davon, wie du sortierst — auch alles in einem einzigen Ordner.
+
+Ordner mit System-Namen (`SNES`, `PlayStation`, `PSX`, `Mega Drive`, `Saturn`, `Dreamcast`,
+`Arcade`/`MAME` …) sind trotzdem nützlich: sie werden erkannt und **zuerst** probiert,
+was den Scan bei mehrdeutigen Disc-Images etwas beschleunigt.
 
 ## 3b. Sammlung & Spiele
 - **Sammlung** — alle je gescannten ROMs, dauerhaft gespeichert. Nach Status/System filtern, suchen.
@@ -133,8 +137,10 @@ ROM darin) und zeigt das Ergebnis sofort, ohne den kompletten Ordner zu scannen.
 | 🟢 **SPIELBAR** | Erfolge holbar — exakt diese ROM-Version ist bei RA registriert |
 | 🔴 **KEIN MATCH** | RA kennt diesen Hash nicht → andere/abweichende Version, keine Erfolge |
 | 🟡 **RAHASHER** | Disc-System/`.chd` — RAHasher installieren, dann erneut scannen |
-| 🟣 **UNKLAR** | System nicht erkennbar — ROM in einen System-Ordner legen |
 | ⚪ **N/A / ÜBERSPRUNGEN** | kein Hash-Ziel (z. B. Disc-Track `.bin` neben `.cue`) |
+
+> „UNKLAR" gibt es seit 0.12 nicht mehr: mehrdeutige Disc-Images werden am Inhalt erkannt.
+> Ältere Sammlungs-Einträge können den Status noch tragen — ein erneuter Scan löst sie auf.
 
 ## Troubleshooting
 - **Alles „KEIN MATCH"** → Hash-DB noch nicht synchronisiert (Schritt 1).
@@ -147,8 +153,15 @@ ROM darin) und zeigt das Ergebnis sofort, ohne den kompletten Ordner zu scannen.
 
 Es gibt auch eine eigenständige **Android-App** (APK auf der
 [Releases-Seite](https://github.com/x3kim/RAChecker/releases), Tags `android-vX.Y.Z`).
-Sie hasht Cartridge-/Handheld-ROMs direkt auf dem Gerät, synchronisiert die
-RetroAchievements-Hash-Liste on-device und gleicht offline ab — mit DE/EN,
-Profil (Sammlung & Insights), Spiele-Browser nach Systemen und Entdecken.
-Disc-Systeme (RAHasher), Archiv-Entpacken und DAT-Abgleich bleiben **Desktop-only**.
+Sie hasht **Cartridge-ROMs und Disc-Images** (CHD, ISO, PBP) direkt auf dem Gerät,
+entpackt **ZIP- und 7z-Archive** selbst, synchronisiert die RetroAchievements-Hash-Liste
+on-device und gleicht offline ab — mit DE/EN, Profil (Sammlung & Insights),
+Spiele-Browser nach Systemen und Entdecken.
+
+**Nur am Desktop:** RAR-Archive, die übrigen Disc-Container (GameCube/Wii, CSO, RVZ, GCZ,
+GDI, geteilte CUE/BIN, M3U), DAT-Abgleich und das Starten von Emulatoren.
+
+> Damit Disc-Images treffen können, müssen im Tab **Hash-DB** auch die Disc-Systeme
+> ausgewählt und synchronisiert sein.
+
 Details: Abschnitt „Android app" der [Doku-Seite](https://x3kim.github.io/RAChecker/).

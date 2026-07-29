@@ -110,11 +110,16 @@ export async function clearDb(): Promise<void> {
 }
 
 // ---- games browser --------------------------------------------------------
+// The hash DB also stores games that have no achievement set (so a scan can tell
+// "no set yet" from "unknown dump"). Everywhere the UI talks about *games*, it
+// means games you can earn achievements in — hence the num_achievements filter.
+const HAS_ACHIEVEMENTS = 'num_achievements > 0';
+
 export async function searchGames(q: string, limit = 150): Promise<MatchGame[]> {
   const d = await db();
-  const sel = 'SELECT id, title, points, num_achievements, image_icon, console_id FROM games';
+  const sel = `SELECT id, title, points, num_achievements, image_icon, console_id FROM games WHERE ${HAS_ACHIEVEMENTS}`;
   if (q.trim()) {
-    return d.getAllAsync<MatchGame>(`${sel} WHERE title LIKE ? ORDER BY points DESC LIMIT ?`, `%${q.trim()}%`, limit);
+    return d.getAllAsync<MatchGame>(`${sel} AND title LIKE ? ORDER BY points DESC LIMIT ?`, `%${q.trim()}%`, limit);
   }
   return d.getAllAsync<MatchGame>(`${sel} ORDER BY points DESC LIMIT ?`, limit);
 }
@@ -124,7 +129,7 @@ export async function searchGames(q: string, limit = 150): Promise<MatchGame[]> 
 export async function getConsolesWithCounts(): Promise<{ console_id: number; count: number }[]> {
   const d = await db();
   return d.getAllAsync<{ console_id: number; count: number }>(
-    'SELECT console_id, COUNT(*) AS count FROM games GROUP BY console_id ORDER BY count DESC');
+    `SELECT console_id, COUNT(*) AS count FROM games WHERE ${HAS_ACHIEVEMENTS} GROUP BY console_id ORDER BY count DESC`);
 }
 
 const GAME_SORTS: Record<string, string> = {
@@ -135,7 +140,7 @@ const GAME_SORTS: Record<string, string> = {
 export async function getGamesByConsole(consoleId: number, opts: { q?: string; sort?: string; limit?: number } = {}): Promise<MatchGame[]> {
   const d = await db();
   const order = GAME_SORTS[opts.sort ?? 'points'] ?? GAME_SORTS.points;
-  const sel = 'SELECT id, title, points, num_achievements, image_icon, console_id FROM games WHERE console_id = ?';
+  const sel = `SELECT id, title, points, num_achievements, image_icon, console_id FROM games WHERE ${HAS_ACHIEVEMENTS} AND console_id = ?`;
   const limit = opts.limit ?? 800;
   if (opts.q?.trim()) {
     return d.getAllAsync<MatchGame>(`${sel} AND title LIKE ? ORDER BY ${order} LIMIT ?`, consoleId, `%${opts.q.trim()}%`, limit);
@@ -150,7 +155,7 @@ export async function getGamesForConsoles(ids: number[]): Promise<MatchGame[]> {
   const d = await db();
   const ph = ids.map(() => '?').join(',');
   return d.getAllAsync<MatchGame>(
-    `SELECT id, title, points, num_achievements, image_icon, console_id FROM games WHERE console_id IN (${ph})`,
+    `SELECT id, title, points, num_achievements, image_icon, console_id FROM games WHERE ${HAS_ACHIEVEMENTS} AND console_id IN (${ph})`,
     ...ids);
 }
 
@@ -158,7 +163,7 @@ export async function getGamesForConsoles(ids: number[]): Promise<MatchGame[]> {
 // can show its artwork/achievements and open the detail modal, like the desktop.
 export async function resolveGameByTitle(title: string, consoleId: number): Promise<MatchGame | null> {
   const d = await db();
-  const sel = 'SELECT id, title, points, num_achievements, image_icon, console_id FROM games WHERE console_id = ?';
+  const sel = `SELECT id, title, points, num_achievements, image_icon, console_id FROM games WHERE ${HAS_ACHIEVEMENTS} AND console_id = ?`;
   const exact = await d.getFirstAsync<MatchGame>(`${sel} AND lower(title) = lower(?) LIMIT 1`, consoleId, title);
   if (exact) return exact;
   return d.getFirstAsync<MatchGame>(`${sel} AND title LIKE ? ORDER BY num_achievements DESC LIMIT 1`, consoleId, `${title}%`);
@@ -171,15 +176,20 @@ export type CollectionInsights = {
 };
 export async function collectionInsights(): Promise<CollectionInsights> {
   const d = await db();
+  // "matched" means the file earns achievements — a hash that resolves to a game
+  // with no set doesn't count towards coverage.
   const tot = await d.getFirstAsync<{ files: number; matched: number }>(
-    'SELECT COUNT(*) AS files, SUM(CASE WHEN game_id IS NOT NULL THEN 1 ELSE 0 END) AS matched FROM library');
+    `SELECT COUNT(*) AS files,
+            SUM(CASE WHEN EXISTS (SELECT 1 FROM games g WHERE g.id = l.game_id AND g.num_achievements > 0) THEN 1 ELSE 0 END) AS matched
+       FROM library l`);
   const sums = await d.getFirstAsync<{ ach: number; pts: number }>(
     `SELECT COALESCE(SUM(g.num_achievements),0) AS ach, COALESCE(SUM(g.points),0) AS pts
        FROM (SELECT DISTINCT game_id FROM library WHERE game_id IS NOT NULL) dg
        JOIN games g ON g.id = dg.game_id`);
   const bySystem = await d.getAllAsync<{ console_id: number; files: number; matched: number }>(
-    `SELECT console_id, COUNT(*) AS files, SUM(CASE WHEN game_id IS NOT NULL THEN 1 ELSE 0 END) AS matched
-       FROM library WHERE console_id IS NOT NULL GROUP BY console_id ORDER BY files DESC`);
+    `SELECT l.console_id, COUNT(*) AS files,
+            SUM(CASE WHEN EXISTS (SELECT 1 FROM games g WHERE g.id = l.game_id AND g.num_achievements > 0) THEN 1 ELSE 0 END) AS matched
+       FROM library l WHERE l.console_id IS NOT NULL GROUP BY l.console_id ORDER BY files DESC`);
   return {
     files: tot?.files ?? 0, matched: tot?.matched ?? 0,
     achievements: sums?.ach ?? 0, points: sums?.pts ?? 0, bySystem,
@@ -234,7 +244,8 @@ export async function getOwnedGames(): Promise<MatchGame[]> {
 export async function libraryStats(): Promise<{ total: number; matched: number }> {
   const d = await db();
   const t = await d.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM library');
-  const m = await d.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM library WHERE game_id IS NOT NULL');
+  const m = await d.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM library l JOIN games g ON g.id = l.game_id WHERE g.num_achievements > 0`);
   return { total: t?.n ?? 0, matched: m?.n ?? 0 };
 }
 

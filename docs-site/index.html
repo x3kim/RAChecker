@@ -139,7 +139,7 @@
   <header class="topbar">
     <button class="menu-btn" id="menuBtn" aria-label="Menu">☰</button>
     <span class="brand"><img src="logo.png" alt="" width="24" height="24" style="border-radius:5px;vertical-align:middle"> <b>RACHECKER</b></span>
-    <span class="badge">Docs · v0.11</span>
+    <span class="badge">Docs · v0.12</span>
     <span class="spacer"></span>
     <span class="langtoggle" role="group" aria-label="Language">
       <button id="lang-en" onclick="setLang('en')">EN</button>
@@ -216,24 +216,32 @@ npm run serve      # builds the frontend + starts the server on :8088</code></pr
       <h2 id="en-how">How it works</h2>
       <h3>Hashing</h3>
       <p>For cartridge systems RAChecker reimplements the rcheevos hash rules and reads in a streamed way — even multi-gigabyte files won't blow up memory. Archives (ZIP/RAR/7z) are read transparently. For disc systems (PS1, PS2, Saturn, Dreamcast … and <code>.chd</code>) RAChecker uses the bundled <code>RAHasher</code> tool.</p>
-      <div class="callout warn">
-        <div class="t">Name folders after the system</div>
-        Extensions like <code>.bin</code>, <code>.iso</code>, <code>.cue</code> or <code>.zip</code> are shared by many systems. RAChecker reads the <strong>folder name</strong> to disambiguate — e.g. <code>SNES</code>, <code>PlayStation</code>, <code>Mega Drive</code>, <code>Game Boy Advance</code>. So put discs into a system-named folder.
+      <div class="callout">
+        <div class="t">Folder names are optional</div>
+        Extensions like <code>.bin</code>, <code>.iso</code> or <code>.cue</code> are shared by many systems. RAChecker resolves that by <strong>content</strong>: it tries every possible system and keeps the result the hash database recognises, so a correctly dumped ROM matches however you sort your files — even all of them in one folder. System-named folders (<code>SNES</code>, <code>PlayStation</code>, <code>Mega Drive</code> …) are still recognised and tried first, which speeds up ambiguous disc images a little.
       </div>
       <h3>Sync &amp; offline</h3>
       <p>The sync loads all games + hashes per system <em>once</em> from RetroAchievements and stores them locally (one request per system). From then on every scan runs fully offline against that cache. Your account/profile, the Discover area and playtime tracking still need an online connection because they fetch live data.</p>
 
       <h2 id="en-android">Android app</h2>
-      <p>RAChecker also comes as a <strong>standalone Android app</strong> (Expo / React Native) — no PC or server needed. It hashes <strong>cartridge &amp; handheld ROMs directly on the device</strong> (NES, SNES, GB/GBC/GBA, Mega Drive, N64, PC Engine and ~30 more), syncs the RetroAchievements hash list on-device and matches your ROMs fully offline.</p>
+      <p>RAChecker also comes as a <strong>standalone Android app</strong> (Expo / React Native) — no PC or server needed. It hashes your ROMs <strong>directly on the device</strong>, syncs the RetroAchievements hash list on-device and matches everything fully offline.</p>
       <p>It mirrors the desktop look and features: a profile with collection &amp; insights, a games-by-system browser with console artwork, Discover, six themes and full <strong>English + German</strong>.</p>
       <ul>
+        <li><strong>Cartridge &amp; handheld ROMs</strong> — NES, SNES, GB/GBC/GBA, Mega Drive, N64, PC Engine and ~30 more.</li>
+        <li><strong>Disc images on the phone</strong> — <code>.chd</code>, <code>.iso</code> and <code>.pbp</code> for PlayStation, PS2, PSP, Saturn, Sega CD, Dreamcast, PC Engine CD, PC-FX, 3DO, Neo Geo CD and Atari Jaguar CD. CHD reads zlib- and LZMA-compressed images directly — no desktop needed.</li>
+        <li><strong>Archives</strong> — ZIP <em>and</em> 7z are unpacked and hashed on the device, including disc images stored inside them.</li>
+        <li><strong>Clear results</strong> — every file says whether it earns achievements, is a known game with no achievement set yet, belongs to a system you haven't synced, or isn't known to RetroAchievements.</li>
         <li><strong>Download:</strong> the latest <code>RAChecker-*.apk</code> from the <a href="https://github.com/x3kim/RAChecker/releases" target="_blank" rel="noreferrer">Releases page</a> (Android tags are <code>android-vX.Y.Z</code>).</li>
         <li><strong>Install:</strong> allow "install from unknown sources" when prompted (the APK is unsigned).</li>
         <li><strong>Auto-update (opt-in):</strong> the app checks GitHub on launch and can download &amp; install newer APKs — you can decline each time or turn it off in Settings.</li>
       </ul>
       <div class="callout">
         <div class="t">Desktop vs. Android</div>
-        7z/RAR extraction, whole-library NAS scanning and DAT checks are <strong>desktop-only</strong> for now. The Android app hashes cartridges on-device, reads ZIP archives, and (from v0.4.0) hashes <strong>CHD, ISO and PBP</strong> disc images on-device too — PlayStation, PS2, PSP, Saturn, Sega CD, Dreamcast, PC Engine CD, PC-FX, 3DO, Neo Geo CD and Atari Jaguar CD. The two apps complement each other.
+        <strong>Desktop-only:</strong> RAR archives, the remaining disc containers (GameCube/Wii, CSO, RVZ, GCZ, GDI, split CUE/BIN, M3U), whole-library NAS scanning, DAT completeness checks and launching emulators. Everything else — including CHD/ISO/PBP disc hashing and 7z — now works on the phone. The two apps complement each other.
+      </div>
+      <div class="callout">
+        <div class="t">Disc images not matching?</div>
+        Disc systems must be selected and synced in the <strong>Hash DB</strong> tab. Without their hash lists a disc image hashes correctly but has nothing to match against — the scan will say "system not synced yet".
       </div>
 
       <h2 id="en-scan">Scanning &amp; results</h2>
@@ -397,24 +405,32 @@ npm run serve      # baut das Frontend + startet den Server auf :8088</code></pr
       <h2 id="de-how">Wie es funktioniert</h2>
       <h3>Hashing</h3>
       <p>Für Cartridge-Systeme reimplementiert RAChecker die rcheevos-Hash-Regeln und liest dabei gestreamt — auch mehrere Gigabyte große Dateien belasten den Speicher nicht. Archive (ZIP/RAR/7z) werden transparent gelesen. Für Disc-Systeme (PS1, PS2, Saturn, Dreamcast … und <code>.chd</code>) nutzt RAChecker das mitgelieferte <code>RAHasher</code>-Werkzeug.</p>
-      <div class="callout warn">
-        <div class="t">Ordner nach System benennen</div>
-        Endungen wie <code>.bin</code>, <code>.iso</code>, <code>.cue</code> oder <code>.zip</code> nutzen viele Systeme. RAChecker liest den <strong>Ordnernamen</strong> zur eindeutigen Zuordnung — z. B. <code>SNES</code>, <code>PlayStation</code>, <code>Mega Drive</code>, <code>Game Boy Advance</code>. Lege Discs also in einen system-benannten Ordner.
+      <div class="callout">
+        <div class="t">Ordnernamen sind optional</div>
+        Endungen wie <code>.bin</code>, <code>.iso</code> oder <code>.cue</code> nutzen viele Systeme. RAChecker löst das über den <strong>Inhalt</strong>: Es probiert alle möglichen Systeme durch und nimmt das Ergebnis, das die Hash-Datenbank kennt. Ein korrekt gedumptes ROM trifft also unabhängig von deiner Sortierung — auch wenn alles in einem einzigen Ordner liegt. System-benannte Ordner (<code>SNES</code>, <code>PlayStation</code>, <code>Mega Drive</code> …) werden weiterhin erkannt und zuerst probiert, was mehrdeutige Disc-Images etwas beschleunigt.
       </div>
       <h3>Sync &amp; Offline</h3>
       <p>Der Sync lädt pro System <em>einmal</em> alle Spiele + Hashes von RetroAchievements und legt sie lokal ab (eine Anfrage pro System). Ab dann läuft jeder Scan komplett offline gegen diesen Cache. Das Konto/Profil, der Bereich Entdecken und die Spielzeit-Verfolgung brauchen weiterhin eine Online-Verbindung, weil sie Live-Daten abfragen.</p>
 
       <h2 id="de-android">Android-App</h2>
-      <p>RAChecker gibt es auch als <strong>eigenständige Android-App</strong> (Expo / React Native) — ohne PC oder Server. Sie hasht <strong>Cartridge- &amp; Handheld-ROMs direkt auf dem Gerät</strong> (NES, SNES, GB/GBC/GBA, Mega Drive, N64, PC Engine und ~30 weitere), synchronisiert die RetroAchievements-Hash-Liste on-device und gleicht deine ROMs voll offline ab.</p>
+      <p>RAChecker gibt es auch als <strong>eigenständige Android-App</strong> (Expo / React Native) — ohne PC oder Server. Sie hasht deine ROMs <strong>direkt auf dem Gerät</strong>, synchronisiert die RetroAchievements-Hash-Liste on-device und gleicht alles voll offline ab.</p>
       <p>Sie spiegelt Look und Funktionen der Desktop-App: Profil mit Sammlung &amp; Insights, ein Spiele-Browser nach Systemen mit Konsolen-Artwork, Entdecken, sechs Themes und voll <strong>Englisch + Deutsch</strong>.</p>
       <ul>
+        <li><strong>Cartridge- &amp; Handheld-ROMs</strong> — NES, SNES, GB/GBC/GBA, Mega Drive, N64, PC Engine und ~30 weitere.</li>
+        <li><strong>Disc-Images am Handy</strong> — <code>.chd</code>, <code>.iso</code> und <code>.pbp</code> für PlayStation, PS2, PSP, Saturn, Sega CD, Dreamcast, PC Engine CD, PC-FX, 3DO, Neo Geo CD und Atari Jaguar CD. CHD liest zlib- und LZMA-komprimierte Images direkt — ganz ohne Desktop.</li>
+        <li><strong>Archive</strong> — ZIP <em>und</em> 7z werden auf dem Gerät entpackt und gehasht, auch Disc-Images darin.</li>
+        <li><strong>Klare Ergebnisse</strong> — jede Datei sagt, ob sie Erfolge bringt, ein bekanntes Spiel ohne Achievement-Set ist, zu einem nicht synchronisierten System gehört oder RetroAchievements gar nicht bekannt ist.</li>
         <li><strong>Download:</strong> neueste <code>RAChecker-*.apk</code> von der <a href="https://github.com/x3kim/RAChecker/releases" target="_blank" rel="noreferrer">Releases-Seite</a> (Android-Tags sind <code>android-vX.Y.Z</code>).</li>
         <li><strong>Installation:</strong> bei Aufforderung „Installation aus unbekannten Quellen" erlauben (die APK ist unsigniert).</li>
         <li><strong>Auto-Update (optional):</strong> die App prüft beim Start GitHub und kann neuere APKs herunterladen &amp; installieren — jederzeit ablehnbar oder in den Einstellungen abschaltbar.</li>
       </ul>
       <div class="callout">
         <div class="t">Desktop vs. Android</div>
-        7z/RAR-Entpacken, komplettes NAS-Scannen und DAT-Abgleich sind vorerst <strong>Desktop-only</strong>. Die Android-App hasht Cartridges on-device, liest ZIP-Archive und hasht (ab v0.4.0) auch <strong>CHD-, ISO- und PBP</strong>-Disc-Images direkt auf dem Gerät — PlayStation, PS2, PSP, Saturn, Sega CD, Dreamcast, PC Engine CD, PC-FX, 3DO, Neo Geo CD und Atari Jaguar CD. Die beiden Apps ergänzen sich.
+        <strong>Nur am Desktop:</strong> RAR-Archive, die übrigen Disc-Container (GameCube/Wii, CSO, RVZ, GCZ, GDI, geteilte CUE/BIN, M3U), komplettes NAS-Scannen, DAT-Abgleich und das Starten von Emulatoren. Alles andere — inklusive CHD-/ISO-/PBP-Disc-Hashing und 7z — läuft jetzt am Handy. Die beiden Apps ergänzen sich.
+      </div>
+      <div class="callout">
+        <div class="t">Disc-Images treffen nicht?</div>
+        Disc-Systeme müssen im Tab <strong>Hash-DB</strong> ausgewählt und synchronisiert sein. Ohne deren Hash-Listen wird ein Disc-Image zwar korrekt gehasht, hat aber nichts, wogegen es treffen könnte — der Scan meldet dann „System noch nicht synchronisiert".
       </div>
 
       <h2 id="de-scan">Scannen &amp; Ergebnisse</h2>

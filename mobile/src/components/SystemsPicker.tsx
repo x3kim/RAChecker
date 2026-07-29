@@ -2,14 +2,14 @@ import { View, Pressable, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, space, radius } from '../theme';
 import { Body } from '../ui';
-import { CART_CONSOLES } from '../consoles';
+import { SYNC_CONSOLES } from '../consoles';
 import { useI18n } from '../i18n';
 
 // value: null = all systems; array = the chosen subset. onChange emits null when
 // everything is selected (so "all" persists as "no filter").
 export function SystemsPicker({ value, onChange }: { value: number[] | null; onChange: (v: number[] | null) => void }) {
   const { t } = useI18n();
-  const all = CART_CONSOLES.map((c) => c.id);
+  const all = SYNC_CONSOLES.map((c) => c.id);
   const sel = value == null ? new Set(all) : new Set(value);
 
   const toggle = (id: number) => {
@@ -29,7 +29,7 @@ export function SystemsPicker({ value, onChange }: { value: number[] | null; onC
         </View>
       </View>
       <View style={styles.grid}>
-        {CART_CONSOLES.map((c) => {
+        {SYNC_CONSOLES.map((c) => {
           const on = sel.has(c.id);
           return (
             <Pressable key={c.id} onPress={() => toggle(c.id)} style={[styles.chip, on && styles.chipOn]}>

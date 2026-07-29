@@ -1,7 +1,7 @@
 // Single source of truth for the mobile app version + changelog. Mirror the
 // version in app.json ("version" + android.versionCode). The auto-updater
 // compares this against GitHub releases tagged `android-vX.Y.Z`.
-export const APP_VERSION = '0.4.2';
+export const APP_VERSION = '0.5.0';
 
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
 export const DOCS_URL = 'https://x3kim.github.io/RAChecker/';
@@ -16,21 +16,23 @@ export type ChangelogEntry = { version: string; date: string; en: string[]; de: 
 // Newest first. `en`/`de` are bullet lists.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '0.4.2',
+    version: '0.5.0',
     date: '2026-07-29',
     en: [
       '7z archives now work on the phone — RAChecker unpacks them itself and hashes the ROMs inside, including disc images, which are unpacked to temporary storage and removed again afterwards.',
+      'Disc systems are now part of the hash sync. Without this a disc image hashed correctly but could never match anything — pick your disc systems in the Hash DB tab and re-sync.',
+      'Scan results now tell the cases apart: earns achievements · recognised game with no achievement set yet · system not synced yet · not known to RetroAchievements.',
       'ZIP files that use LZMA compression are now read too (some ROM sites pack that way to save space).',
-      'Fixed ISO images being reported as “needs the desktop app”: the file size couldn’t always be determined, and the disc hasher gave up. Reading now uses a faster, seekable file API.',
-      'A disc image that genuinely isn’t recognised now says so, instead of the misleading desktop-only note.',
-      'Files are read faster overall (binary instead of base64).',
+      'Fixed ISO images being reported as “needs the desktop app”: the file size couldn’t always be determined, and the disc hasher gave up. A disc image that genuinely isn’t recognised now says so.',
+      'Files are read faster overall (binary instead of base64), and size is no longer a limit.',
     ],
     de: [
       '7z-Archive funktionieren jetzt am Handy — RAChecker entpackt sie selbst und hasht die ROMs darin, auch Disc-Images: die werden in den temporären Speicher entpackt und danach wieder gelöscht.',
+      'Disc-Systeme sind jetzt Teil des Hash-Syncs. Ohne das wurde ein Disc-Image zwar korrekt gehasht, konnte aber nie treffen — wähle deine Disc-Systeme im Hash-DB-Tab und synchronisiere neu.',
+      'Scan-Ergebnisse unterscheiden jetzt die Fälle: bringt Erfolge · erkanntes Spiel ohne Achievement-Set · System noch nicht synchronisiert · RetroAchievements unbekannt.',
       'ZIP-Dateien mit LZMA-Kompression werden jetzt ebenfalls gelesen (manche ROM-Seiten packen so, um Platz zu sparen).',
-      'Behoben: ISO-Images wurden fälschlich als „braucht die Desktop-App" gemeldet — die Dateigröße war nicht immer ermittelbar, woraufhin das Disc-Hashing abbrach. Gelesen wird jetzt über eine schnellere, springbare Datei-Schnittstelle.',
-      'Ein Disc-Image, das wirklich nicht erkannt wird, sagt das jetzt auch — statt des irreführenden Desktop-Hinweises.',
-      'Dateien werden insgesamt schneller gelesen (binär statt Base64).',
+      'Behoben: ISO-Images wurden fälschlich als „braucht die Desktop-App" gemeldet — die Dateigröße war nicht immer ermittelbar, woraufhin das Disc-Hashing abbrach. Ein wirklich nicht erkanntes Disc-Image sagt das jetzt auch.',
+      'Dateien werden insgesamt schneller gelesen (binär statt Base64), und die Größe ist keine Grenze mehr.',
     ],
   },
   {

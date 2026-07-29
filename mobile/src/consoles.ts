@@ -1,9 +1,9 @@
-// Cartridge/handheld/arcade consoles RAChecker can hash on-device (the desktop's
-// 'file'/'arcade' method systems). Disc systems are excluded — they need
-// RAHasher. `short` mirrors the desktop console short_code and drives the system
-// artwork URL (static.retroachievements.org). Used for the hash-DB sync, the
+// Every console RAChecker can hash on-device — cartridge/handheld/arcade systems
+// plus the disc systems, which are now hashed on the phone too (src/disc).
+// `short` mirrors the desktop console short_code and drives the system artwork
+// URL (static.retroachievements.org). Used for the hash-DB sync, the
 // games-by-system browser, and to name/icon matched games' systems.
-export const CART_CONSOLES: { id: number; name: string; short: string }[] = [
+export const SYNC_CONSOLES: { id: number; name: string; short: string }[] = [
   { id: 1, name: 'Genesis/Mega Drive', short: 'md' },
   { id: 2, name: 'Nintendo 64', short: 'n64' },
   { id: 3, name: 'SNES', short: 'snes' },
@@ -40,10 +40,23 @@ export const CART_CONSOLES: { id: number; name: string; short: string }[] = [
   { id: 75, name: 'Elektor TV Games Computer', short: 'elek' },
   { id: 80, name: 'Uzebox', short: 'uze' },
   { id: 81, name: 'Famicom Disk System', short: 'fds' },
+  // Disc systems. Their hash lists have to be synced too, otherwise a disc image
+  // hashes correctly and still never matches anything.
+  { id: 9, name: 'Sega CD', short: 'scd' },
+  { id: 12, name: 'PlayStation', short: 'ps1' },
+  { id: 21, name: 'PlayStation 2', short: 'ps2' },
+  { id: 39, name: 'Saturn', short: 'sat' },
+  { id: 40, name: 'Dreamcast', short: 'dc' },
+  { id: 41, name: 'PlayStation Portable', short: 'psp' },
+  { id: 43, name: '3DO Interactive Multiplayer', short: '3do' },
+  { id: 49, name: 'PC-FX', short: 'pc-fx' },
+  { id: 56, name: 'Neo Geo CD', short: 'ngcd' },
+  { id: 76, name: 'PC Engine CD/TurboGrafx-CD', short: 'pccd' },
+  { id: 77, name: 'Atari Jaguar CD', short: 'jcd' },
 ];
 
-const NAME_BY_ID = new Map(CART_CONSOLES.map((c) => [c.id, c.name]));
-const SHORT_BY_ID = new Map(CART_CONSOLES.map((c) => [c.id, c.short]));
+const NAME_BY_ID = new Map(SYNC_CONSOLES.map((c) => [c.id, c.name]));
+const SHORT_BY_ID = new Map(SYNC_CONSOLES.map((c) => [c.id, c.short]));
 
 export function consoleName(id: number | null | undefined): string | null {
   return id != null ? NAME_BY_ID.get(id) ?? null : null;

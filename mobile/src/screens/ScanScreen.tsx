@@ -99,8 +99,11 @@ export function ScanScreen() {
   // Rows loaded from the collection have no live status; treat a stored row as
   // matched/unmatched based on whether it resolved to a game.
   const statusOf = (r: DisplayRow): ScanStatus =>
-    r.status ?? (r.error ? 'note' : r.match ? 'match' : hashes === 0 ? 'unsynced' : 'nomatch');
+    r.status ?? (r.error ? 'note'
+      : r.match ? (r.match.num_achievements > 0 ? 'match' : 'noset')
+      : hashes === 0 ? 'unsynced' : 'nomatch');
   const matched = rows.filter((r) => statusOf(r) === 'match').length;
+  const noSet = rows.filter((r) => statusOf(r) === 'noset').length;
   const unsynced = rows.filter((r) => statusOf(r) === 'unsynced').length;
   const noMatch = rows.filter((r) => statusOf(r) === 'nomatch').length;
   const errors = rows.filter((r) => statusOf(r) === 'note').length;
@@ -147,6 +150,7 @@ export function ScanScreen() {
           </View>
           <View style={styles.summary}>
             <Tag n={matched} label={t('scan.withAch')} color={colors.green} />
+            {noSet > 0 && <Tag n={noSet} label={t('scan.tagNoSet')} color={colors.purple} />}
             {unsynced > 0 && <Tag n={unsynced} label={t('scan.tagUnsynced')} color={colors.cyan} />}
             {noMatch > 0 && <Tag n={noMatch} label={t('scan.noMatch')} color={colors.red} />}
             {errors > 0 && <Tag n={errors} label={t('scan.errors')} color={colors.amber} />}
@@ -179,10 +183,12 @@ function Row({ row, onOpen, status }: { row: DisplayRow; onOpen: (g: MatchGame) 
   const { t } = useI18n();
   const accent = status === 'note' ? colors.amber
     : status === 'match' ? colors.green
+    : status === 'noset' ? colors.purple
     : status === 'unsynced' ? colors.cyan
     : colors.red;
   const iconName = status === 'note' ? 'alert-triangle'
     : status === 'match' ? 'award'
+    : status === 'noset' ? 'clock'
     : status === 'unsynced' ? 'download-cloud'
     : 'help-circle';
   const icon = mediaUrl(row.match?.image_icon);
@@ -197,7 +203,9 @@ function Row({ row, onOpen, status }: { row: DisplayRow; onOpen: (g: MatchGame) 
       )}
       <View style={{ flex: 1, minWidth: 0 }}>
         <Body size={13} color={colors.inkHi} weight="semibold" numberOfLines={1}>{row.match ? row.match.title : row.name}</Body>
-        {row.match ? (
+        {row.match && status === 'noset' ? (
+          <Body size={12} color={colors.purple} numberOfLines={2}>{t('scan.rowNoSet', { c: consoleName(row.match.console_id) ?? '' })}</Body>
+        ) : row.match ? (
           <Body size={12} color={colors.inkMid} numberOfLines={1}>{consoleName(row.match.console_id) ?? ''} · {row.match.num_achievements} {t('common.achievements')} · {row.match.points} {t('common.pts')}</Body>
         ) : status === 'note' ? (
           <Body size={12} color={colors.amber} numberOfLines={3}>{row.error}</Body>

@@ -1,6 +1,6 @@
 // Single source of truth for the app version + changelog. The footer version
 // chip opens a modal rendering CHANGELOG; package.json is kept in sync manually.
-export const APP_VERSION = '0.11.2';
+export const APP_VERSION = '0.12.0';
 
 // GitHub repository — linked from the header (GitHub icon in the "More" menu).
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
@@ -15,6 +15,16 @@ export interface Release { version: string; date: string; title?: { de: string; 
 
 // Newest first. Dates are ISO (YYYY-MM-DD).
 export const CHANGELOG: Release[] = [
+  {
+    version: '0.12.0',
+    date: '2026-07-29',
+    title: { de: 'Disc-Images ohne System-Ordner erkennen', en: 'Disc images identified without system folders' },
+    changes: [
+      { type: 'feature', de: 'Disc-Images (.iso/.chd/.cue) brauchen keinen nach dem System benannten Ordner mehr. Ließ sich das System nicht an der Endung ablesen, galt die Datei bisher als „unklar" mit der Bitte, den Ordner umzubenennen. Jetzt werden alle in Frage kommenden Systeme durchprobiert und das Spiel wird am Inhalt erkannt — egal wie du deine Sammlung sortierst.', en: 'Disc images (.iso/.chd/.cue) no longer need a folder named after the system. When the extension alone could not say which system a file was, it used to be marked "unclear" with a request to rename the folder. Every possible system is now tried and the game is identified by its content — however you sort your collection.' },
+      { type: 'fix', de: 'Atari-Lynx-Hashes korrigiert: die Header-Kennung wurde zu kurz geprüft, wodurch bei manchen Dateien ein 64-Byte-Header entfernt wurde, den RetroAchievements behält. Betroffene Lynx-ROMs treffen jetzt korrekt.', en: 'Fixed Atari Lynx hashes: the header signature was checked too loosely, so a 64-byte header was stripped from files that RetroAchievements keeps intact. Affected Lynx ROMs now match correctly.' },
+      { type: 'improve', de: 'Die System-Filter greifen bei mehrdeutigen Disc-Images jetzt, sobald eines der möglichen Systeme ausgewählt ist.', en: 'For ambiguous disc images, the system filters now apply as soon as any of the possible systems is selected.' },
+    ],
+  },
   {
     version: '0.11.2',
     date: '2026-07-27',

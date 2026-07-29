@@ -6,7 +6,7 @@ import { getCreds, getSelectedConsoles, setSelectedConsoles } from '../storage';
 import { initDb, dbStats, clearDb, rematchCollection } from '../db';
 import { syncAll, SyncProgress } from '../sync';
 import { SystemsPicker } from '../components/SystemsPicker';
-import { CART_CONSOLES } from '../consoles';
+import { SYNC_CONSOLES } from '../consoles';
 import { useI18n } from '../i18n';
 
 export function SyncScreen({ onGoSettings }: { onGoSettings: () => void }) {
@@ -28,7 +28,7 @@ export function SyncScreen({ onGoSettings }: { onGoSettings: () => void }) {
   useEffect(() => { refresh(); }, [refresh]);
 
   const changeSystems = async (v: number[] | null) => { setSystems(v); await setSelectedConsoles(v); };
-  const selCount = systems == null ? CART_CONSOLES.length : systems.length;
+  const selCount = systems == null ? SYNC_CONSOLES.length : systems.length;
 
   const run = async () => {
     const creds = await getCreds();
@@ -63,7 +63,7 @@ export function SyncScreen({ onGoSettings }: { onGoSettings: () => void }) {
         </View>
 
         <Pressable onPress={() => setShowPicker((s) => !s)} style={styles.pickerToggle}>
-          <Body size={12} color={colors.inkMid}>{t('sync.systemsToSync', { n: selCount === CART_CONSOLES.length ? t('sync.all') : selCount })}</Body>
+          <Body size={12} color={colors.inkMid}>{t('sync.systemsToSync', { n: selCount === SYNC_CONSOLES.length ? t('sync.all') : selCount })}</Body>
           <Body size={12} color={colors.cyan}>{showPicker ? t('sync.hide') : t('sync.choose')}</Body>
         </Pressable>
         {showPicker && (

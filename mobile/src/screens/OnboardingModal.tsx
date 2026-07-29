@@ -8,7 +8,7 @@ import { setCreds, setSelectedConsoles, setOnboarded } from '../storage';
 import { getUserProfile } from '../ra/api';
 import { syncAll, SyncProgress } from '../sync';
 import { rematchCollection } from '../db';
-import { CART_CONSOLES } from '../consoles';
+import { SYNC_CONSOLES } from '../consoles';
 import { useI18n } from '../i18n';
 
 const TOP = Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 24) : 0;
@@ -49,7 +49,7 @@ export function OnboardingModal({ onDone }: { onDone: () => void }) {
     } finally { setBusy(false); await finish(); }
   };
 
-  const selCount = systems == null ? CART_CONSOLES.length : systems.length;
+  const selCount = systems == null ? SYNC_CONSOLES.length : systems.length;
   const pct = progress && progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
 
   return (
