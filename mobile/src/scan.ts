@@ -3,11 +3,14 @@
 // synced hash DB. Green = earns achievements, red = no match.
 import * as DocumentPicker from 'expo-document-picker';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
-import { hashTarget, hashZip, hashDiscFile, extOf, isScannable, DISC_EXTS, HASHABLE_DISC_EXTS, UNSUPPORTED_ARCHIVE_EXTS, Hashed } from './hashFile';
+import { hashTarget, hashZip, hashSevenZip, hashDiscFile, extOf, isScannable, DISC_EXTS, HASHABLE_DISC_EXTS, UNSUPPORTED_ARCHIVE_EXTS, Hashed } from './hashFile';
 import { lookupHash, getSyncedConsoles, MatchGame } from './db';
 import { tt } from './i18n';
 
-export type Target = { uri: string; name: string };
+// `size` comes from the document picker when available. Passing it along matters:
+// SAF content:// URIs don't always report a size, and without one the disc hasher
+// used to bail out and claim the image needed the desktop app.
+export type Target = { uri: string; name: string; size?: number };
 
 // Why a row didn't match — so the UI can tell "this system isn't synced yet"
 // apart from "this file really isn't a known RetroAchievements version". Those
@@ -27,7 +30,7 @@ function nameFromUri(uri: string): string {
 export async function pickFiles(): Promise<Target[]> {
   const res = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true });
   if (res.canceled || !res.assets?.length) return [];
-  return res.assets.map((a) => ({ uri: a.uri, name: a.name }));
+  return res.assets.map((a) => ({ uri: a.uri, name: a.name, size: typeof a.size === 'number' ? a.size : undefined }));
 }
 
 // Ask for a folder (persisted SAF permission). Returns the tree URI or null.
@@ -103,29 +106,31 @@ export async function scanTargets(
         // 7z/RAR need native decoders that don't exist on the device. Say so
         // plainly instead of attempting a huge read that fails cryptically.
         rows.push(noteRow(t.name, ext, tt('scan.archiveUnsupported', { ext: ext.replace('.', '').toUpperCase() })));
-      } else if (ext === '.zip') {
-        const inners = await hashZip(t.uri, t.name);
+      } else if (ext === '.zip' || ext === '.7z') {
+        const inners = ext === '.7z' ? await hashSevenZip(t.uri, t.name) : await hashZip(t.uri, t.name);
         if (!inners.length) {
           rows.push(noteRow(t.name, ext, tt('scan.zipEmpty')));
         } else {
           for (const h of inners) rows.push(await resolve(h, synced, dbEmpty));
         }
       } else if (HASHABLE_DISC_EXTS.has(ext)) {
-        // On-device disc hashing (.chd/.iso/.pbp). If a supported disc can't be
-        // recognised/decoded it counts toward the desktop-only note instead.
-        const h = await hashDiscFile(t.uri, t.name);
+        // On-device disc hashing (.chd/.iso/.pbp). A null result means no disc
+        // system's signature was found — say that plainly instead of lumping the
+        // file into the generic "needs the desktop app" note, which was
+        // misleading for images we genuinely can read.
+        const h = await hashDiscFile(t.uri, t.name, t.size);
         if (h) rows.push(await resolve(h, synced, dbEmpty));
-        else discCount++;
+        else rows.push(noteRow(t.name, ext, tt('scan.discUnrecognised')));
       } else if (DISC_EXTS.has(ext)) {
         discCount++;
       } else {
-        const h = await hashTarget(t.uri, t.name);
+        const h = await hashTarget(t.uri, t.name, t.size);
         // `.bin` is genuinely ambiguous: a Mega Drive cartridge *or* a raw CD
         // track (PSX/Sega CD/3DO…). rcheevos tries both; so do we, and the DB
         // lookup decides. Best-effort — a cart .bin simply fails the disc probe.
         if (ext === '.bin') {
           try {
-            const d = await hashDiscFile(t.uri, t.name);
+            const d = await hashDiscFile(t.uri, t.name, t.size);
             if (d) h.candidates = [...h.candidates, ...d.candidates];
           } catch { /* not a disc image — the cartridge hash still stands */ }
         }

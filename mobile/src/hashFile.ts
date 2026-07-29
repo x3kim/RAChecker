@@ -1,37 +1,29 @@
-// Low-level on-device hashing: read a file's bytes (works for picker file://
-// URIs via the new File API and for SAF content:// URIs via the legacy base64
-// reader) and compute the RA hash through the shared core.
-import { File } from 'expo-file-system';
-import { readAsStringAsync, EncodingType, getInfoAsync } from 'expo-file-system/legacy';
+// On-device hashing: read a file (streamed, never whole-file) and compute the
+// RetroAchievements hash through the shared core, the disc rules, or an archive.
 import { unzipSync } from 'fflate';
 // Vendored shared core (source of truth: packages/core).
 import { consoleForExt } from './core';
 import { hashDisc, HASHABLE_DISC_EXTS } from './disc';
 import { RandomReader, bufferReader } from './disc/reader';
 import { hashCartCandidates, rulesForExt, Candidate } from './hashCandidates';
+import { openFileReader, createTempFile } from './fileIO';
+import { openSevenZip, extractSevenZipEntry, SevenZipError } from './archive/sevenZip';
+import { lzma1Decode } from './lzma/decoder';
 
 export function extOf(name: string): string {
   const i = name.lastIndexOf('.');
   return i >= 0 ? name.slice(i).toLowerCase() : '';
 }
 
-function base64ToBytes(b64: string): Uint8Array {
-  // React Native / Hermes provides atob.
-  const bin = (globalThis as any).atob(b64) as string;
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
+// Read a whole file into memory. Only for inputs known to be small (ZIP central
+// directories, archive members); large files always go through a reader.
 export async function readBytes(uri: string): Promise<Uint8Array> {
+  const reader = await openFileReader(uri);
   try {
-    const b = await new File(uri).bytes();
-    if (b && b.length) return b;
-  } catch {
-    /* content:// (SAF) or unsupported — fall back to the legacy base64 reader */
+    return await reader.read(0, reader.size);
+  } finally {
+    reader.close();
   }
-  const b64 = await readAsStringAsync(uri, { encoding: EncodingType.Base64 });
-  return base64ToBytes(b64);
 }
 
 // `md5` is the primary hash (used for the collection); `candidates` holds every
@@ -42,10 +34,11 @@ export type Hashed = {
   consoleId: number | null; md5: string; candidates: Candidate[];
 };
 
-// Archives we cannot open on the device: both need native code (no pure-JS
-// decoder exists that runs under Hermes), so we fail with a clear reason instead
-// of trying to read a multi-GB file into memory.
-export const UNSUPPORTED_ARCHIVE_EXTS = new Set(['.7z', '.rar', '.tar', '.gz', '.bz2', '.xz']);
+// Archives that still need a native decoder we can't ship (RAR has its own
+// algorithm; tar-family streams aren't seekable containers we can index).
+// `.7z` is NOT here: we decode it ourselves — see src/archive/sevenZip.ts.
+export const UNSUPPORTED_ARCHIVE_EXTS = new Set(['.rar', '.tar', '.gz', '.bz2', '.xz']);
+export const ARCHIVE_EXTS = new Set(['.zip', '.7z']);
 
 async function hashBytesCandidates(displayName: string, extName: string, bytes: Uint8Array): Promise<Hashed> {
   const ext = extOf(extName);
@@ -58,12 +51,19 @@ async function hashBytesCandidates(displayName: string, extName: string, bytes: 
   };
 }
 
-export async function hashTarget(uri: string, name: string): Promise<Hashed> {
+export async function hashTarget(uri: string, name: string, sizeHint?: number): Promise<Hashed> {
+  const reader = await openFileReader(uri, sizeHint);
+  try {
+    return await hashReader(reader, name);
+  } finally {
+    reader.close();
+  }
+}
+
+// Cartridge hashing from an already-open reader (also used for archive members
+// that were unpacked to a scratch file).
+async function hashReader(reader: RandomReader, name: string): Promise<Hashed> {
   const ext = extOf(name);
-  const size = await fileSize(uri);
-  // Stream from the file when we know its size; fall back to a whole-file read
-  // only when the size is unavailable (very small/odd providers).
-  const reader = size > 0 ? await createFileReader(uri, size) : bufferReader(await readBytes(uri));
   const candidates = await hashCartCandidates(reader, reader.size, rulesForExt(ext));
   const meta = consoleForExt(ext);
   return {
@@ -73,57 +73,20 @@ export async function hashTarget(uri: string, name: string): Promise<Hashed> {
   };
 }
 
-// A random-access reader over a file URI. Reads byte ranges on demand (base64,
-// position+length) so multi-hundred-MB images are never loaded whole into memory.
-function fileRandomReader(uri: string, size: number): RandomReader {
-  return {
-    size,
-    async read(offset: number, length: number): Promise<Uint8Array> {
-      if (length <= 0) return new Uint8Array(0);
-      const b64 = await readAsStringAsync(uri, { encoding: EncodingType.Base64, position: offset, length });
-      return base64ToBytes(b64);
-    },
-  };
-}
-
-// Largest file we'll pull fully into memory. Only reached when ranged reads fail
-// or the size is unknown: a whole-file base64 read is what produced the native
-// "ExponentFileSystem.readAsStringAsync" rejection on large files, so past this
-// point we fail with a readable message instead of crashing.
-const MAX_BUFFERED_BYTES = 96 * 1024 * 1024;
-
-// Build a reader for this URI. Ranged reads (`position` + `length` with Base64)
-// are supported by expo-file-system for both file:// and SAF content:// URIs, so
-// they're the normal path and keep memory flat regardless of file size. If the
-// platform rejects a ranged read we fall back to buffering the whole file, which
-// is only viable below MAX_BUFFERED_BYTES.
-async function createFileReader(uri: string, size: number): Promise<RandomReader> {
-  const ranged = fileRandomReader(uri, size);
+// Hash a disc image (.chd/.iso/.pbp) with the ported rcheevos disc rules.
+// Returns null when no system's signature was found in the image — the caller
+// turns that into a specific message rather than a generic "use the desktop app".
+export async function hashDiscFile(uri: string, name: string, sizeHint?: number): Promise<Hashed | null> {
+  const reader = await openFileReader(uri, sizeHint);
   try {
-    const probe = await ranged.read(0, Math.min(16, size));
-    if (probe.length > 0) return ranged;
-  } catch {
-    /* ranged read rejected — fall back to a whole-file read below */
+    return await hashDiscReader(reader, name);
+  } finally {
+    reader.close();
   }
-  if (size > MAX_BUFFERED_BYTES) {
-    throw new Error(`Cannot read this file in slices and it is too large to load at once (${Math.round(size / 1048576)} MB). Use the desktop app for this one.`);
-  }
-  return bufferReader(await readBytes(uri));
 }
 
-async function fileSize(uri: string): Promise<number> {
-  try { const info = await getInfoAsync(uri); if (info.exists && typeof info.size === 'number') return info.size; } catch { /* ignore */ }
-  try { const s = new File(uri).size; if (typeof s === 'number') return s; } catch { /* ignore */ }
-  return 0;
-}
-
-// Hash a disc image (.chd/.iso/.pbp) on-device via the ported rcheevos disc rules.
-// Returns a Hashed row, or null when the format/codecs aren't supported (caller
-// then shows the desktop-only note). Throws on a read/decode failure with a reason.
-export async function hashDiscFile(uri: string, name: string): Promise<Hashed | null> {
-  const size = await fileSize(uri);
-  if (!size) return null;
-  const res = await hashDisc(await createFileReader(uri, size), name);
+async function hashDiscReader(reader: RandomReader, name: string): Promise<Hashed | null> {
+  const res = await hashDisc(reader, name);
   if (!res) return null;
   return {
     name, ext: extOf(name), rule: `disc:${res.system}`, consoleId: res.consoleId,
@@ -147,18 +110,158 @@ function isRomInnerName(name: string): boolean {
 // Throws on an unreadable/encrypted/unsupported-compression archive.
 export async function hashZip(uri: string, archiveName: string): Promise<Hashed[]> {
   const bytes = await readBytes(uri);
-  let files: Record<string, Uint8Array>;
+  const out: Hashed[] = [];
+  let files: Record<string, Uint8Array> = {};
+  let fflateFailed = false;
   try {
     files = unzipSync(bytes, { filter: (f) => isRomInnerName(f.name) });
-  } catch (e: any) {
-    throw new Error(`ZIP: ${String(e?.message || e).slice(0, 120)}`);
+  } catch {
+    // fflate only implements store + deflate. Some ROM sites pack with LZMA to
+    // save space, which lands here — fall back to our own reader below.
+    fflateFailed = true;
   }
-  const out: Hashed[] = [];
   for (const [inner, data] of Object.entries(files)) {
     if (!data || !data.length) continue;
     const base = inner.split(/[\\/]/).pop() || inner;
     out.push(await hashBytesCandidates(`${archiveName} › ${base}`, base, data));
   }
+  if (out.length) return out;
+
+  // Nothing came back: either the archive uses a compression method fflate can't
+  // read, or it holds no recognisable ROM. Try the LZMA-capable reader.
+  const extra = await hashZipLzmaMembers(bytes, archiveName);
+  if (extra.length) return extra;
+  if (fflateFailed) throw new Error('ZIP: unsupported compression in this archive.');
+  return out;
+}
+
+// Handle ZIP entries stored with method 14 (LZMA), which fflate rejects. Walks
+// the central directory ourselves and decodes those entries with our LZMA code.
+async function hashZipLzmaMembers(bytes: Uint8Array, archiveName: string): Promise<Hashed[]> {
+  const out: Hashed[] = [];
+  for (const e of listZipEntries(bytes)) {
+    if (e.method !== 14 || !isRomInnerName(e.name)) continue;
+    const base = e.name.split(/[\\/]/).pop() || e.name;
+    try {
+      // ZIP's LZMA entry: 4-byte header (version + props size) then the 5-byte
+      // LZMA properties, then the stream. Output size is known from the entry.
+      const body = bytes.subarray(e.dataOffset, e.dataOffset + e.compressedSize);
+      const propsSize = body[2] | (body[3] << 8);
+      const props = body.subarray(4, 4 + propsSize);
+      const stream = body.subarray(4 + propsSize);
+      const parts: Uint8Array[] = [];
+      lzma1Decode(props, stream, e.uncompressedSize, (b) => parts.push(b.slice()));
+      const data = concatBytes(parts);
+      if (data.length) out.push(await hashBytesCandidates(`${archiveName} › ${base}`, base, data));
+    } catch {
+      /* entry unreadable — skip it and try the rest */
+    }
+  }
+  return out;
+}
+
+type ZipEntry = { name: string; method: number; compressedSize: number; uncompressedSize: number; dataOffset: number };
+
+// Minimal ZIP central-directory walk. Only what's needed to locate an entry's
+// compressed bytes; fflate handles the common methods.
+function listZipEntries(b: Uint8Array): ZipEntry[] {
+  const u16 = (o: number) => b[o] | (b[o + 1] << 8);
+  const u32 = (o: number) => (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] * 0x1000000)) >>> 0;
+
+  // End of central directory: scan backwards for its signature.
+  let eocd = -1;
+  for (let i = b.length - 22; i >= 0 && i > b.length - 22 - 65536; i--) {
+    if (u32(i) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) return [];
+  const count = u16(eocd + 10);
+  let p = u32(eocd + 16);
+  const out: ZipEntry[] = [];
+  for (let i = 0; i < count && p + 46 <= b.length; i++) {
+    if (u32(p) !== 0x02014b50) break;
+    const method = u16(p + 10);
+    const compressedSize = u32(p + 20);
+    const uncompressedSize = u32(p + 24);
+    const nameLen = u16(p + 28);
+    const extraLen = u16(p + 30);
+    const commentLen = u16(p + 32);
+    const localOffset = u32(p + 42);
+    let name = '';
+    for (let j = 0; j < nameLen; j++) name += String.fromCharCode(b[p + 46 + j]);
+    // Local header: name/extra lengths there can differ from the central copy.
+    let dataOffset = 0;
+    if (u32(localOffset) === 0x04034b50) {
+      dataOffset = localOffset + 30 + u16(localOffset + 26) + u16(localOffset + 28);
+    }
+    if (dataOffset) out.push({ name, method, compressedSize, uncompressedSize, dataOffset });
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  return out;
+}
+
+// Read a .7z and hash every ROM inside it. Decoding is our own (src/archive),
+// built on the same LZMA decoder the CHD reader uses.
+//
+// Cartridge members are small enough to unpack into memory. A disc image inside
+// an archive is not — those are unpacked to a scratch file in the cache and
+// hashed from there with ranged reads, then deleted. That's the only way to hash
+// a compressed disc image, because disc rules seek around the image rather than
+// reading it front to back.
+export async function hashSevenZip(uri: string, archiveName: string): Promise<Hashed[]> {
+  const reader = await openFileReader(uri);
+  const out: Hashed[] = [];
+  try {
+    const archive = await openSevenZip(reader);
+    const members = archive.entries.filter((e) => !e.isDir && e.size > 0 && isHashableInnerName(e.name));
+    for (const entry of members) {
+      const base = entry.name.split(/[\\/]/).pop() || entry.name;
+      const display = `${archiveName} › ${base}`;
+      const innerExt = extOf(base);
+
+      if (HASHABLE_DISC_EXTS.has(innerExt) || entry.size > MAX_INLINE_MEMBER_BYTES) {
+        const temp = createTempFile(`ra-unpack-${Date.now()}-${base}`);
+        try {
+          await extractSevenZipEntry(reader, archive, entry, (b) => temp.write(b));
+          temp.close();
+          const hashed = HASHABLE_DISC_EXTS.has(innerExt)
+            ? await hashDiscFile(temp.uri, base, entry.size)
+            : await hashTarget(temp.uri, base, entry.size);
+          if (hashed) out.push({ ...hashed, name: display });
+        } finally {
+          await temp.delete();
+        }
+        continue;
+      }
+
+      const parts: Uint8Array[] = [];
+      await extractSevenZipEntry(reader, archive, entry, (b) => parts.push(b.slice()));
+      const data = concatBytes(parts);
+      if (data.length) out.push(await hashBytesCandidates(display, base, data));
+    }
+  } catch (e: any) {
+    if (e instanceof SevenZipError) throw e;
+    throw new Error(`7z: ${String(e?.message || e).slice(0, 160)}`);
+  } finally {
+    reader.close();
+  }
+  return out;
+}
+
+// Members bigger than this are unpacked to a scratch file instead of memory.
+const MAX_INLINE_MEMBER_BYTES = 64 * 1024 * 1024;
+
+function isHashableInnerName(name: string): boolean {
+  const base = name.split(/[\\/]/).pop() || name;
+  if (!base || base.startsWith('._') || base.startsWith('.')) return false;
+  const ext = extOf(base);
+  return CART_EXTS.has(ext) || HASHABLE_DISC_EXTS.has(ext);
+}
+
+function concatBytes(parts: Uint8Array[]): Uint8Array {
+  const total = parts.reduce((s, p) => s + p.length, 0);
+  const out = new Uint8Array(total);
+  let o = 0;
+  for (const p of parts) { out.set(p, o); o += p.length; }
   return out;
 }
 
@@ -184,8 +287,8 @@ export const DISC_EXTS = new Set([
   '.gdi', '.cdi', '.nrg', '.mds', '.ccd', '.m3u',
 ]);
 
-// Everything the folder scanner should surface: cart ROMs, ZIP archives, and
-// disc images (the last only to report they need the desktop).
+// Everything the folder scanner should surface: cart ROMs, archives we can open
+// (.zip/.7z) and disc images.
 export function isScannable(ext: string): boolean {
-  return ext === '.zip' || CART_EXTS.has(ext) || DISC_EXTS.has(ext);
+  return ARCHIVE_EXTS.has(ext) || CART_EXTS.has(ext) || DISC_EXTS.has(ext);
 }

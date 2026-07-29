@@ -79,7 +79,18 @@ function classifyFile(filePath, ext, folderConsoleId) {
     const discIds = extIds.filter((id) => CONSOLE_BY_ID.get(id)?.method === 'rahasher');
     if (folder && folder.method === 'rahasher') return { consoleId: folder.id, method: 'rahasher', headerRule: null };
     if (discIds.length === 1) return { consoleId: discIds[0], method: 'rahasher', headerRule: null };
-    if (discIds.length > 1) return { ambiguous: true, candidates: discIds, reason: 'Disc-Image — die Konsole ist an der Endung nicht erkennbar (.iso/.chd/.cue nutzen viele Systeme). Lege die Datei in einen nach dem System benannten Ordner (z.B. „PS2", „Dreamcast", „Saturn"), damit sie zugeordnet werden kann.' };
+    if (discIds.length > 1) {
+      // The extension alone can't say which system this is (.iso/.chd/.cue are
+      // shared by many). Rather than demanding a system-named folder, hand back
+      // every candidate: RAHasher validates each one against the image itself
+      // (wrong console -> "Not a Sega CD" and no hash), so the file identifies
+      // itself by content. A folder hint, when present, is only used to try the
+      // most likely console first.
+      const ordered = folder && discIds.includes(folder.id)
+        ? [folder.id, ...discIds.filter((id) => id !== folder.id)]
+        : discIds;
+      return { consoleId: ordered[0], method: 'rahasher', headerRule: null, candidates: ordered };
+    }
   }
 
   if (DISC_SIDECAR.has(ext)) return { skip: true, reason: 'disc track / sidecar' };
@@ -229,6 +240,34 @@ export class Scanner {
     } finally {
       if (tmp) { try { await unlink(tmp); } catch { /* best effort */ } }
     }
+  }
+
+  // Hash a file whose console can't be told from its extension. Each candidate is
+  // hashed in turn and looked up: RAHasher only produces a hash when the image
+  // really is that system, and a hash present in the local DB settles it for
+  // certain. Identification therefore comes from the file's content, not from
+  // how the user happens to have named their folders.
+  async hashFileResolvingConsole(filePath, ext, cls, phaseFile) {
+    const ids = cls.candidates?.length ? cls.candidates : [cls.consoleId];
+    if (ids.length <= 1) {
+      return { res: await this.hashFile(filePath, ext, ids[0], cls.method, phaseFile), consoleId: ids[0] };
+    }
+    let firstRes = null;
+    let firstId = ids[0];
+    for (const id of ids) {
+      if (this.cancelled) break;
+      let res;
+      try { res = await this.hashFile(filePath, ext, id, cls.method, phaseFile); }
+      catch (e) { if (this.cancelled) throw e; continue; }
+      if (!res?.md5) continue;
+      if (!firstRes) { firstRes = res; firstId = id; }
+      // A hash the DB knows identifies the game and its console outright.
+      if (lookupHash(res.md5).length) return { res, consoleId: id };
+    }
+    // Nothing matched the DB. Keep the first hash we managed to produce so the
+    // file is reported as a real "no match" rather than "couldn't identify".
+    if (firstRes) return { res: firstRes, consoleId: firstId };
+    return { res: { error: 'Disc image not recognised as any supported system' }, consoleId: ids[0] };
   }
 
   async *walk(dir) {
@@ -418,10 +457,14 @@ export class Scanner {
     const cls = classifyFile(filePath, ext, folderId);
     if (cls.skip) return; // silent skip (e.g. disc tracks, junk) — not counted
     const cand = cls.consoleId ?? cls.candidates?.[0] ?? folderId;
+    // A disc image may still be any of several systems at this point, so the
+    // system filters have to pass if ANY candidate qualifies — otherwise a
+    // PlayStation disc would be dropped just because PS2 sorts first.
+    const cands = cls.candidates?.length ? cls.candidates : [cand];
     // System filter: skip anything not for the requested console.
-    if (this.onlyConsole != null && cand !== this.onlyConsole) return;
+    if (this.onlyConsole != null && !cands.includes(this.onlyConsole)) return;
     // User "systems I care about" filter: skip uninteresting systems entirely.
-    if (!this.allowedConsole(cand)) return;
+    if (!cands.some((id) => this.allowedConsole(id))) return;
     if (cls.unknown) {
       // Only report unknowns that at least live in a recognized system folder.
       if (folderId == null) return;
@@ -442,11 +485,11 @@ export class Scanner {
         res: { md5: cached.md5, method: cached.hash_method, cached: true }, durationMs: 0,
       });
     }
-    const res = await this.hashFile(filePath, ext, cls.consoleId, cls.method, basename(filePath));
+    const { res, consoleId } = await this.hashFileResolvingConsole(filePath, ext, cls, basename(filePath));
     if (res.md5) {
-      setCachedFileHash({ sig, md5: res.md5, console_id: cls.consoleId, hash_method: res.method, computed_at: Date.now() });
+      setCachedFileHash({ sig, md5: res.md5, console_id: consoleId, hash_method: res.method, computed_at: Date.now() });
     }
-    return this.recordHashResult({ filePath, ext, size: st.size, mtime, consoleId: cls.consoleId, res, durationMs: Date.now() - t0 });
+    return this.recordHashResult({ filePath, ext, size: st.size, mtime, consoleId, res, durationMs: Date.now() - t0 });
   }
 
   async run({ concurrency = 4 } = {}) {

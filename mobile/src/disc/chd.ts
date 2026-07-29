@@ -14,7 +14,7 @@
 import { inflateSync } from 'fflate';
 import { BitStream } from './bitstream';
 import { HuffmanDecoder } from './huffman';
-import { lzmaRawDecode } from './lzma';
+import { lzmaRawDecode } from '../lzma/decoder';
 import { RandomReader } from './reader';
 
 const CD_FRAME_SIZE = 2448;
