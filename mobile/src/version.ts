@@ -1,7 +1,7 @@
 // Single source of truth for the mobile app version + changelog. Mirror the
 // version in app.json ("version" + android.versionCode). The auto-updater
 // compares this against GitHub releases tagged `android-vX.Y.Z`.
-export const APP_VERSION = '0.5.0';
+export const APP_VERSION = '0.5.1';
 
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
 export const DOCS_URL = 'https://x3kim.github.io/RAChecker/';
@@ -15,6 +15,22 @@ export type ChangelogEntry = { version: string; date: string; en: string[]; de: 
 
 // Newest first. `en`/`de` are bullet lists.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '0.5.1',
+    date: '2026-07-29',
+    en: [
+      'CHD files compressed with Zstandard now work. Recent versions of chdman use it by default, so many current CHDs simply failed before — and the app wrongly blamed the image ("not a recognised disc image") instead of naming the real reason.',
+      'Large 7z archives no longer crawl or run out of memory: the compressed data is now read in slices instead of all at once. A 1.6 GB disc image inside a 7z went from effectively unusable to a few minutes.',
+      'The scan now shows unpacking progress in percent, so a slow archive no longer looks frozen.',
+      'Hash-DB counts now mean the same thing as in the desktop app (games you can earn achievements in), so the two no longer show different numbers for the same account.',
+    ],
+    de: [
+      'CHD-Dateien mit Zstandard-Kompression funktionieren jetzt. Neuere chdman-Versionen nutzen das standardmäßig, weshalb viele aktuelle CHDs vorher schlicht fehlschlugen — und die App gab fälschlich dem Image die Schuld („kein erkanntes Disc-Image"), statt den echten Grund zu nennen.',
+      'Große 7z-Archive kriechen nicht mehr bzw. sprengen nicht mehr den Speicher: die komprimierten Daten werden jetzt in Scheiben gelesen statt am Stück. Ein 1,6-GB-Disc-Image in einem 7z ging damit von praktisch unbrauchbar auf wenige Minuten.',
+      'Der Scan zeigt jetzt den Entpack-Fortschritt in Prozent — ein langsames Archiv wirkt nicht mehr eingefroren.',
+      'Die Hash-DB-Zahlen bedeuten jetzt dasselbe wie in der Desktop-App (Spiele, in denen du Erfolge holen kannst) — beide zeigen für dasselbe Konto keine unterschiedlichen Werte mehr.',
+    ],
+  },
   {
     version: '0.5.0',
     date: '2026-07-29',

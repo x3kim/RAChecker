@@ -3,7 +3,7 @@
 // synced hash DB. Green = earns achievements, red = no match.
 import * as DocumentPicker from 'expo-document-picker';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
-import { hashTarget, hashZip, hashSevenZip, hashDiscFile, extOf, isScannable, DISC_EXTS, HASHABLE_DISC_EXTS, UNSUPPORTED_ARCHIVE_EXTS, Hashed } from './hashFile';
+import { hashTarget, hashZip, hashSevenZip, hashDiscFile, extOf, isScannable, DISC_EXTS, HASHABLE_DISC_EXTS, UNSUPPORTED_ARCHIVE_EXTS, Hashed, HashProgress } from './hashFile';
 import { lookupHash, getSyncedConsoles, MatchGame } from './db';
 import { tt } from './i18n';
 
@@ -96,7 +96,7 @@ async function resolve(h: Hashed, synced: Set<number>, dbEmpty: boolean): Promis
 
 export async function scanTargets(
   targets: Target[],
-  onProgress: (p: { done: number; total: number; current: string }) => void,
+  onProgress: (p: { done: number; total: number; current: string; detail?: string }) => void,
 ): Promise<ScanRow[]> {
   const rows: ScanRow[] = [];
   const total = targets.length;
@@ -113,7 +113,13 @@ export async function scanTargets(
         // plainly instead of attempting a huge read that fails cryptically.
         rows.push(noteRow(t.name, ext, tt('scan.archiveUnsupported', { ext: ext.replace('.', '').toUpperCase() })));
       } else if (ext === '.zip' || ext === '.7z') {
-        const inners = ext === '.7z' ? await hashSevenZip(t.uri, t.name) : await hashZip(t.uri, t.name);
+        // Unpacking a multi-GB archive takes minutes on a phone; report bytes as
+        // they come out so the scan visibly progresses instead of looking stuck.
+        const report: HashProgress = ({ done, total }) => {
+          const pct = total > 0 ? Math.floor((done / total) * 100) : 0;
+          onProgress({ done, total: targets.length, current: t.name, detail: tt('scan.unpacking', { p: pct, mb: Math.round(done / 1048576) }) });
+        };
+        const inners = ext === '.7z' ? await hashSevenZip(t.uri, t.name, report) : await hashZip(t.uri, t.name);
         if (!inners.length) {
           rows.push(noteRow(t.name, ext, tt('scan.zipEmpty')));
         } else {

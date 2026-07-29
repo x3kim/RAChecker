@@ -403,10 +403,29 @@ async function decodeFolder(
     return;
   }
   if (coder.id === CODER_LZMA) {
-    // LZMA1 has no chunk framing, so the packed stream must be read as a whole.
-    const MAX_LZMA1 = 128 * 1024 * 1024;
+    // LZMA1 has no chunk framing, so the decoder consumes one continuous stream.
+    // Reading that whole stream up front would mean a single multi-hundred-MB
+    // allocation — the thing that makes a big archive crawl or die on a phone.
+    // With a synchronous reader we feed it in slices instead, at constant memory.
+    const SLICE = 4 * 1024 * 1024;
+    if (reader.readSync) {
+      const readSync = reader.readSync.bind(reader);
+      let pos = packOffset;
+      const end = packOffset + packSize;
+      const first = readSync(pos, Math.min(SLICE, end - pos));
+      pos += first.length;
+      lzma1Decode(coder.props, first, outSize, sink, () => {
+        if (pos >= end) return null;
+        const next = readSync(pos, Math.min(SLICE, end - pos));
+        pos += next.length;
+        return next.length ? next : null;
+      });
+      return;
+    }
+    // No synchronous reader (unusual providers): fall back to a bounded whole read.
+    const MAX_LZMA1 = 96 * 1024 * 1024;
     if (packSize > MAX_LZMA1) {
-      throw new SevenZipError('7z: compressed block is too large to unpack on this device');
+      throw new SevenZipError('7z: this archive is too large to unpack on this device (its compressed block cannot be streamed here)');
     }
     const src = await reader.read(packOffset, packSize);
     lzma1Decode(coder.props, src, outSize, sink);

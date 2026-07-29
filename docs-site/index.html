@@ -224,6 +224,14 @@ npm run serve      # builds the frontend + starts the server on :8088</code></pr
       <p>The sync loads all games + hashes per system <em>once</em> from RetroAchievements and stores them locally (one request per system). From then on every scan runs fully offline against that cache. Your account/profile, the Discover area and playtime tracking still need an online connection because they fetch live data.</p>
 
       <h2 id="en-android">Android app</h2>
+      <div class="callout warn">
+        <div class="t">The Android app is early — what to expect</div>
+        <ul style="margin:6px 0 0">
+          <li><strong>Big files take minutes.</strong> Decompression runs in JavaScript, so a multi-gigabyte disc image inside a <code>.7z</code> can take several minutes on the phone. The scan shows unpacking progress — it is working, not frozen. For large libraries the desktop app is far faster.</li>
+          <li><strong>Sync your disc systems</strong> in the Hash DB tab, otherwise disc images have nothing to match against.</li>
+          <li><strong>Not supported yet:</strong> RAR, GameCube/Wii, CSO/RVZ/GCZ/GDI, split CUE/BIN, M3U, and CHDs whose data is FLAC-compressed.</li>
+        </ul>
+      </div>
       <p>RAChecker also comes as a <strong>standalone Android app</strong> (Expo / React Native) — no PC or server needed. It hashes your ROMs <strong>directly on the device</strong>, syncs the RetroAchievements hash list on-device and matches everything fully offline.</p>
       <p>It mirrors the desktop look and features: a profile with collection &amp; insights, a games-by-system browser with console artwork, Discover, six themes and full <strong>English + German</strong>.</p>
       <ul>
@@ -413,6 +421,14 @@ npm run serve      # baut das Frontend + startet den Server auf :8088</code></pr
       <p>Der Sync lädt pro System <em>einmal</em> alle Spiele + Hashes von RetroAchievements und legt sie lokal ab (eine Anfrage pro System). Ab dann läuft jeder Scan komplett offline gegen diesen Cache. Das Konto/Profil, der Bereich Entdecken und die Spielzeit-Verfolgung brauchen weiterhin eine Online-Verbindung, weil sie Live-Daten abfragen.</p>
 
       <h2 id="de-android">Android-App</h2>
+      <div class="callout warn">
+        <div class="t">Die Android-App ist noch jung — was dich erwartet</div>
+        <ul style="margin:6px 0 0">
+          <li><strong>Große Dateien dauern Minuten.</strong> Das Entpacken läuft in JavaScript, ein mehrere Gigabyte großes Disc-Image in einer <code>.7z</code> kann am Handy also einige Minuten brauchen. Der Scan zeigt den Entpack-Fortschritt — es arbeitet, es hängt nicht. Für große Sammlungen ist die Desktop-App deutlich schneller.</li>
+          <li><strong>Disc-Systeme synchronisieren</strong> im Tab Hash-DB, sonst haben Disc-Images nichts, wogegen sie treffen könnten.</li>
+          <li><strong>Noch nicht unterstützt:</strong> RAR, GameCube/Wii, CSO/RVZ/GCZ/GDI, geteilte CUE/BIN, M3U und CHDs mit FLAC-komprimierten Daten.</li>
+        </ul>
+      </div>
       <p>RAChecker gibt es auch als <strong>eigenständige Android-App</strong> (Expo / React Native) — ohne PC oder Server. Sie hasht deine ROMs <strong>direkt auf dem Gerät</strong>, synchronisiert die RetroAchievements-Hash-Liste on-device und gleicht alles voll offline ab.</p>
       <p>Sie spiegelt Look und Funktionen der Desktop-App: Profil mit Sammlung &amp; Insights, ein Spiele-Browser nach Systemen mit Konsolen-Artwork, Entdecken, sechs Themes und voll <strong>Englisch + Deutsch</strong>.</p>
       <ul>

@@ -207,7 +207,11 @@ function listZipEntries(b: Uint8Array): ZipEntry[] {
 // hashed from there with ranged reads, then deleted. That's the only way to hash
 // a compressed disc image, because disc rules seek around the image rather than
 // reading it front to back.
-export async function hashSevenZip(uri: string, archiveName: string): Promise<Hashed[]> {
+// Reports progress while a single file is being processed, so a slow unpack shows
+// movement instead of looking frozen.
+export type HashProgress = (info: { phase: 'unpack' | 'hash'; done: number; total: number }) => void;
+
+export async function hashSevenZip(uri: string, archiveName: string, onProgress?: HashProgress): Promise<Hashed[]> {
   const reader = await openFileReader(uri);
   const out: Hashed[] = [];
   try {
@@ -221,7 +225,12 @@ export async function hashSevenZip(uri: string, archiveName: string): Promise<Ha
       if (HASHABLE_DISC_EXTS.has(innerExt) || entry.size > MAX_INLINE_MEMBER_BYTES) {
         const temp = createTempFile(`ra-unpack-${Date.now()}-${base}`);
         try {
-          await extractSevenZipEntry(reader, archive, entry, (b) => temp.write(b));
+          let written = 0;
+          await extractSevenZipEntry(reader, archive, entry, (b) => {
+            temp.write(b);
+            written += b.length;
+            onProgress?.({ phase: 'unpack', done: written, total: entry.size });
+          });
           temp.close();
           const hashed = HASHABLE_DISC_EXTS.has(innerExt)
             ? await hashDiscFile(temp.uri, base, entry.size)
@@ -234,7 +243,12 @@ export async function hashSevenZip(uri: string, archiveName: string): Promise<Ha
       }
 
       const parts: Uint8Array[] = [];
-      await extractSevenZipEntry(reader, archive, entry, (b) => parts.push(b.slice()));
+      let got = 0;
+      await extractSevenZipEntry(reader, archive, entry, (b) => {
+        parts.push(b.slice());
+        got += b.length;
+        onProgress?.({ phase: 'unpack', done: got, total: entry.size });
+      });
       const data = concatBytes(parts);
       if (data.length) out.push(await hashBytesCandidates(display, base, data));
     }

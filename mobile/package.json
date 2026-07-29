@@ -19,6 +19,7 @@
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.1",
     "fflate": "^0.8.3",
+    "fzstd": "^0.1.1",
     "js-md5": "^0.8.3",
     "react": "19.2.3",
     "react-native": "0.86.0",

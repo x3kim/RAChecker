@@ -3,6 +3,7 @@
 // RAHasher). Auto-detects the system by trying each marker-gated rule in order.
 import { RandomReader } from './reader';
 import { ChdCdReader, BinCdReader, DISC_RULES } from './rules';
+import { ChdError } from './chd';
 import { md5Create } from '../md5';
 
 export type DiscHashResult = { md5: string; consoleId: number; system: string };
@@ -36,13 +37,20 @@ export async function hashDisc(reader: RandomReader, name: string): Promise<Disc
   const cd = ext === '.chd' ? await ChdCdReader.open(reader) : await BinCdReader.open(reader);
   if (!cd) return null;
 
+  // A rule that throws usually just means "this isn't that system" — but a
+  // container-level failure (an unsupported CHD codec, a corrupt file) throws the
+  // same way, and silently reporting that as "not a recognised disc image" hides
+  // the real cause. Remember the first container error and surface it if no rule
+  // ends up matching.
+  let containerError: Error | null = null;
   for (const rule of DISC_RULES) {
     try {
       const md5 = await rule.run(cd);
       if (md5) return { md5, consoleId: rule.consoleId, system: rule.name };
-    } catch {
-      /* rule didn't apply / read error — try the next system */
+    } catch (e: any) {
+      if (!containerError && e instanceof ChdError && e.fatal) containerError = e;
     }
   }
+  if (containerError) throw containerError;
   return null;
 }

@@ -97,13 +97,15 @@ export async function openFileReader(uri: string, sizeHint?: number): Promise<Cl
       handle.offset = 0;
       const probe = handle.readBytes(Math.min(16, size));
       if (probe && probe.length) {
+        const readSync = (offset: number, length: number): Uint8Array => {
+          if (length <= 0 || offset >= size) return new Uint8Array(0);
+          handle.offset = offset;
+          return handle.readBytes(Math.min(length, size - offset));
+        };
         return {
           size,
-          async read(offset: number, length: number): Promise<Uint8Array> {
-            if (length <= 0 || offset >= size) return new Uint8Array(0);
-            handle.offset = offset;
-            return handle.readBytes(Math.min(length, size - offset));
-          },
+          readSync,
+          async read(offset: number, length: number): Promise<Uint8Array> { return readSync(offset, length); },
           close() { try { handle.close(); } catch { /* already closed */ } },
         };
       }

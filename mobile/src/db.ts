@@ -49,6 +49,12 @@ function db(): Promise<SQLite.SQLiteDatabase> {
 
 export async function initDb(): Promise<void> { await db(); }
 
+// The hash DB also stores games that have no achievement set (so a scan can tell
+// "no set yet" from "unknown dump"). Everywhere the UI talks about *games*, it
+// means games you can earn achievements in — hence the num_achievements filter.
+const HAS_ACHIEVEMENTS = 'num_achievements > 0';
+
+
 // Replace all games+hashes for one console (a fresh sync of that system).
 export async function replaceConsole(consoleId: number, games: any[]): Promise<{ gameCount: number; hashCount: number }> {
   const d = await db();
@@ -96,10 +102,16 @@ export async function getSyncedConsoles(): Promise<Set<number>> {
   return new Set(rows.map((r) => r.console_id));
 }
 
+// Counts shown in the UI. The DB also stores games that have no achievement set
+// (that's what lets a scan say "no set yet"), but those are not what a user means
+// by "games" — and counting them made the phone's numbers disagree with the
+// desktop's for the same account. Both now report games you can earn achievements
+// in, and the hashes belonging to them.
 export async function dbStats(): Promise<{ games: number; hashes: number; consoles: number }> {
   const d = await db();
-  const g = await d.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM games');
-  const h = await d.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM hashes');
+  const g = await d.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM games WHERE ${HAS_ACHIEVEMENTS}`);
+  const h = await d.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM hashes h JOIN games g ON g.id = h.game_id WHERE g.num_achievements > 0`);
   const c = await d.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM sync_state');
   return { games: g?.n ?? 0, hashes: h?.n ?? 0, consoles: c?.n ?? 0 };
 }
@@ -110,11 +122,6 @@ export async function clearDb(): Promise<void> {
 }
 
 // ---- games browser --------------------------------------------------------
-// The hash DB also stores games that have no achievement set (so a scan can tell
-// "no set yet" from "unknown dump"). Everywhere the UI talks about *games*, it
-// means games you can earn achievements in — hence the num_achievements filter.
-const HAS_ACHIEVEMENTS = 'num_achievements > 0';
-
 export async function searchGames(q: string, limit = 150): Promise<MatchGame[]> {
   const d = await db();
   const sel = `SELECT id, title, points, num_achievements, image_icon, console_id FROM games WHERE ${HAS_ACHIEVEMENTS}`;

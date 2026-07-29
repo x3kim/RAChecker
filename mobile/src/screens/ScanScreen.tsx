@@ -20,7 +20,7 @@ export function ScanScreen() {
   const [rows, setRows] = useState<DisplayRow[]>([]);
   const [fromCollection, setFromCollection] = useState(true);
   const [phase, setPhase] = useState<Phase>('idle');
-  const [progress, setProgress] = useState<{ done: number; total: number; current: string } | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number; current: string; detail?: string } | null>(null);
   const [folder, setFolderState] = useState<string | null>(null);
   const [hashes, setHashes] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -136,6 +136,10 @@ export function ScanScreen() {
             <Body size={12} color={colors.inkDim} style={{ marginTop: 6 }} numberOfLines={1}>
               {phase === 'listing' ? t('scan.listing') : progress ? `${progress.done}/${progress.total} · ${progress.current}` : t('scan.scanning')}
             </Body>
+            {progress?.detail && (
+              <Body size={12} color={colors.cyan} style={{ marginTop: 2 }} numberOfLines={1}>{progress.detail}</Body>
+            )}
+            <Body size={11} color={colors.inkDim} style={{ marginTop: 4 }} numberOfLines={2}>{t('scan.bigArchiveHint')}</Body>
           </View>
         )}
 

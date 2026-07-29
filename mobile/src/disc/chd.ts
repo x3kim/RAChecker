@@ -3,15 +3,17 @@
 // libchdr (header, compressed v5 hunk map, hunk decode) and RALibretro's
 // HashCHD.cpp (CD track → CHD-frame mapping, per-track sector layout).
 //
-// Codecs: none, zlib (raw deflate via fflate), lzma, cdzl (CD zlib), cdlz (CD lzma).
-// FLAC/zstd codecs (cdfl/cdzs) are audio-track only and never carry the boot
-// executable we hash, so they're intentionally unsupported and throw.
+// Codecs: none, zlib (raw deflate via fflate), lzma, zstd, and their CD variants
+// cdzl / cdlz / cdzs. Recent chdman builds default to zstd for CDs, so `cdzs` is
+// as common as the older zlib/LZMA ones. FLAC (cdfl) is audio-only — a data track
+// never uses it — so it stays unsupported and reports a clear reason.
 //
 // Hashing only ever reads the 2048/2336/2352-byte sector *payload* (never the
 // sync/header/ECC), and libchdr's CD codecs keep that payload intact in the base
-// (lzma/zlib) stream — so we decode only the base stream per hunk and skip the
-// subcode + ECC/sync reconstruction entirely.
+// stream — so we decode only the base stream per hunk and skip the subcode +
+// ECC/sync reconstruction entirely.
 import { inflateSync } from 'fflate';
+import { decompress as zstdDecompress } from 'fzstd';
 import { BitStream } from './bitstream';
 import { HuffmanDecoder } from './huffman';
 import { lzmaRawDecode } from '../lzma/decoder';
@@ -24,8 +26,11 @@ const makeTag = (s: string) => ((s.charCodeAt(0) << 24) | (s.charCodeAt(1) << 16
 const CODEC_NONE = 0;
 const CODEC_ZLIB = makeTag('zlib');
 const CODEC_LZMA = makeTag('lzma');
+const CODEC_ZSTD = makeTag('zstd');
 const CODEC_CD_ZLIB = makeTag('cdzl');
 const CODEC_CD_LZMA = makeTag('cdlz');
+const CODEC_CD_ZSTD = makeTag('cdzs');
+const CODEC_CD_FLAC = makeTag('cdfl');
 
 const TAG_CHTR = makeTag('CHTR'); // CDROM_TRACK_METADATA
 const TAG_CHT2 = makeTag('CHT2'); // CDROM_TRACK_METADATA2
@@ -76,6 +81,35 @@ function crc16(data: Uint8Array, length: number): number {
 
 function inflateRaw(src: Uint8Array, size: number): Uint8Array {
   return inflateSync(src, { out: new Uint8Array(size) });
+}
+
+// CHD stores zstd frames without a content-size field, so we hand fzstd a
+// correctly sized output buffer (its second argument is the buffer, not a length).
+// fzstd is pure JS — no WebAssembly, which Hermes doesn't support.
+function zstdRaw(src: Uint8Array, size: number): Uint8Array {
+  const out = zstdDecompress(src, new Uint8Array(size));
+  return out.length === size ? out : out.subarray(0, size);
+}
+
+// FourCC of a codec tag, for error messages ("cdzs" rather than a hex number).
+function tagName(tag: number): string {
+  let s = '';
+  for (let i = 3; i >= 0; i--) {
+    const c = (tag >>> (i * 8)) & 0xff;
+    s += c >= 32 && c < 127 ? String.fromCharCode(c) : '?';
+  }
+  return s;
+}
+
+// Raised when the container itself can't be read (unsupported codec/version,
+// corrupt map). `fatal` separates "this image is unreadable, tell the user" from
+// "this particular track can't be decoded", which is normal while probing: disc
+// rules look at audio tracks that may be FLAC-compressed.
+export class ChdError extends Error {
+  constructor(message: string, readonly fatal = true) {
+    super(message);
+    this.name = 'ChdError';
+  }
 }
 
 export interface ChdTrack {
@@ -149,7 +183,7 @@ export class ChdFile {
     const rawmap = new Uint8Array(rawMapSize);
 
     const decoder = new HuffmanDecoder(16, 8);
-    if (!decoder.importTreeRle(bitbuf)) throw new Error('CHD map: huffman tree import failed');
+    if (!decoder.importTreeRle(bitbuf)) throw new ChdError('CHD: could not read the hunk map (huffman tree)');
 
     // first decode the compression type for each hunk
     let lastComp = 0, repCount = 0;
@@ -192,7 +226,7 @@ export class ChdFile {
       rawmap[p + 6] = (lo >>> 24) & 0xff; rawmap[p + 7] = (lo >>> 16) & 0xff; rawmap[p + 8] = (lo >>> 8) & 0xff; rawmap[p + 9] = lo & 0xff;
       rawmap[p + 10] = (crc >> 8) & 0xff; rawmap[p + 11] = crc & 0xff;
     }
-    if (crc16(rawmap, this.hunkCount * 12) !== mapCrc) throw new Error('CHD map CRC mismatch (decode error or corrupt file)');
+    if (crc16(rawmap, this.hunkCount * 12) !== mapCrc) throw new ChdError('CHD: hunk map checksum mismatch — the file may be corrupt');
     this.rawmap = rawmap;
   }
 
@@ -205,8 +239,8 @@ export class ChdFile {
   }
 
   private async decodeHunk(hunknum: number, depth: number): Promise<Uint8Array> {
-    if (depth > 16) throw new Error('CHD: self-reference loop');
-    if (hunknum >= this.hunkCount) throw new Error('CHD: hunk out of range');
+    if (depth > 16) throw new ChdError('CHD: self-reference loop');
+    if (hunknum >= this.hunkCount) throw new ChdError('CHD: hunk out of range');
     const p = hunknum * this.mapEntryBytes;
 
     if (!this.compressed) {
@@ -224,14 +258,19 @@ export class ChdFile {
     }
     if (type === COMPRESSION_NONE) return this.reader.read(blockOffs, this.hunkBytes);
     if (type === COMPRESSION_SELF) return this.decodeHunk(blockOffs, depth + 1);
-    throw new Error('CHD: parent-referenced hunks are not supported');
+    throw new ChdError('CHD: split (parent/child) images are not supported');
   }
 
   private decodeCodec(tag: number, comp: Uint8Array, destLen: number): Uint8Array {
     if (tag === CODEC_ZLIB) return inflateRaw(comp, destLen);
     if (tag === CODEC_LZMA) return lzmaRawDecode(comp, 3, 0, 2, destLen, destLen);
-    if (tag === CODEC_CD_ZLIB || tag === CODEC_CD_LZMA) return this.decodeCdCodec(tag, comp, destLen);
-    throw new Error(`CHD: unsupported codec 0x${tag.toString(16)} (FLAC/zstd data tracks are not supported)`);
+    if (tag === CODEC_ZSTD) return zstdRaw(comp, destLen);
+    if (tag === CODEC_CD_ZLIB || tag === CODEC_CD_LZMA || tag === CODEC_CD_ZSTD) return this.decodeCdCodec(tag, comp, destLen);
+    // FLAC is used for CD-audio. Hitting it while probing a track is expected and
+    // must not be reported as a broken image; chdman can also pick it for the odd
+    // data hunk, in which case that one sector genuinely can't be read here.
+    if (tag === CODEC_CD_FLAC) throw new ChdError('CHD: FLAC-compressed audio track', false);
+    throw new ChdError(`CHD: unsupported compression "${tagName(tag)}" — this image needs the desktop app`);
   }
 
   // cd_codec_decompress (base stream only). We rebuild each frame's 2352-byte
@@ -245,8 +284,8 @@ export class ChdFile {
     if (complenBytes > 2) complenBase = (complenBase << 8) | src[eccBytes + 2];
     const baseSize = frames * CD_MAX_SECTOR_DATA;
     const baseComp = src.subarray(headerBytes, headerBytes + complenBase);
-    const base = tag === CODEC_CD_LZMA
-      ? lzmaRawDecode(baseComp, 3, 0, 2, baseSize, baseSize)
+    const base = tag === CODEC_CD_LZMA ? lzmaRawDecode(baseComp, 3, 0, 2, baseSize, baseSize)
+      : tag === CODEC_CD_ZSTD ? zstdRaw(baseComp, baseSize)
       : inflateRaw(baseComp, baseSize);
     const dest = new Uint8Array(destLen);
     for (let f = 0; f < frames; f++) dest.set(base.subarray(f * CD_MAX_SECTOR_DATA, (f + 1) * CD_MAX_SECTOR_DATA), f * CD_FRAME_SIZE);

@@ -34,6 +34,19 @@
 > Game data, hashes and images come from [retroachievements.org](https://retroachievements.org) and remain their property.
 > Everything runs locally; your API key never leaves your machine.
 
+> [!IMPORTANT]
+> **The Android app is early and still rough around the edges.** It works, but please know what to expect:
+> - **Big files take minutes.** Decompression runs in JavaScript, so a multi-gigabyte disc image inside a `.7z`
+>   can take several minutes on the phone (measured: a 1.6 GB image ≈ 1.5 min on a PC, noticeably longer on an
+>   older phone). The scan shows unpacking progress — it is working, not frozen. The desktop app is far faster
+>   for large libraries.
+> - **Sync your disc systems.** Disc images can only match if you selected and synced those systems in the
+>   **Hash DB** tab.
+> - **Not everything is supported yet:** RAR archives, GameCube/Wii, CSO/RVZ/GCZ/GDI, split CUE/BIN and M3U,
+>   and CHDs whose data is FLAC-compressed. Those still need the desktop app.
+>
+> Bug reports are very welcome — please open an [issue](https://github.com/x3kim/RAChecker/issues).
+
 ---
 
 <p align="center">

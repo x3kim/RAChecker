@@ -61,10 +61,20 @@ class OutWindow {
   }
 }
 
+// Pulls the next slice of compressed input, or null at end of stream. Lets a
+// large LZMA1 stream be fed in pieces instead of held in memory as one buffer.
+export type ByteSource = () => Uint8Array | null;
+
 class InStream {
-  pos = 0;
-  constructor(private data: Uint8Array) {}
-  readByte(): number { return this.pos < this.data.length ? this.data[this.pos++] : 0; }
+  private pos = 0;
+  constructor(private data: Uint8Array, private more?: ByteSource) {}
+  readByte(): number {
+    if (this.pos >= this.data.length && this.more) {
+      const next = this.more();
+      if (next && next.length) { this.data = next; this.pos = 0; }
+    }
+    return this.pos < this.data.length ? this.data[this.pos++] : 0;
+  }
 }
 
 class RangeDecoder {
@@ -255,10 +265,11 @@ export class LzmaDecoder {
     if (bytes.length) this.prevByte = bytes[bytes.length - 1];
   }
 
-  // Decode exactly `unpackSize` bytes from `src`. `src` must start at the
-  // range-coder init bytes for this chunk.
-  decodeChunk(src: Uint8Array, unpackSize: number): void {
-    const rc = new RangeDecoder(new InStream(src));
+  // Decode exactly `unpackSize` bytes. `src` must start at the range-coder init
+  // bytes for this chunk; `more` supplies further input for streams too large to
+  // hold in one buffer.
+  decodeChunk(src: Uint8Array, unpackSize: number, more?: ByteSource): void {
+    const rc = new RangeDecoder(new InStream(src, more));
     rc.init();
     const end = this.dictPos + unpackSize;
 
@@ -370,7 +381,10 @@ export function lzmaRawDecode(src: Uint8Array, lc: number, lp: number, pb: numbe
 
 // Decode an LZMA1 stream that carries the 5-byte properties header used by 7z's
 // LZMA coder (1 props byte + 4-byte little-endian dictionary size).
-export function lzma1Decode(props: Uint8Array, src: Uint8Array, outSize: number, sink: ByteSink): void {
+// `more` is optional: supply it to stream a large packed block in slices rather
+// than passing the whole thing as `src` (a multi-hundred-MB buffer is exactly
+// what makes this fall over on a phone).
+export function lzma1Decode(props: Uint8Array, src: Uint8Array, outSize: number, sink: ByteSink, more?: ByteSource): void {
   const dictSize = props.length >= 5
     ? (props[1] | (props[2] << 8) | (props[3] << 16) | (props[4] * 0x1000000))
     : outSize;
@@ -378,7 +392,7 @@ export function lzma1Decode(props: Uint8Array, src: Uint8Array, outSize: number,
   dec.setPropsByte(props[0]);
   dec.resetState();
   dec.resetDict();
-  dec.decodeChunk(src, outSize);
+  dec.decodeChunk(src, outSize, more);
   dec.flush();
 }
 
