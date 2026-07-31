@@ -39,3 +39,10 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Android signing. credentials.json holds the keystore passwords in plain text,
+# and the keystore itself is what proves an update comes from us — leaking it
+# would let anyone ship a "RAChecker update" your users' phones accept.
+# (*.jks / *.p12 / *.key are already covered above.)
+credentials.json
+*.keystore
