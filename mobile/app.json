@@ -2,7 +2,7 @@
   "expo": {
     "name": "RAChecker",
     "slug": "rachecker",
-    "owner": "x3kim",
+    "owner": "x3dev",
     "version": "0.6.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,7 +20,10 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": ["android.permission.INTERNET", "android.permission.REQUEST_INSTALL_PACKAGES"],
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.REQUEST_INSTALL_PACKAGES"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -28,7 +31,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "a7ee3ee5-82bd-4155-9c1e-f14161db3797"
+        "projectId": "b7b1a3b5-50cf-45a2-bce0-24f8baab51ce"
       }
     }
   }
