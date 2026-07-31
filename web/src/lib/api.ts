@@ -35,6 +35,22 @@ export interface Settings {
   cacheTtls: CacheTtls; scanFileTimeoutSec: number; scanConcurrency: number; skipCollected: boolean;
   enabledConsoles: number[] | null; bigFileCopy: BigFileCopy;
   rateLimit: RateLimit; rahasherPath: string; downloadDir: string;
+  // Ordered region/language preference: region codes ("JP") mixed with language
+  // tokens ("L:ja"). Empty means no preference is set.
+  regionPriority: string[];
+}
+export interface TagFacets {
+  regions: { code: string; n: number }[];
+  languages: { code: string; n: number }[];
+  untagged: number;
+  /** rows whose tags come from RetroAchievements rather than the filename */
+  verified: number;
+  total: number;
+}
+export interface HashNameStatus {
+  games: number; fetched: number; named: number; owned: number; ownedFetched: number;
+  running: { scope: 'collection' | 'all'; done: number; total: number } | null;
+  intervalMs: number;
 }
 export interface ScheduleStatus { enabled: boolean; time: string; running: boolean; lastRunAt: number | null; }
 export interface StorageInfo {
@@ -63,6 +79,13 @@ export interface ScanItem {
   matchTitle?: string; matchImage?: string; matchAchievements?: number; matchPoints?: number;
   romName?: string | null; totals?: ScanTotals; uploaded?: boolean; cached?: boolean;
   scannedAt?: number;
+  // Comma-joined codes parsed from the filename; only collection rows carry
+  // them, live scan rows are parsed client-side from the same filename.
+  region?: string | null; langs?: string | null;
+  // The same, parsed from the ROM name RetroAchievements stores for this hash —
+  // authoritative, because the file matched by content. Present once the game
+  // has been enriched.
+  raRegion?: string | null; raLangs?: string | null; raRomName?: string | null;
 }
 
 export interface QuickWin {
@@ -357,14 +380,23 @@ export const api = {
     }),
   game: (id: number, refresh = false) => j<any>(`/api/game/${id}${refresh ? '?refresh=1' : ''}`),
   rahasherStatus: () => j<{ available: boolean; path: string; platform: string }>('/api/rahasher/status'),
-  library: (q: { status?: string; console_id?: number; q?: string; limit?: number; offset?: number } = {}) => {
+  library: (q: { status?: string; console_id?: number; q?: string; tag?: string; limit?: number; offset?: number } = {}) => {
     const p = new URLSearchParams();
     if (q.status) p.set('status', q.status);
     if (q.console_id != null) p.set('console_id', String(q.console_id));
     if (q.q) p.set('q', q.q);
+    if (q.tag) p.set('tag', q.tag);
     if (q.limit) p.set('limit', String(q.limit));
     if (q.offset) p.set('offset', String(q.offset));
     return j<any[]>(`/api/library?${p.toString()}`);
+  },
+  hashNameStatus: () => j<HashNameStatus>('/api/hashnames/status'),
+  hashNamesCancel: () => j<{ ok: boolean }>('/api/hashnames/cancel', { method: 'POST' }),
+  libraryTags: (q: { status?: string; console_id?: number } = {}) => {
+    const p = new URLSearchParams();
+    if (q.status) p.set('status', q.status);
+    if (q.console_id != null) p.set('console_id', String(q.console_id));
+    return j<TagFacets>(`/api/library/tags?${p.toString()}`);
   },
   libraryStats: () => j<{ total: number; byStatus: { status: string; n: number }[]; byConsole: { id: number; name: string; short: string; total: number; matched: number }[] }>('/api/library/stats'),
   libraryInsights: () => j<{ total: number; playableGames: number; playableFiles: number; obtainableAchievements: number; obtainablePoints: number; byStatus: { status: string; n: number }[] }>('/api/library/insights'),

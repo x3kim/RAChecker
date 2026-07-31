@@ -12,6 +12,7 @@ import { useI18n } from '../lib/i18n';
 import { APP_VERSION } from '../lib/version';
 import { fmtBytes, fmtDate, fmtAgo } from '../lib/util';
 import { FolderPicker } from './FolderPicker';
+import { RegionPriority } from './RegionPriority';
 import { ConsoleIcon } from './ui';
 
 // Settings are split into groups shown one at a time via a top nav — keeps the
@@ -948,6 +949,9 @@ export function Settings({ status, refresh, onAuthChange, theme, changeTheme }: 
 
       {/* ============ APPEARANCE (in Allgemein gemergt) ============ */}
       {group === 'general' && (<div className="flex flex-col gap-5">
+
+      {/* Preferred region/language of a ROM version */}
+      <RegionPriority />
 
       {/* Theme */}
       <section className="panel p-5">

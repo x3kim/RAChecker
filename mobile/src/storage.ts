@@ -44,6 +44,32 @@ export async function setSelectedConsoles(ids: number[] | null): Promise<void> {
 export async function isOnboarded(): Promise<boolean> { return (await AsyncStorage.getItem(K_ONBOARDED)) === '1'; }
 export async function setOnboarded(): Promise<void> { await AsyncStorage.setItem(K_ONBOARDED, '1'); }
 
+// Ordered region/language preference, e.g. ['JP','L:ja','EU'] — see
+// core/region.js. Empty means "no preference", which leaves every list sorted
+// exactly as before.
+const K_REGION = 'ra_region_priority';
+
+export async function getRegionPriority(): Promise<string[]> {
+  const raw = await AsyncStorage.getItem(K_REGION);
+  if (!raw) return [];
+  try { const v = JSON.parse(raw); return Array.isArray(v) ? v.map(String) : []; } catch { return []; }
+}
+export async function setRegionPriority(list: string[]): Promise<void> {
+  const next = [...new Set(list)];
+  if (next.length) await AsyncStorage.setItem(K_REGION, JSON.stringify(next));
+  else await AsyncStorage.removeItem(K_REGION);
+  for (const fn of regionSubs) fn(next);
+}
+
+// Screens stay mounted while tabs switch (App only toggles visibility), so a
+// change made in Settings has to be pushed out rather than re-read on mount.
+type RegionSub = (list: string[]) => void;
+const regionSubs = new Set<RegionSub>();
+export function onRegionPriorityChange(fn: RegionSub): () => void {
+  regionSubs.add(fn);
+  return () => { regionSubs.delete(fn); };
+}
+
 // Small TTL cache keyed by name (persists last profile so it loads offline).
 export async function getCache<T>(key: string, ttlMs: number): Promise<T | null> {
   const raw = await AsyncStorage.getItem('cache_' + key);

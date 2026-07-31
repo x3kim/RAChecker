@@ -20,9 +20,12 @@ import {
   getLibraryPaths, countLibraryRowsForPaths, deleteLibraryByPaths,
   getLibraryFilesForGame, getOwnedGameIdSet, getGameById, findGamesByTitle,
   getCoverageStats, getRecentSessions, getPlaytimeByGame, playtimeTotals, clearSessions,
-  exportSessions, importSessions,
+  exportSessions, importSessions, libraryTagFacets, hashNameStats,
 } from './db.js';
-import { syncAll, enrichGameHashes, consoleNeedsSync, newlySupportedSystems } from './sync.js';
+import {
+  syncAll, enrichGameHashes, consoleNeedsSync, newlySupportedSystems,
+  enrichHashNames, HASHNAME_INTERVAL_MS,
+} from './sync.js';
 import { Scanner, checkSingleFile, resolveMatch } from './scanner.js';
 import { hashTarget } from './hashing/index.js';
 import { getCachedImage } from './images.js';
@@ -57,6 +60,12 @@ const APP_VERSION = (() => {
 function getEnabledConsoles() {
   const v = getSetting('enabledConsoles', null);
   return Array.isArray(v) && v.length ? v.map(Number).filter(Number.isFinite) : null;
+}
+// Ordered region/language preference, e.g. ['JP','L:ja','EU']. Empty = none set,
+// in which case nothing anywhere changes its ordering.
+function getRegionPriority() {
+  const v = getSetting('regionPriority', null);
+  return Array.isArray(v) ? v.map(String).filter(Boolean) : [];
 }
 // Bytes threshold for copying a big file to local temp before hashing (0=off).
 function bigFileCopyBytes() {
@@ -108,6 +117,23 @@ function tempBreakdown() {
 // ---- shared mutable state -------------------------------------------------
 let activeScan = null;   // { id, controller, rootPath }
 let activeSync = false;
+let hashNameJob = null;  // { scope, done, total, controller }
+
+// Fire-and-forget enrichment, used after a scan finishes. Never throws into the
+// caller and never starts a second run — the SSE endpoint below is the
+// interactive path with progress and cancel.
+function startHashNameJob(scope) {
+  if (hashNameJob) return;
+  const controller = new AbortController();
+  hashNameJob = { scope, done: 0, total: 0, controller };
+  enrichHashNames({
+    scope,
+    signal: controller.signal,
+    onProgress: (p) => { if (hashNameJob) { hashNameJob.done = p.done ?? 0; hashNameJob.total = p.total ?? 0; } },
+  })
+    .catch(() => { /* non-fatal: filenames remain the fallback */ })
+    .finally(() => { hashNameJob = null; });
+}
 let credCheckInFlight = false; // serialize credential validation (mutates shared config)
 let activeRecheck = false;      // serialize the RAHasher re-check pass
 let activeImageWarm = false;    // serialize the badge/box-art pre-cache pass
@@ -389,6 +415,7 @@ export async function registerRoutes(app) {
     rateLimit: config.rateLimit,
     rahasherPath: config.rahasherPath,
     downloadDir: getSetting('downloadDir', ''),
+    regionPriority: getRegionPriority(),
   });
 
   app.get('/api/settings', async () => settingsPayload());
@@ -438,6 +465,13 @@ export async function registerRoutes(app) {
     // Where the user drops free-game ROMs they downloaded from external pages
     // (the app can't fetch those pages itself — see /api/open-folder).
     if (typeof body.downloadDir === 'string') setSetting('downloadDir', body.downloadDir.trim());
+    // Ordered region/language preference ("JP" before "EU", "L:de" before "L:en").
+    // An empty list means "no preference" and leaves every sort order untouched.
+    if ('regionPriority' in body) {
+      const list = Array.isArray(body.regionPriority)
+        ? body.regionPriority.map((s) => String(s).trim()).filter(Boolean).slice(0, 64) : [];
+      setSetting('regionPriority', [...new Set(list)]);
+    }
     return { ok: true, ...settingsPayload() };
   });
 
@@ -700,6 +734,10 @@ export async function registerRoutes(app) {
         releaseScanLock('scan');
         try { autoBackup({ minIntervalMs: 30 * 60 * 1000 }); } catch { /* non-fatal */ }
         close();
+        // Pull the canonical ROM names for whatever the scan just matched, so
+        // their regions come from RetroAchievements instead of the filename.
+        // Only the games you own, so this is seconds for a normal library.
+        startHashNameJob('collection');
       });
   });
 
@@ -743,13 +781,57 @@ export async function registerRoutes(app) {
 
   // ---- persistent collection (library) ------------------------------------
   app.get('/api/library', async (req) => {
-    const { status, console_id, q, limit, offset } = req.query;
+    const { status, console_id, q, tag, limit, offset } = req.query;
     return getLibrary({
       status: status || undefined,
       console_id: console_id != null ? Number(console_id) : undefined,
       q: q || undefined,
+      tag: tag || undefined,
       limit: limit ? Number(limit) : 1000,
       offset: offset ? Number(offset) : 0,
+    });
+  });
+  // ---- hash-name enrichment (authoritative regions) -----------------------
+  // Regions read off a filename are a guess; the ROM name RetroAchievements
+  // stores for a matched hash is not. There is no bulk endpoint for those names,
+  // so they are fetched one game at a time by this job — automatically for the
+  // games you own after a scan, and on demand for the whole database.
+  app.get('/api/hashnames/status', async () => ({
+    ...hashNameStats(),
+    running: hashNameJob ? { scope: hashNameJob.scope, done: hashNameJob.done, total: hashNameJob.total } : null,
+    intervalMs: HASHNAME_INTERVAL_MS,
+  }));
+
+  app.get('/api/hashnames/stream', (req, reply) => {
+    const { send, close } = openSSE(req, reply);
+    const scope = req.query.scope === 'all' ? 'all' : 'collection';
+    if (hashNameJob) { send('error', { message: 'Hash-name enrichment is already running.' }); return void close(); }
+    const controller = new AbortController();
+    hashNameJob = { scope, done: 0, total: 0, controller };
+    enrichHashNames({
+      scope,
+      signal: controller.signal,
+      onProgress: (p) => {
+        if (hashNameJob) { hashNameJob.done = p.done ?? 0; hashNameJob.total = p.total ?? 0; }
+        send(p.phase === 'done' ? 'done' : 'progress', p);
+      },
+    })
+      .catch((e) => send('error', { message: String(e.message) }))
+      .finally(() => { hashNameJob = null; close(); });
+  });
+
+  app.post('/api/hashnames/cancel', async () => {
+    if (!hashNameJob) return { ok: false, message: 'Not running.' };
+    hashNameJob.controller.abort();
+    return { ok: true };
+  });
+
+  // Region/language chips for the collection filter — only what is actually owned.
+  app.get('/api/library/tags', async (req) => {
+    const { status, console_id } = req.query;
+    return libraryTagFacets({
+      status: status || undefined,
+      console_id: console_id != null ? Number(console_id) : undefined,
     });
   });
   app.get('/api/library/stats', async () => libraryStats());

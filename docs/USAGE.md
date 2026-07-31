@@ -77,7 +77,21 @@ was den Scan bei mehrdeutigen Disc-Images etwas beschleunigt.
   Spiel und zeigt die akzeptierten ROM-Versionen + ggf. den Patch.
 - **Im Explorer anzeigen:** Treffer-Zeile aufklappen → „Im Explorer" springt zur Datei.
 - **Duplikate:** in der Sammlung der Button „Duplikate" listet Spiele, die du mehrfach hast, und
-  erlaubt, Extra-Kopien direkt zu löschen (behält die erste Datei, echtes 1G1R-Aufräumen).
+  erlaubt, Extra-Kopien direkt zu löschen (echtes 1G1R-Aufräumen). Behalten wird die ★-markierte
+  Kopie — ohne Wunsch-Region die erste, sonst die, die deiner Reihenfolge am nächsten kommt.
+- **Wunsch-Region & Sprache:** Einstellungen → Allgemein → „Wunsch-Region & Sprache". Regionen (JP,
+  US, EU …) und Sprachen (ja, en, de …) in eine Reihenfolge bringen, z. B. „Japanisch → Japan →
+  Europa". Danach sortiert die Sammlung über „Wunsch-Region zuerst", die Duplikat-Liste markiert die
+  Kopie zum Behalten, und die Spiel-Details stellen die passende ROM-Version nach oben und zeigen,
+  welche Regionen RetroAchievements für das Spiel überhaupt kennt.
+- **Woher die Region kommt:** bei einer Datei, die trifft, von RetroAchievements selbst — der Hash
+  identifiziert genau diesen Dump, der Dateiname ist dafür egal. Diese Namen holt RAChecker nach
+  jedem Scan automatisch für die Spiele deiner Sammlung; für die ganze Datenbank gibt es in den
+  Einstellungen einen Knopf (dauert länger, abbrechbar, setzt fort). Nur Dateien, die
+  RetroAchievements **nicht** kennt, werden am Dateinamen gelesen — „Zelda (Europe) (En,Fr,De).gba",
+  „Chrono Trigger (U) [!].smc", „Elite (1984)(GB).tap". Bestätigte Angaben haben einen durchgezogenen
+  Rahmen, geratene einen gestrichelten; Dateien ganz ohne Angabe landen unter „Ohne Angabe" und
+  werden nie versteckt.
 - **Ordner-Watch:** Einstellungen → Überwachung starten; wählbar zwischen Dauer-Watch und
   Intervall-Modus (alle N Minuten kurz prüfen), standardmäßig aus. Neue ROMs werden automatisch geprüft.
 - **Geplanter Scan:** Einstellungen → einmal täglich zu einer festen Uhrzeit automatisch scannen (an/aus).

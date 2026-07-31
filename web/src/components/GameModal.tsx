@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   X, Trophy, ExternalLink, Check, Wrench, Download, RefreshCw, FolderOpen, Maximize2, Minimize2,
   Play, Cpu, BarChart3, ChevronDown, ChevronUp,
@@ -6,10 +6,15 @@ import {
 import { api, imageUrl } from '../lib/api';
 import type { OwnedFiles, LeaderboardsResult, LeaderboardEntry, ConsoleCores } from '../lib/api';
 import { SectionHeader, Pill } from './ui';
+import { RegionBadges } from './RegionBadges';
 import { Pct } from './Progress';
 import { Skeleton } from './Skeleton';
 import { useI18n } from '../lib/i18n';
 import { basename } from '../lib/util';
+import {
+  loadRegionPriority, cachedRegionPriority, REGION_EVENT,
+  parseRomTags, tagTokens, rankTokens, tokenLabel, tokenName,
+} from '../lib/region';
 
 export function GameModal({ gameId, onClose }: { gameId: number; onClose: () => void }) {
   const { t } = useI18n();
@@ -43,6 +48,45 @@ export function GameModal({ gameId, onClose }: { gameId: number; onClose: () => 
     api.libraryForGame(gameId).then((o) => { if (alive) setOwned(o); }).catch(() => {}).finally(() => { if (alive) setOwnedLoading(false); });
     return () => { alive = false; };
   }, [gameId]);
+
+  // ---- region/language of the supported ROM versions ----------------------
+  const [priority, setPriority] = useState<string[]>(cachedRegionPriority());
+  useEffect(() => {
+    loadRegionPriority().then(setPriority);
+    const h = (e: Event) => setPriority(((e as CustomEvent).detail as string[]) ?? []);
+    window.addEventListener(REGION_EVENT, h);
+    return () => window.removeEventListener(REGION_EVENT, h);
+  }, []);
+
+  const ownedMd5 = useMemo(
+    () => new Set((owned?.files ?? []).map((f) => String(f.md5 ?? '').toLowerCase()).filter(Boolean)),
+    [owned],
+  );
+  // Preferred versions first, so "which one should I get?" is answered by the
+  // top of the list. Stable for equal ranks, so RA's own order survives.
+  const sortedHashes = useMemo(() => {
+    const list: any[] = Array.isArray(game?.hashes) ? game.hashes : [];
+    if (!priority.length) return list;
+    return list
+      .map((h, i) => ({ h, i, rank: rankTokens(tagTokens(parseRomTags(h?.Name ?? '')), priority) }))
+      .sort((a, b) => a.rank - b.rank || a.i - b.i)
+      .map((x) => x.h);
+  }, [game, priority]);
+  // Distinct region tokens across all supported versions + which of them the
+  // user already owns a file for.
+  const { romRegions, ownedRegions } = useMemo(() => {
+    const all: string[] = [];
+    const mine = new Set<string>();
+    for (const h of (Array.isArray(game?.hashes) ? game.hashes : [])) {
+      const { regions } = parseRomTags(h?.Name ?? '');
+      const isMine = ownedMd5.has(String(h?.MD5 ?? '').toLowerCase());
+      for (const r of regions) {
+        if (!all.includes(r)) all.push(r);
+        if (isMine) mine.add(r);
+      }
+    }
+    return { romRegions: all, ownedRegions: mine };
+  }, [game, ownedMd5]);
 
   // Manual force-refresh: bypass the cache and re-pull from RetroAchievements.
   const refresh = () => {
@@ -376,14 +420,37 @@ export function GameModal({ gameId, onClose }: { gameId: number; onClose: () => 
                 {!game.hashes.some((h: any) => h.PatchUrl) && (
                   <div className="font-body text-ink-dim text-sm mb-2">{t('gm.allStandard')}</div>
                 )}
+                {/* Which regions RetroAchievements actually supports for this
+                    game — the answer to "is there a JP version I could use?".
+                    RA names its hashes the No-Intro way, so the same parser that
+                    reads the user's filenames reads these. */}
+                {romRegions.length > 0 && (
+                  <div className="font-body text-ink-mid text-sm mb-2 flex items-center gap-2 flex-wrap">
+                    <span>{t('gm.regionsSupported')}</span>
+                    {romRegions.map((tok) => (
+                      <span key={tok} className="font-mono text-sm px-1.5 rounded"
+                        style={{ border: `1px solid ${ownedRegions.has(tok) ? 'var(--color-neon-green)' : 'var(--color-ink-dim)'}`, color: ownedRegions.has(tok) ? 'var(--color-neon-green)' : 'var(--color-ink-mid)' }}
+                        title={ownedRegions.has(tok) ? t('gm.regionOwned', { r: tokenName(tok) }) : tokenName(tok)}>
+                        {tokenLabel(tok)}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div className={`gap-1 overflow-auto pr-1 ${full ? 'grid grid-cols-1 lg:grid-cols-2 max-h-[32vh]' : 'space-y-1 max-h-56'}`}>
-                  {game.hashes.map((h: any) => (
-                    <div key={h.MD5} className="panel !rounded-md p-2 flex items-center justify-between gap-3">
+                  {sortedHashes.map((h: any) => {
+                    const isOwned = ownedMd5.has(String(h.MD5).toLowerCase());
+                    return (
+                    <div key={h.MD5} className="panel !rounded-md p-2 flex items-center justify-between gap-3"
+                      style={isOwned ? { borderColor: 'var(--color-neon-green)' } : undefined}>
                       <div className="min-w-0">
                         <div className="font-body text-sm text-ink-hi break-words leading-snug">{h.Name}</div>
-                        {Array.isArray(h.Labels) && h.Labels.length > 0 && (
-                          <div className="font-mono text-sm text-ink-dim">{h.Labels.join(' · ')}</div>
-                        )}
+                        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                          <RegionBadges item={{ filePath: h.Name || '' }} priority={priority} max={4} />
+                          {isOwned && <span className="font-mono text-sm text-neon-green">{t('gm.youHaveThis')}</span>}
+                          {Array.isArray(h.Labels) && h.Labels.length > 0 && (
+                            <span className="font-mono text-sm text-ink-dim">{h.Labels.join(' · ')}</span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {h.PatchUrl && (
@@ -395,7 +462,8 @@ export function GameModal({ gameId, onClose }: { gameId: number; onClose: () => 
                         <span className="font-mono text-sm text-ink-dim">{h.MD5.slice(0, 12)}…</span>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

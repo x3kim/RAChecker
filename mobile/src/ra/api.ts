@@ -79,6 +79,15 @@ export async function getUserCompletionProgress(c: Creds): Promise<CompletionGam
 }
 
 // ---- community / discover --------------------------------------------------
+// The only endpoint that carries a hash's official ROM name — and with it the
+// region of the actual dump, independent of what the file is called on the
+// phone. There is no bulk variant, so this is one call per game; mobile asks
+// only for the games your own scan matched.
+export type RAHashEntry = { MD5: string; Name?: string; Labels?: string[]; PatchUrl?: string };
+export function getGameHashes(c: Creds, gameId: number): Promise<{ Results?: RAHashEntry[] }> {
+  return apiGet('API_GetGameHashes.php', { i: gameId }, c);
+}
+
 export function getAchievementOfTheWeek(c: Creds): Promise<any> { return apiGet('API_GetAchievementOfTheWeek.php', {}, c); }
 export function getActiveClaims(c: Creds): Promise<any[]> { return apiGet('API_GetActiveClaims.php', {}, c); }
 export function getRecentGameAwards(c: Creds, count = 25): Promise<any> { return apiGet('API_GetRecentGameAwards.php', { c: count, o: 0 }, c); }

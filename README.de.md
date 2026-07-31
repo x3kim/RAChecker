@@ -19,8 +19,8 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/desktop-0.12-22e0ff" alt="Desktop-Version">
-  <img src="https://img.shields.io/badge/android-0.5-39ff8b" alt="Android-Version">
+  <img src="https://img.shields.io/badge/desktop-0.13-22e0ff" alt="Desktop-Version">
+  <img src="https://img.shields.io/badge/android-0.6-39ff8b" alt="Android-Version">
   <img src="https://img.shields.io/badge/node-22.5%2B-ffb648" alt="Node 22.5+">
   <img src="https://img.shields.io/badge/lizenz-MIT-9d6bff" alt="MIT-Lizenz">
   <img src="https://img.shields.io/badge/daten-%C2%A9%20retroachievements.org-666" alt="Daten © retroachievements.org">
@@ -185,7 +185,8 @@ nicht anhand von Ordnernamen. Ein korrekt gedumptes ROM trifft, egal wie du sort
 - **Sammlungs-Ansicht** — durchsuch- und filterbare Liste aller je gescannten ROMs, mit Mehrfachauswahl.
 - **Sammlungs-Diff** — nach jedem Scan: was ist neu, neu spielbar, verloren oder weg.
 - **DAT-Abgleich** — No-Intro-/Redump-/logiqx-/ClrMamePro-/MAME-Kataloge importieren und pro Katalog sehen, was du hast und was fehlt (exportierbar). Abgeglichen über echte Prüfsummen, die *ohne Entpacken* direkt aus Archiven gelesen werden — unabhängig vom RetroAchievements-Hash. Inklusive Ansicht für unbekannte Dumps.
-- **Duplikate (1G1R)** — dasselbe Spiel in mehreren Dateien wird gruppiert; Extra-Kopien direkt löschbar.
+- **Wunsch-Region & Sprache** — jede Datei nennt Region und Sprachen. Bei einer Datei, die trifft, kommen sie **direkt von RetroAchievements**: der Hash identifiziert genau diesen Dump, also wird auch eine umbenannte oder schlampig benannte Datei richtig gelesen (nach jedem Scan automatisch für deine Spiele, die ganze Datenbank per Knopfdruck). Nur Dateien, die RetroAchievements nicht kennt, fallen auf den Dateinamen zurück (No-Intro, GoodTools, TOSEC, Übersetzungs-Tags) — und sind als solche markiert. Leg deine Reihenfolge fest (z. B. *Japanisch → Japan → Europa*): danach sortiert die Sammlung, bei Duplikaten wird die Kopie zum Behalten markiert, und die Spiel-Details zeigen, welche Regionen RetroAchievements unterstützt und welche davon du schon hast. Filtern nach jeder Region oder Sprache. Es wird dadurch nie etwas ausgeblendet oder gelöscht.
+- **Duplikate (1G1R)** — dasselbe Spiel in mehreren Dateien wird gruppiert; Extra-Kopien direkt löschbar, deine Wunsch-Region bleibt.
 - **Passende Version finden** — bei einem Fehltreffer wird der Dateiname dem Spiel zugeordnet und die akzeptierten Versionen + RAPatches-Links werden gezeigt.
 - **RA-Weltabdeckung** — welchen Anteil aller RA-Spiele, -Erfolge und -Punkte deine Sammlung abdeckt, pro System.
 - **Exporte** — RetroArch `.lpl`, ES-DE/EmulationStation, Playnite, LaunchBox, CSV.
@@ -218,6 +219,7 @@ Eine **eigenständige** App — kein PC, kein Server, kein Netz außer dem einma
 - **Archive:** ZIP und **7z** werden am Handy entpackt und gehasht, auch Disc-Images darin.
 - **Gleiche Optik und Funktionen wie am Desktop:** Profil mit Sammlung & Insights, Spiele-Browser nach System, Entdecken, 6 Themes, Deutsch + Englisch.
 - **Klare Ergebnisse:** jede Datei sagt, ob sie Erfolge bringt, noch kein Achievement-Set hat, zu einem nicht synchronisierten System gehört oder RetroAchievements gar nicht bekannt ist.
+- **Region & Sprache:** steht in jeder Zeile — bei treffenden ROMs von RetroAchievements bestätigt, sonst aus dem Dateinamen; Wunsch-Reihenfolge in den Einstellungen setzen, dann wird danach sortiert und gefiltert.
 - **Auto-Update (optional):** prüft beim Start GitHub und kann neuere APKs installieren; ablehnbar oder in den Einstellungen abschaltbar.
 
 **Installieren:** die neueste `RAChecker-*.apk` von der [Releases-Seite](https://github.com/x3kim/RAChecker/releases)
@@ -287,7 +289,8 @@ RAChecker/
 ├─ web/                             Frontend (Vite + React + Tailwind)
 ├─ mobile/                          Android-App (Expo / React Native)
 │  └─ src/{disc,archive,lzma}/      Disc-, 7z- und LZMA-Leser fürs Gerät
-├─ packages/core/                   Hash-Regeln, geteilt von Desktop + Mobile
+├─ packages/core/                   Hash-Regeln + Region-/Sprach-Parser für Dateinamen,
+│                                   geteilt von Desktop + Mobile
 ├─ electron/                        Desktop-Wrapper
 ├─ docs/                            Architektur, Hashing, Nutzung, Bauen
 └─ data/                            Laufzeit: DB, Bilder, Backups (git-ignoriert)

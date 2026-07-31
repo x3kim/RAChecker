@@ -1,7 +1,7 @@
 // Single source of truth for the mobile app version + changelog. Mirror the
 // version in app.json ("version" + android.versionCode). The auto-updater
 // compares this against GitHub releases tagged `android-vX.Y.Z`.
-export const APP_VERSION = '0.5.1';
+export const APP_VERSION = '0.6.0';
 
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
 export const DOCS_URL = 'https://x3kim.github.io/RAChecker/';
@@ -15,6 +15,20 @@ export type ChangelogEntry = { version: string; date: string; en: string[]; de: 
 
 // Newest first. `en`/`de` are bullet lists.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '0.6.0',
+    date: '2026-07-31',
+    en: [
+      'Every scan row now states its region and languages — regions uppercase (DE, EU, JP), languages lowercase (de, en, ja). For a ROM that matches, they come straight from RetroAchievements (solid outline): the hash identifies that exact dump, whatever the file is called. Only for unknown files is the filename read (dashed outline).',
+      'New preferred order under Settings: sort regions and languages freely, e.g. "Japanese → Japan → Europe". Tap "Preferred first" above the results to sort by it.',
+      'Scan results and your collection can be filtered by region or language. The chips only offer what your files actually carry.',
+    ],
+    de: [
+      'Jede Scan-Zeile zeigt jetzt Region und Sprachen — Regionen groß (DE, EU, JP), Sprachen klein (de, en, ja). Bei einer ROM, die trifft, kommen sie direkt von RetroAchievements (durchgezogener Rahmen): der Hash identifiziert genau diesen Dump, egal wie die Datei heißt. Nur bei unbekannten Dateien wird der Dateiname gelesen (gestrichelt).',
+      'Neue Wunsch-Reihenfolge in den Einstellungen: Regionen und Sprachen frei sortierbar, z. B. „Japanisch → Japan → Europa". Über den Ergebnissen auf „Wunsch zuerst" tippen, um danach zu sortieren.',
+      'Scan-Ergebnisse und Sammlung lassen sich nach Region oder Sprache filtern. Die Chips zeigen nur, was in deinen Dateien wirklich steht.',
+    ],
+  },
   {
     version: '0.5.1',
     date: '2026-07-29',

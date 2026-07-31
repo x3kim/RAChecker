@@ -8,6 +8,10 @@
   "exports": {
     ".": "./index.js",
     "./hash/rules.js": "./hash/rules.js",
-    "./hash/consoles.js": "./hash/consoles.js"
+    "./hash/consoles.js": "./hash/consoles.js",
+    "./region.js": {
+      "types": "./region.d.ts",
+      "default": "./region.js"
+    }
   }
 }

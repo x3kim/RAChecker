@@ -3,6 +3,7 @@ import { Trophy, ChevronDown, ChevronRight, FolderSearch, Wand2 } from 'lucide-r
 import type { ScanItem } from '../lib/api';
 import { api, imageUrl } from '../lib/api';
 import { StatusBadge, ConsoleIcon } from './ui';
+import { RegionBadges } from './RegionBadges';
 import { useI18n } from '../lib/i18n';
 import { basename, fmtBytes } from '../lib/util';
 
@@ -10,8 +11,9 @@ function isAbsolutePath(p?: string) {
   return !!p && (/^[a-zA-Z]:[\\/]/.test(p) || p.startsWith('\\\\') || p.startsWith('/'));
 }
 
-export function ResultRow({ item, consoleShort, onOpenGame, onFindVersion, dense = true }: {
-  item: ScanItem; consoleShort?: string; onOpenGame?: (id: number) => void; onFindVersion?: (item: ScanItem) => void; dense?: boolean;
+export function ResultRow({ item, consoleShort, onOpenGame, onFindVersion, dense = true, priority = [] }: {
+  item: ScanItem; consoleShort?: string; onOpenGame?: (id: number) => void; onFindVersion?: (item: ScanItem) => void;
+  dense?: boolean; priority?: string[];
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -30,6 +32,7 @@ export function ResultRow({ item, consoleShort, onOpenGame, onFindVersion, dense
           <div className={`font-body text-ink-hi ${clamp34}`} title={item.filePath}>{basename(item.filePath)}</div>
           {item.innerPath && <div className={`font-mono text-ink-dim text-sm ${clamp34}`}>↳ {item.innerPath}</div>}
         </td>
+        <td className="py-2 pr-3 whitespace-nowrap hidden sm:table-cell"><RegionBadges item={item} priority={priority} max={3} /></td>
         <td className="py-2 pr-3 whitespace-nowrap"><StatusBadge status={item.status} /></td>
         <td className="py-2 pr-3 min-w-0">
           {isMatch ? (
@@ -49,7 +52,7 @@ export function ResultRow({ item, consoleShort, onOpenGame, onFindVersion, dense
       </tr>
       {open && (
         <tr className="bg-[rgba(127,127,127,.05)]">
-          <td colSpan={8} className="px-4 py-3">
+          <td colSpan={9} className="px-4 py-3">
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-base">
               {isMatch && <>
                 <span className="text-ink-mid">{t('rt.ach')}: <span className="text-neon-amber">{item.matchAchievements ?? '?'}</span></span>
@@ -81,8 +84,9 @@ export function ResultRow({ item, consoleShort, onOpenGame, onFindVersion, dense
   );
 }
 
-export function ResultsTable({ items, consoleShortById, onOpenGame, onFindVersion, cap = 600, dense = true }: {
-  items: ScanItem[]; consoleShortById?: Map<number, string>; onOpenGame?: (id: number) => void; onFindVersion?: (item: ScanItem) => void; cap?: number; dense?: boolean;
+export function ResultsTable({ items, consoleShortById, onOpenGame, onFindVersion, cap = 600, dense = true, priority = [] }: {
+  items: ScanItem[]; consoleShortById?: Map<number, string>; onOpenGame?: (id: number) => void; onFindVersion?: (item: ScanItem) => void;
+  cap?: number; dense?: boolean; priority?: string[];
 }) {
   const { t } = useI18n();
   const shown = items.slice(0, cap);
@@ -95,6 +99,7 @@ export function ResultsTable({ items, consoleShortById, onOpenGame, onFindVersio
               <th className="py-2 pl-3 w-9"></th>
               <th className="py-2 pr-2"></th>
               <th className="py-2 pr-3">{t('rt.file')}</th>
+              <th className="py-2 pr-3 hidden sm:table-cell">{t('rt.region')}</th>
               <th className="py-2 pr-3">{t('rt.status')}</th>
               <th className="py-2 pr-3">{t('rt.gameHint')}</th>
               <th className="py-2 pr-3">{t('rt.ach')}</th>
@@ -104,7 +109,7 @@ export function ResultsTable({ items, consoleShortById, onOpenGame, onFindVersio
           </thead>
           <tbody>
             {shown.map((it) => (
-              <ResultRow key={`${it.filePath}|${it.innerPath ?? ''}`} item={it} consoleShort={it.consoleId != null ? consoleShortById?.get(it.consoleId) : undefined} onOpenGame={onOpenGame} onFindVersion={onFindVersion} dense={dense} />
+              <ResultRow key={`${it.filePath}|${it.innerPath ?? ''}`} item={it} consoleShort={it.consoleId != null ? consoleShortById?.get(it.consoleId) : undefined} onOpenGame={onOpenGame} onFindVersion={onFindVersion} dense={dense} priority={priority} />
             ))}
           </tbody>
         </table>
