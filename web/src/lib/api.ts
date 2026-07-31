@@ -43,6 +43,14 @@ export interface TagFacets {
   regions: { code: string; n: number }[];
   languages: { code: string; n: number }[];
   untagged: number;
+  /** rows whose tags come from RetroAchievements rather than the filename */
+  verified: number;
+  total: number;
+}
+export interface HashNameStatus {
+  games: number; fetched: number; named: number; owned: number; ownedFetched: number;
+  running: { scope: 'collection' | 'all'; done: number; total: number } | null;
+  intervalMs: number;
 }
 export interface ScheduleStatus { enabled: boolean; time: string; running: boolean; lastRunAt: number | null; }
 export interface StorageInfo {
@@ -74,6 +82,10 @@ export interface ScanItem {
   // Comma-joined codes parsed from the filename; only collection rows carry
   // them, live scan rows are parsed client-side from the same filename.
   region?: string | null; langs?: string | null;
+  // The same, parsed from the ROM name RetroAchievements stores for this hash —
+  // authoritative, because the file matched by content. Present once the game
+  // has been enriched.
+  raRegion?: string | null; raLangs?: string | null; raRomName?: string | null;
 }
 
 export interface QuickWin {
@@ -378,6 +390,8 @@ export const api = {
     if (q.offset) p.set('offset', String(q.offset));
     return j<any[]>(`/api/library?${p.toString()}`);
   },
+  hashNameStatus: () => j<HashNameStatus>('/api/hashnames/status'),
+  hashNamesCancel: () => j<{ ok: boolean }>('/api/hashnames/cancel', { method: 'POST' }),
   libraryTags: (q: { status?: string; console_id?: number } = {}) => {
     const p = new URLSearchParams();
     if (q.status) p.set('status', q.status);

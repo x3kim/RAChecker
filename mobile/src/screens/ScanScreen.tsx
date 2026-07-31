@@ -6,7 +6,8 @@ import { colors, space, radius } from '../theme';
 import { Panel, Display, Mono, Body, SectionHeader, Btn } from '../ui';
 import { pickFiles, pickFolder, enumerateFolder, scanTargets, ScanRow, ScanStatus } from '../scan';
 import { getFolder, setFolder, getRegionPriority, onRegionPriorityChange } from '../storage';
-import { dbStats, MatchGame, upsertLibrary, getLibrary, clearLibrary } from '../db';
+import { dbStats, MatchGame, upsertLibrary, getLibrary, clearLibrary, getHashNames } from '../db';
+import { enrichCollectionHashNames } from '../hashNames';
 import { consoleName } from '../consoles';
 import { mediaUrl } from '../ra/api';
 import { useI18n } from '../i18n';
@@ -15,7 +16,12 @@ import { RegionBadges } from '../components/RegionBadges';
 import { parseRomTags, tagTokens, rankTokens, isLangToken, tokenLabel } from '../core';
 
 type Phase = 'idle' | 'listing' | 'scanning';
-type DisplayRow = { name: string; md5: string; match: MatchGame | null; error?: string; status?: ScanStatus };
+// raRegion/raLangs are RetroAchievements' own answer for this hash — present
+// once the game has been enriched, and preferred over the filename everywhere.
+type DisplayRow = {
+  name: string; md5: string; match: MatchGame | null; error?: string; status?: ScanStatus;
+  raRegion?: string; raLangs?: string;
+};
 
 export function ScanScreen() {
   const { t } = useI18n();
@@ -32,6 +38,7 @@ export function ScanScreen() {
   const [priority, setPriority] = useState<string[]>([]);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [byRegion, setByRegion] = useState(false);
+  const [enriching, setEnriching] = useState(false);
   const autoRan = useRef(false);
 
   const loadCollection = useCallback(async () => {
@@ -51,6 +58,21 @@ export function ScanScreen() {
       await upsertLibrary(
         fresh.filter((r) => r.md5).map((r) => ({ md5: r.md5, name: r.name, gameId: r.match?.id ?? null, consoleId: r.match?.console_id ?? r.consoleId ?? null })),
       );
+      // Ask RetroAchievements for the official ROM names of what just matched,
+      // then fold the verified regions into the rows on screen. Best effort:
+      // offline or a failed call simply leaves the filename as the source.
+      setEnriching(true);
+      enrichCollectionHashNames()
+        .then(async () => {
+          const names = await getHashNames(fresh.map((r) => r.md5));
+          if (!names.size) return;
+          setRows((cur) => cur.map((r) => {
+            const n = names.get((r.md5 || '').toLowerCase());
+            return n ? { ...r, raRegion: n.region, raLangs: n.langs } : r;
+          }));
+        })
+        .catch(() => { /* filenames remain the fallback */ })
+        .finally(() => setEnriching(false));
     } catch (e: any) {
       setError(String(e?.message || e));
     } finally {
@@ -120,7 +142,14 @@ export function ScanScreen() {
   // Region/language chips are built from the rows on screen, so nothing is
   // offered that isn't actually there. Tokens are cached per row because the
   // filter, the sort and the badges all need them.
-  const tokensByRow = useMemo(() => rows.map((r) => tagTokens(parseRomTags(r.name)) as string[]), [rows]);
+  const tokensByRow = useMemo(() => rows.map((r) => (
+    (r.raRegion || r.raLangs)
+      ? tagTokens({
+        regions: String(r.raRegion ?? '').split(',').filter(Boolean),
+        languages: String(r.raLangs ?? '').split(',').filter(Boolean),
+      }) as string[]
+      : tagTokens(parseRomTags(r.name)) as string[]
+  )), [rows]);
   const chips = useMemo(() => {
     const counts = new Map<string, number>();
     for (const toks of tokensByRow) for (const tok of toks) counts.set(tok, (counts.get(tok) ?? 0) + 1);
@@ -220,13 +249,17 @@ export function ScanScreen() {
                   );
                 })}
               </ScrollView>
-              {priority.length === 0 && (
-                <Body size={11} color={colors.inkDim} style={{ marginTop: 4 }}>{t('scan.regionHint')}</Body>
+              {enriching && (
+                <Body size={11} color={colors.cyan} style={{ marginTop: 4 }}>{t('scan.regionVerifying')}</Body>
               )}
+              <Body size={11} color={colors.inkDim} style={{ marginTop: 4 }}>
+                {priority.length === 0 ? t('scan.regionHint') : t('scan.regionSourceHint')}
+              </Body>
             </View>
           )}
           <View style={{ gap: space.sm, marginTop: space.md }}>
             {shownRows.slice(0, 400).map((r, i) => <Row key={r.md5 || i} row={r} onOpen={setOpenGame} status={statusOf(r)} priority={priority} />)}
+
             {shownRows.length > 400 && <Body size={12} color={colors.inkDim} style={{ textAlign: 'center' }}>{t('scan.andMore', { n: shownRows.length - 400 })}</Body>}
             {shownRows.length === 0 && <Body size={12} color={colors.inkDim} style={{ textAlign: 'center' }}>{t('scan.regionNone')}</Body>}
           </View>
@@ -285,7 +318,7 @@ function Row({ row, onOpen, status, priority = [] }: { row: DisplayRow; onOpen: 
         ) : (
           <Body size={12} color={colors.inkDim} numberOfLines={2}>{t('scan.rowNoMatch')}</Body>
         )}
-        <RegionBadges name={row.name} priority={priority} />
+        <RegionBadges name={row.name} raRegion={row.raRegion} raLangs={row.raLangs} priority={priority} />
       </View>
       {row.match && <Feather name="chevron-right" size={18} color={colors.inkDim} />}
     </View>

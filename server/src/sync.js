@@ -4,7 +4,8 @@
 import { getConsoleIDs, getGameList, getGameHashes } from './ra-api.js';
 import {
   upsertConsole, replaceConsoleGames, recordSync, getConsoleSync,
-  getConsoles, getSetting, setSetting, enrichHash,
+  getConsoles, getSetting, setSetting, enrichHash, restoreHashNames,
+  markGameHashesFetched, gamesNeedingHashNames, hashNameStats,
 } from './db.js';
 import { CONSOLE_BY_ID } from './consoles.js';
 import { config } from './config.js';
@@ -101,6 +102,10 @@ export async function syncConsoleHashes(consoleId, { force = false } = {}) {
   try {
     const games = await getGameList(consoleId, { withHashes: true, onlyWithAchievements: true });
     const { gameCount, hashCount } = replaceConsoleGames(consoleId, games);
+    // replaceConsoleGames rebuilt the hash rows from scratch — put the ROM names
+    // we already fetched back on them, or a re-sync would silently undo hours of
+    // enrichment (and with it every verified region).
+    restoreHashNames();
     recordSync({ consoleId, syncedAt: Date.now(), gameCount, hashCount, status: 'ok' });
     return { skipped: false, gameCount, hashCount };
   } catch (e) {
@@ -139,12 +144,49 @@ export async function syncAll({ force = false, onProgress = () => {}, consoleIds
   return summary;
 }
 
-// Enrich a single game's hashes with rom names + labels (on demand, for the UI).
-export async function enrichGameHashes(gameId) {
-  const res = await getGameHashes(gameId);
+// Enrich a single game's hashes with rom names + labels. Called on demand when a
+// game detail is opened, and in bulk by enrichHashNames() below.
+export async function enrichGameHashes(gameId, { intervalMs } = {}) {
+  const res = await getGameHashes(gameId, { intervalMs });
   const results = res?.Results || [];
   for (const r of results) {
     enrichHash({ md5: r.MD5, rom_name: r.Name, labels: r.Labels, patch_url: r.PatchUrl });
   }
+  // Marked even when a game returns nothing, so the job never asks again.
+  markGameHashesFetched(gameId, results.length);
   return results;
+}
+
+// ---- bulk hash-name enrichment --------------------------------------------
+// The ROM name is what makes a region trustworthy: a file matched by hash IS the
+// dump RetroAchievements names here, whatever it is called on disk. There is no
+// bulk endpoint, so this is one call per game — cheap individually (~39 ms) but
+// worth pacing, hence its own interval. Fully resumable: every finished game is
+// recorded, so a cancelled run continues where it stopped.
+export const HASHNAME_INTERVAL_MS = 250;
+
+/**
+ * @param {'collection'|'all'} scope 'collection' = only games you own a file for
+ */
+export async function enrichHashNames({ scope = 'collection', onProgress = () => {}, signal } = {}) {
+  const ids = gamesNeedingHashNames(scope);
+  const total = ids.length;
+  const summary = { scope, total, done: 0, hashes: 0, errors: 0, cancelled: false };
+  onProgress({ phase: 'start', ...summary, ...hashNameStats() });
+
+  for (const gameId of ids) {
+    if (signal?.aborted) { summary.cancelled = true; break; }
+    try {
+      const results = await enrichGameHashes(gameId, { intervalMs: HASHNAME_INTERVAL_MS });
+      summary.hashes += results.length;
+    } catch {
+      // A single game failing must not end the run — it stays unmarked and is
+      // retried the next time the job runs.
+      summary.errors++;
+    }
+    summary.done++;
+    onProgress({ phase: 'progress', ...summary, gameId });
+  }
+  onProgress({ phase: 'done', ...summary, ...hashNameStats() });
+  return summary;
 }

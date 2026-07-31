@@ -3,7 +3,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, readdirSync, statSync, unlinkSync, existsSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseRomTags, packTags } from 'ra-core/region.js';
+import { parseRomTags, packTags, TAG_PARSER_VERSION } from 'ra-core/region.js';
 import { config } from './config.js';
 
 export const db = new DatabaseSync(config.dbPath);
@@ -175,6 +175,31 @@ addColumn('library', 'raw_sha1 TEXT'); // raw file sha1 — Redump CHD / MAME <d
 addColumn('library', 'region TEXT');
 addColumn('library', 'langs TEXT');
 db.exec('CREATE INDEX IF NOT EXISTS idx_library_region ON library(region)');
+
+// Canonical ROM names from API_GetGameHashes, keyed by hash and kept OUTSIDE
+// the `hashes` table — a console re-sync rebuilds that table from scratch and
+// would otherwise discard every name we ever fetched. This is the authoritative
+// region source: a matched file is the exact dump RetroAchievements names here,
+// no matter what the user called the file on disk.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS hash_names (
+    md5        TEXT PRIMARY KEY,
+    rom_name   TEXT,
+    labels     TEXT,          -- JSON array
+    patch_url  TEXT,
+    region     TEXT,          -- parsed from rom_name, comma-joined codes
+    langs      TEXT,
+    fetched_at INTEGER
+  );
+
+  -- One row per game already asked about, so the enrichment job is resumable
+  -- and never re-requests a game (including ones that returned no hashes).
+  CREATE TABLE IF NOT EXISTS game_hash_sync (
+    game_id    INTEGER PRIMARY KEY,
+    fetched_at INTEGER,
+    hash_count INTEGER
+  );
+`);
 
 // ---- DAT completeness (No-Intro/Redump/logiqx catalogs) -------------------
 // Imported DAT files + their ROM entries. Matching is by raw-file CRC32 (what
@@ -458,13 +483,144 @@ export function replaceConsoleGames(consoleId, games) {
 const enrichHashStmt = db.prepare(
   'UPDATE hashes SET rom_name = @rom_name, labels = @labels, patch_url = @patch_url WHERE md5 = @md5'
 );
+// The durable copy. `hashes` is wiped and rebuilt whenever a console re-syncs,
+// which would throw away hours of enrichment — hash_names survives that and is
+// replayed back onto `hashes` afterwards (restoreHashNames).
+const upsertHashNameStmt = db.prepare(`
+  INSERT INTO hash_names(md5, rom_name, labels, patch_url, region, langs, fetched_at)
+  VALUES(@md5, @rom_name, @labels, @patch_url, @region, @langs, @fetched_at)
+  ON CONFLICT(md5) DO UPDATE SET
+    rom_name = excluded.rom_name, labels = excluded.labels, patch_url = excluded.patch_url,
+    region = excluded.region, langs = excluded.langs, fetched_at = excluded.fetched_at
+`);
 export function enrichHash({ md5, rom_name, labels, patch_url }) {
+  const key = String(md5).toLowerCase();
+  // RetroAchievements names its hash entries the No-Intro way, so the region of
+  // the actual dump is right there — independent of what the user called the file.
+  const tags = packTags(parseRomTags(rom_name || ''));
   enrichHashStmt.run({
-    md5: String(md5).toLowerCase(),
+    md5: key,
     rom_name: rom_name ?? null,
     labels: labels ? JSON.stringify(labels) : null,
     patch_url: patch_url ?? null,
   });
+  upsertHashNameStmt.run({
+    md5: key,
+    rom_name: rom_name ?? null,
+    labels: labels ? JSON.stringify(labels) : null,
+    patch_url: patch_url ?? null,
+    region: tags.region,
+    langs: tags.langs,
+    fetched_at: Date.now(),
+  });
+}
+
+// Re-derive region/langs on every stored ROM name after a parser change. No
+// network and no re-scan — the names are already here, only our reading of them
+// improved. Returns how many rows were rewritten.
+export function reparseHashNames() {
+  if (Number(getSetting('tagParserVersion', 0)) === TAG_PARSER_VERSION) return 0;
+  const rows = db.prepare('SELECT md5, rom_name FROM hash_names').all();
+  const upd = db.prepare('UPDATE hash_names SET region = ?, langs = ? WHERE md5 = ?');
+  db.exec('BEGIN');
+  try {
+    for (const r of rows) {
+      const tags = packTags(parseRomTags(r.rom_name || ''));
+      upd.run(tags.region, tags.langs, r.md5);
+    }
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+  return rows.length;
+}
+
+// Call once both reparse passes have run, so the next boot skips them.
+export function markTagParserVersion() {
+  setSetting('tagParserVersion', TAG_PARSER_VERSION);
+}
+
+// One-time seed for installs that enriched hashes before hash_names existed:
+// lift those names into the durable table (and parse their regions) so the work
+// isn't repeated. Cheap and idempotent — only rows missing from hash_names.
+export function seedHashNames() {
+  const rows = db.prepare(`
+    SELECT md5, rom_name, labels, patch_url FROM hashes
+    WHERE rom_name IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM hash_names n WHERE n.md5 = hashes.md5)
+  `).all();
+  if (!rows.length) return 0;
+  db.exec('BEGIN');
+  try {
+    for (const r of rows) {
+      const tags = packTags(parseRomTags(r.rom_name || ''));
+      upsertHashNameStmt.run({
+        md5: r.md5, rom_name: r.rom_name, labels: r.labels, patch_url: r.patch_url,
+        region: tags.region, langs: tags.langs, fetched_at: Date.now(),
+      });
+    }
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+  return rows.length;
+}
+
+// Replay stored names onto the `hashes` table — called at boot and after every
+// console sync, since replaceConsoleGames() rebuilds those rows from scratch.
+export function restoreHashNames() {
+  const info = db.prepare(`
+    UPDATE hashes SET
+      rom_name  = (SELECT n.rom_name  FROM hash_names n WHERE n.md5 = hashes.md5),
+      labels    = (SELECT n.labels    FROM hash_names n WHERE n.md5 = hashes.md5),
+      patch_url = (SELECT n.patch_url FROM hash_names n WHERE n.md5 = hashes.md5)
+    WHERE rom_name IS NULL AND EXISTS (SELECT 1 FROM hash_names n WHERE n.md5 = hashes.md5)
+  `).run();
+  return Number(info.changes ?? 0);
+}
+
+// ---- hash-name enrichment bookkeeping -------------------------------------
+// One row per game we already asked API_GetGameHashes about, so the job is
+// resumable and never re-requests a game (including ones that returned nothing).
+const markGameHashesStmt = db.prepare(
+  'INSERT INTO game_hash_sync(game_id, fetched_at, hash_count) VALUES(?,?,?) ON CONFLICT(game_id) DO UPDATE SET fetched_at = excluded.fetched_at, hash_count = excluded.hash_count',
+);
+export function markGameHashesFetched(gameId, hashCount) {
+  markGameHashesStmt.run(gameId, Date.now(), hashCount ?? 0);
+}
+
+/**
+ * Games still to enrich, newest-value-first.
+ * @param {'collection'|'all'} scope  'collection' = only games you own a file for
+ */
+export function gamesNeedingHashNames(scope = 'collection') {
+  const sql = scope === 'all'
+    ? `SELECT g.id FROM games g
+       WHERE g.num_achievements > 0
+         AND NOT EXISTS (SELECT 1 FROM game_hash_sync s WHERE s.game_id = g.id)
+       ORDER BY g.id`
+    : `SELECT DISTINCT l.match_game_id AS id FROM library l
+       WHERE l.status = 'match' AND l.match_game_id IS NOT NULL
+         AND NOT EXISTS (SELECT 1 FROM game_hash_sync s WHERE s.game_id = l.match_game_id)
+       ORDER BY l.match_game_id`;
+  return db.prepare(sql).all().map((r) => r.id);
+}
+
+// How far the enrichment has come — drives the Settings panel.
+export function hashNameStats() {
+  const games = db.prepare('SELECT COUNT(*) AS n FROM games WHERE num_achievements > 0').get().n;
+  const fetched = db.prepare('SELECT COUNT(*) AS n FROM game_hash_sync').get().n;
+  const named = db.prepare('SELECT COUNT(*) AS n FROM hash_names').get().n;
+  const owned = db.prepare(
+    "SELECT COUNT(DISTINCT match_game_id) AS n FROM library WHERE status='match' AND match_game_id IS NOT NULL",
+  ).get().n;
+  const ownedFetched = db.prepare(`
+    SELECT COUNT(DISTINCT l.match_game_id) AS n FROM library l
+    JOIN game_hash_sync s ON s.game_id = l.match_game_id
+    WHERE l.status='match' AND l.match_game_id IS NOT NULL`).get().n;
+  return { games, fetched, named, owned, ownedFetched };
 }
 
 // ---- hash lookup (the hot path during a scan) -----------------------------
@@ -615,10 +771,13 @@ export function upsertLibraryItem(row) {
 }
 
 // Fill in region/langs for rows written before this feature existed. Pure string
-// work over filenames we already have, so it is cheap enough to run at boot —
-// but only for rows that were never parsed (region IS NULL).
+// work over names we already have, so it is cheap enough to run at boot — but
+// only for rows that were never parsed (region IS NULL), unless the parser
+// itself changed, in which case every stored value is re-derived.
 export function backfillLibraryTags({ limit = 200000 } = {}) {
-  const rows = db.prepare('SELECT path, inner_path FROM library WHERE region IS NULL LIMIT ?').all(limit);
+  const stale = Number(getSetting('tagParserVersion', 0)) !== TAG_PARSER_VERSION;
+  const where = stale ? '' : 'WHERE region IS NULL ';
+  const rows = db.prepare(`SELECT path, inner_path FROM library ${where}LIMIT ?`).all(limit);
   if (!rows.length) return 0;
   const upd = db.prepare('UPDATE library SET region = ?, langs = ? WHERE path = ? AND inner_path = ?');
   db.exec('BEGIN');
@@ -648,26 +807,38 @@ export function libraryArchiveUnchanged(path, mtime) {
   return !!archiveUnchangedStmt.get(path, Math.round(mtime));
 }
 
-// A priority token ("JP" or "L:ja") against the comma-joined columns. The
-// sentinel 'NONE' selects rows whose filename carried no tags at all — those are
-// exactly the ones a region filter would otherwise hide without explanation.
+// The effective region/language of a collection row. RetroAchievements' own ROM
+// name wins whenever we have it: the file matched by hash, so it IS that dump —
+// however the user named the file. The filename is only the fallback, which is
+// all there is for a file RetroAchievements does not know at all. The two fields
+// fall back independently, so an RA name without a language list can still be
+// complemented by the languages stated in the filename.
+const EFF_REGION = "COALESCE(NULLIF(hn.region,''), COALESCE(l.region,''))";
+const EFF_LANGS = "COALESCE(NULLIF(hn.langs,''), COALESCE(l.langs,''))";
+const HN_JOIN = 'LEFT JOIN hash_names hn ON hn.md5 = l.md5';
+
+// A priority token ("JP" or "L:ja") against the comma-joined values. The
+// sentinel 'NONE' selects rows with no tags at all — exactly the ones a region
+// filter would otherwise hide without explanation.
 const NO_TAGS = 'NONE';
 function tagFilterSql(token) {
-  if (token === NO_TAGS) return { sql: " AND COALESCE(l.region,'') = '' AND COALESCE(l.langs,'') = ''", params: [] };
+  if (token === NO_TAGS) return { sql: ` AND ${EFF_REGION} = '' AND ${EFF_LANGS} = ''`, params: [] };
   if (String(token).startsWith('L:')) {
-    return { sql: " AND (',' || COALESCE(l.langs,'') || ',') LIKE ?", params: [`%,${String(token).slice(2)},%`] };
+    return { sql: ` AND (',' || ${EFF_LANGS} || ',') LIKE ?`, params: [`%,${String(token).slice(2)},%`] };
   }
-  return { sql: " AND (',' || COALESCE(l.region,'') || ',') LIKE ?", params: [`%,${token},%`] };
+  return { sql: ` AND (',' || ${EFF_REGION} || ',') LIKE ?`, params: [`%,${token},%`] };
 }
 
 export function getLibrary({ status, console_id, q, tag, limit = 1000, offset = 0 } = {}) {
   let sql = `
     SELECT l.*, g.title AS match_title, g.image_icon AS match_image,
            g.num_achievements AS match_achievements, g.points AS match_points,
-           c.name AS console_name, c.short_code AS console_short
+           c.name AS console_name, c.short_code AS console_short,
+           hn.region AS ra_region, hn.langs AS ra_langs, hn.rom_name AS ra_rom_name
     FROM library l
     LEFT JOIN games g ON g.id = l.match_game_id
     LEFT JOIN consoles c ON c.id = l.console_id
+    ${HN_JOIN}
     WHERE 1=1`;
   const params = [];
   if (status) { sql += ' AND l.status = ?'; params.push(status); }
@@ -681,27 +852,37 @@ export function getLibrary({ status, console_id, q, tag, limit = 1000, offset = 
 
 // Which region/language tokens actually occur in the collection, with counts —
 // the filter chips are built from this, so nobody is offered a region they don't
-// own. Honours the same status/system filters as the list itself.
+// own. Honours the same status/system filters as the list itself. `verified`
+// counts the rows whose tags come from RetroAchievements rather than a filename.
 export function libraryTagFacets({ status, console_id } = {}) {
-  let sql = "SELECT COALESCE(region,'') AS region, COALESCE(langs,'') AS langs, COUNT(*) AS n FROM library WHERE 1=1";
+  // Aliases must NOT be called region/langs — both `library` and `hash_names`
+  // have columns of those names, and SQLite would call the GROUP BY ambiguous.
+  let sql = `SELECT ${EFF_REGION} AS eff_region, ${EFF_LANGS} AS eff_langs,
+                    CASE WHEN NULLIF(hn.region,'') IS NOT NULL OR NULLIF(hn.langs,'') IS NOT NULL THEN 1 ELSE 0 END AS verified,
+                    COUNT(*) AS n
+             FROM library l ${HN_JOIN} WHERE 1=1`;
   const params = [];
-  if (status) { sql += ' AND status = ?'; params.push(status); }
-  if (console_id != null) { sql += ' AND console_id = ?'; params.push(console_id); }
-  sql += ' GROUP BY region, langs';
+  if (status) { sql += ' AND l.status = ?'; params.push(status); }
+  if (console_id != null) { sql += ' AND l.console_id = ?'; params.push(console_id); }
+  sql += ' GROUP BY eff_region, eff_langs, verified';
 
   const regions = new Map();
   const languages = new Map();
   let untagged = 0;
+  let verified = 0;
+  let total = 0;
   for (const row of db.prepare(sql).all(...params)) {
     const n = row.n;
-    const rs = row.region ? row.region.split(',').filter(Boolean) : [];
-    const ls = row.langs ? row.langs.split(',').filter(Boolean) : [];
+    total += n;
+    if (row.verified) verified += n;
+    const rs = row.eff_region ? row.eff_region.split(',').filter(Boolean) : [];
+    const ls = row.eff_langs ? row.eff_langs.split(',').filter(Boolean) : [];
     if (!rs.length && !ls.length) untagged += n;
     for (const r of rs) regions.set(r, (regions.get(r) ?? 0) + n);
     for (const l of ls) languages.set(l, (languages.get(l) ?? 0) + n);
   }
   const sort = (m) => [...m.entries()].map(([code, n]) => ({ code, n })).sort((a, b) => b.n - a.n || a.code.localeCompare(b.code));
-  return { regions: sort(regions), languages: sort(languages), untagged };
+  return { regions: sort(regions), languages: sort(languages), untagged, verified, total };
 }
 export function libraryStats() {
   const byStatus = db.prepare('SELECT status, COUNT(*) AS n FROM library GROUP BY status').all();
@@ -736,7 +917,10 @@ export function resetCollection() {
 // The synced RetroAchievements hash database (games/hashes) — forces a fresh
 // sync. Console metadata rows are kept so the systems list still renders.
 export function resetHashDb() {
-  const counts = wipeTables(['games', 'hashes', 'console_sync']);
+  // hash_names/game_hash_sync go too: this is the explicit "clean slate" action,
+  // and leaving fetched ROM names behind would mean regions still shown for a
+  // database the user just emptied. They are re-fetched by the enrichment job.
+  const counts = wipeTables(['games', 'hashes', 'console_sync', 'hash_names', 'game_hash_sync']);
   clearApiCache('game:');
   // No synchronous VACUUM here — it can be very slow on a large DB and would
   // block the reset endpoint. Freed pages go to the freelist and are reclaimed
@@ -1064,7 +1248,11 @@ export function getDuplicates() {
     ORDER BY copies DESC, g.title`).all();
 }
 export function getDuplicateFiles(gameId) {
-  return db.prepare(`SELECT path, inner_path, size, md5, region, langs FROM library WHERE match_game_id = ? AND status='match' ORDER BY path`).all(gameId);
+  return db.prepare(`
+    SELECT l.path, l.inner_path, l.size, l.md5, l.region, l.langs,
+           hn.region AS ra_region, hn.langs AS ra_langs, hn.rom_name AS ra_rom_name
+    FROM library l ${HN_JOIN}
+    WHERE l.match_game_id = ? AND l.status='match' ORDER BY l.path`).all(gameId);
 }
 
 // Every RA game id the collection hash-matches, as a Set — the cheap way to

@@ -83,9 +83,15 @@ was den Scan bei mehrdeutigen Disc-Images etwas beschleunigt.
   US, EU …) und Sprachen (ja, en, de …) in eine Reihenfolge bringen, z. B. „Japanisch → Japan →
   Europa". Danach sortiert die Sammlung über „Wunsch-Region zuerst", die Duplikat-Liste markiert die
   Kopie zum Behalten, und die Spiel-Details stellen die passende ROM-Version nach oben und zeigen,
-  welche Regionen RetroAchievements für das Spiel überhaupt kennt. Gelesen wird das aus dem
-  Dateinamen — „Zelda (Europe) (En,Fr,De).gba", „Chrono Trigger (U) [!].smc", „Elite (1984)(GB).tap".
-  Dateien ohne solche Angaben landen unter „Ohne Angabe" und werden nie versteckt.
+  welche Regionen RetroAchievements für das Spiel überhaupt kennt.
+- **Woher die Region kommt:** bei einer Datei, die trifft, von RetroAchievements selbst — der Hash
+  identifiziert genau diesen Dump, der Dateiname ist dafür egal. Diese Namen holt RAChecker nach
+  jedem Scan automatisch für die Spiele deiner Sammlung; für die ganze Datenbank gibt es in den
+  Einstellungen einen Knopf (dauert länger, abbrechbar, setzt fort). Nur Dateien, die
+  RetroAchievements **nicht** kennt, werden am Dateinamen gelesen — „Zelda (Europe) (En,Fr,De).gba",
+  „Chrono Trigger (U) [!].smc", „Elite (1984)(GB).tap". Bestätigte Angaben haben einen durchgezogenen
+  Rahmen, geratene einen gestrichelten; Dateien ganz ohne Angabe landen unter „Ohne Angabe" und
+  werden nie versteckt.
 - **Ordner-Watch:** Einstellungen → Überwachung starten; wählbar zwischen Dauer-Watch und
   Intervall-Modus (alle N Minuten kurz prüfen), standardmäßig aus. Neue ROMs werden automatisch geprüft.
 - **Geplanter Scan:** Einstellungen → einmal täglich zu einer festen Uhrzeit automatisch scannen (an/aus).

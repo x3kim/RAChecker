@@ -5,9 +5,11 @@
 //
 // Nothing is ever hidden because of it: an empty list simply means "no
 // preference", and every view keeps its previous ordering.
-import { useEffect, useState } from 'react';
-import { Globe2, Plus, X, ArrowUp, ArrowDown, Save, RotateCcw } from 'lucide-react';
-import { api } from '../lib/api';
+import { useEffect, useRef, useState } from 'react';
+import { Globe2, Plus, X, ArrowUp, ArrowDown, Save, RotateCcw, ShieldCheck, Play, Square } from 'lucide-react';
+import { api, openStream } from '../lib/api';
+import type { HashNameStatus } from '../lib/api';
+import { Pct } from './Progress';
 import { useI18n } from '../lib/i18n';
 import {
   REGION_ORDER, REGION_NAMES, LANGUAGE_NAMES, langToken, isLangToken,
@@ -123,6 +125,85 @@ export function RegionPriority() {
         <button className="btn btn-primary" onClick={save} disabled={!dirty}><Save size={16} /> {saved ? t('set.saved') : t('set.save')}</button>
         <span className="font-body text-ink-dim text-sm">{t('set.regionNote')}</span>
       </div>
+
+      <HashNamePanel />
     </section>
+  );
+}
+
+// Where the region actually comes from, and the job that makes it trustworthy.
+// A matched file IS the dump RetroAchievements names for that hash, so its ROM
+// name beats any filename. There is no bulk endpoint for those names, hence a
+// job: automatic for the games you own, on demand for the whole database.
+function HashNamePanel() {
+  const { t } = useI18n();
+  const [status, setStatus] = useState<HashNameStatus | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [error, setError] = useState('');
+  const esRef = useRef<EventSource | null>(null);
+
+  const load = () => api.hashNameStatus().then(setStatus).catch(() => {});
+  useEffect(() => {
+    load();
+    return () => esRef.current?.close();
+  }, []);
+
+  const start = (scope: 'collection' | 'all') => {
+    if (esRef.current) return;
+    setError(''); setProgress({ done: 0, total: 0 });
+    const es = openStream(`/api/hashnames/stream?scope=${scope}`, {
+      progress: (p: any) => setProgress({ done: p.done ?? 0, total: p.total ?? 0 }),
+      done: () => { esRef.current?.close(); esRef.current = null; setProgress(null); load(); },
+      error: (e: any) => { setError(e?.message || t('common.error')); esRef.current?.close(); esRef.current = null; setProgress(null); },
+      __error: () => { esRef.current = null; setProgress(null); load(); },
+    });
+    esRef.current = es;
+  };
+  const stop = () => { api.hashNamesCancel().catch(() => {}); };
+
+  if (!status) return null;
+  const running = progress || (status.running ? { done: status.running.done, total: status.running.total } : null);
+  const pct = running && running.total > 0 ? Math.round((running.done / running.total) * 100) : 0;
+  const ownedPct = status.owned > 0 ? Math.round((status.ownedFetched / status.owned) * 100) : 100;
+  const allPct = status.games > 0 ? Math.round((status.fetched / status.games) * 100) : 0;
+
+  return (
+    <div className="mt-5 pt-4 border-t border-crt-line">
+      <div className="font-body text-sm text-ink-hi flex items-center gap-2">
+        <ShieldCheck size={15} className="text-neon-green" /> {t('set.hn.title')}
+      </div>
+      <p className="font-body text-ink-mid text-sm mt-1 leading-relaxed">{t('set.hn.desc')}</p>
+
+      <div className="grid sm:grid-cols-2 gap-3 mt-3">
+        <div className="panel !rounded-lg p-3">
+          <div className="font-mono text-base text-ink-mid">{t('set.hn.owned', { done: status.ownedFetched, n: status.owned })}</div>
+          <Pct value={ownedPct} heightClass="h-2" color="var(--color-neon-green)" />
+        </div>
+        <div className="panel !rounded-lg p-3">
+          <div className="font-mono text-base text-ink-mid">{t('set.hn.all', { done: status.fetched, n: status.games })}</div>
+          <Pct value={allPct} heightClass="h-2" color="var(--color-neon-cyan)" />
+        </div>
+      </div>
+
+      {running ? (
+        <div className="mt-3">
+          <div className="font-mono text-base text-neon-cyan">{t('set.hn.running', { done: running.done, n: running.total, pct })}</div>
+          <Pct value={pct} heightClass="h-2" color="var(--color-neon-cyan)" />
+          <button className="btn btn-danger !py-1.5 !px-3 text-sm mt-2" onClick={stop}><Square size={14} /> {t('set.hn.stop')}</button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 mt-3 flex-wrap">
+          <button className="btn !py-1.5 !px-3 text-sm" onClick={() => start('collection')} disabled={status.ownedFetched >= status.owned}>
+            <Play size={14} /> {t('set.hn.runOwned')}
+          </button>
+          <button className="btn !py-1.5 !px-3 text-sm" onClick={() => start('all')} disabled={status.fetched >= status.games}>
+            <Play size={14} /> {t('set.hn.runAll', { min: Math.max(1, Math.round(((status.games - status.fetched) * status.intervalMs) / 60000)) })}
+          </button>
+          {error && <span className="font-mono text-sm text-neon-red">{error}</span>}
+        </div>
+      )}
+
+      <p className="font-body text-ink-dim text-sm mt-2 leading-relaxed">{t('set.hn.note')}</p>
+    </div>
   );
 }

@@ -15,17 +15,39 @@ export {
 
 export const NO_TAGS = 'NONE';
 
-// Priority tokens for a collection row. Rows fetched from the server already
-// carry the parsed columns; live scan rows don't, so they fall back to parsing
-// the filename right here — same parser, same result.
-export function itemTokens(item: Pick<ScanItem, 'region' | 'langs' | 'filePath' | 'innerPath'>): string[] {
-  if (item.region != null || item.langs != null) {
-    return tagTokens(unpackTags({ region: item.region, langs: item.langs }));
+export type TagSource = 'ra' | 'file' | 'none';
+type TaggedItem = Pick<ScanItem, 'region' | 'langs' | 'raRegion' | 'raLangs' | 'filePath' | 'innerPath'>;
+
+/**
+ * Where a row's region/language actually comes from.
+ * `ra`   — the ROM name RetroAchievements stores for this hash. The file matched
+ *          by content, so this describes the real dump and the filename is
+ *          irrelevant. Trustworthy.
+ * `file` — parsed from the filename. A guess: right for a properly named set,
+ *          wrong for a renamed or sloppily named file, absent for neither.
+ */
+export function tagSource(item: TaggedItem): TagSource {
+  if (item.raRegion || item.raLangs) return 'ra';
+  if (item.region || item.langs) return 'file';
+  const parsed = parseRomTags(item.innerPath || item.filePath || '');
+  return parsed.regions.length || parsed.languages.length ? 'file' : 'none';
+}
+
+// Priority tokens for a collection row. RetroAchievements' own name wins per
+// field; a live scan row carries no columns at all and is parsed from its
+// filename right here — same parser, same result.
+export function itemTokens(item: TaggedItem): string[] {
+  const hasColumns = item.region != null || item.langs != null || item.raRegion != null || item.raLangs != null;
+  if (hasColumns) {
+    return tagTokens(unpackTags({
+      region: item.raRegion || item.region,
+      langs: item.raLangs || item.langs,
+    }));
   }
   return tagTokens(parseRomTags(item.innerPath || item.filePath || ''));
 }
 
-export function itemRank(item: Parameters<typeof itemTokens>[0], priority: string[]): number {
+export function itemRank(item: TaggedItem, priority: string[]): number {
   return rankTokens(itemTokens(item), priority);
 }
 

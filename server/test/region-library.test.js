@@ -72,6 +72,83 @@ test('facets count each code once per row and report the untagged files', () => 
   assert.equal(f.untagged, 1);
 });
 
+// ---- RetroAchievements' own ROM name beats the filename -------------------
+
+test("a wrongly named file gets its region from RetroAchievements' rom name", () => {
+  // The file name says nothing (or something wrong); the hash says everything.
+  const path = ROM('random_dump_01.sfc');
+  db.upsertLibraryItem({ path, inner_path: '', status: 'match', md5: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' });
+  assert.equal(db.getLibraryItem(path, '').region, '', 'filename alone yields nothing');
+
+  db.enrichHash({ md5: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', rom_name: 'Rockman X (Japan) (Ja).sfc', labels: ['nointro'] });
+
+  const row = db.getLibrary({ tag: 'JP', limit: 100 }).find((r) => r.path === path);
+  assert.ok(row, 'the JP filter now finds it');
+  assert.equal(row.ra_region, 'JP');
+  assert.equal(row.ra_langs, 'ja');
+  assert.equal(row.ra_rom_name, 'Rockman X (Japan) (Ja).sfc');
+});
+
+test('a mislabelled filename is overridden, not merged, per field', () => {
+  const path = ROM('Totally Not Zelda (USA).gbc');
+  db.upsertLibraryItem({ path, inner_path: '', status: 'match', md5: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' });
+  assert.equal(db.getLibraryItem(path, '').region, 'US', 'filename claims USA');
+
+  db.enrichHash({ md5: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', rom_name: 'Legend of Zelda, The - Oracle of Ages (Europe).gbc' });
+
+  // The US claim is gone — RA says Europe and RA is the one that matched.
+  assert.equal(db.getLibrary({ tag: 'US', limit: 100 }).some((r) => r.path === path), false);
+  assert.equal(db.getLibrary({ tag: 'EU', limit: 100 }).some((r) => r.path === path), true);
+});
+
+test('facets separate verified rows from guessed ones', () => {
+  const f = db.libraryTagFacets({});
+  assert.equal(f.verified, 2, 'exactly the two enriched rows');
+  assert.ok(f.total >= f.verified);
+});
+
+test('enriched names survive a console re-sync', () => {
+  // replaceConsoleGames() deletes and rebuilds every hash row for the console.
+  db.replaceConsoleGames(3, [{
+    ID: 9001, Title: 'Rockman X', Points: 100, NumAchievements: 5,
+    Hashes: ['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+  }]);
+  assert.equal(db.lookupHash('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')[0].rom_name, null, 're-sync wiped the name');
+
+  assert.equal(db.restoreHashNames(), 1, 'one name put back');
+  assert.equal(db.lookupHash('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')[0].rom_name, 'Rockman X (Japan) (Ja).sfc');
+  // The collection row never lost its region, because that reads from hash_names.
+  assert.equal(db.getLibrary({ tag: 'JP', limit: 100 }).some((r) => r.path === ROM('random_dump_01.sfc')), true);
+});
+
+test('the enrichment work list is resumable and never repeats a game', () => {
+  // The collection scope is driven by which games your files actually matched.
+  db.upsertLibraryItem({ path: ROM('random_dump_01.sfc'), inner_path: '', status: 'match', md5: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', match_game_id: 9001 });
+  assert.deepEqual(db.gamesNeedingHashNames('collection'), [9001]);
+
+  const before = db.gamesNeedingHashNames('all').length;
+  db.markGameHashesFetched(9001, 1);
+  assert.equal(db.gamesNeedingHashNames('all').length, before - 1);
+  assert.equal(db.gamesNeedingHashNames('all').includes(9001), false);
+  assert.deepEqual(db.gamesNeedingHashNames('collection'), [], 'nothing left to do for the collection');
+  assert.equal(db.hashNameStats().fetched, 1);
+});
+
+test('a parser change re-derives stored values without any network call', () => {
+  // Simulate values written by an older parser version.
+  db.db.prepare("UPDATE hash_names SET region = 'XX', langs = '' WHERE md5 = ?").run('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+  db.db.prepare("UPDATE settings SET value = '0' WHERE key = 'tagParserVersion'").run();
+  db.setSetting('tagParserVersion', 0);
+
+  assert.ok(db.reparseHashNames() > 0, 'stale version triggers a re-read');
+  const row = db.db.prepare('SELECT region, langs FROM hash_names WHERE md5 = ?').get('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+  assert.equal(row.region, 'JP', 're-derived from the stored rom_name');
+  assert.equal(row.langs, 'ja');
+
+  db.markTagParserVersion();
+  assert.equal(db.reparseHashNames(), 0, 'no work once the version matches');
+});
+
 test('backfill fills rows written before the columns existed', () => {
   const path = ROM('Metroid (Japan).nes');
   db.upsertLibraryItem({ path, inner_path: '', status: 'match' });

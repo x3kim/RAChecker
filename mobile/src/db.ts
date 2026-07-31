@@ -38,6 +38,23 @@ async function open(): Promise<SQLite.SQLiteDatabase> {
       scanned_at INTEGER
     );
     CREATE INDEX IF NOT EXISTS idx_library_scanned ON library(scanned_at);
+
+    -- Official ROM names from API_GetGameHashes, keyed by hash. A file that
+    -- matched IS the dump named here, so this beats the phone's filename for
+    -- region/language. Kept in its own table so a console re-sync (which wipes
+    -- the hashes table) does not throw the names away.
+    CREATE TABLE IF NOT EXISTS hash_names (
+      md5 TEXT PRIMARY KEY,
+      rom_name TEXT,
+      region TEXT,
+      langs TEXT,
+      fetched_at INTEGER
+    );
+    -- One row per game already asked about, so the job never repeats itself.
+    CREATE TABLE IF NOT EXISTS game_hash_sync (
+      game_id INTEGER PRIMARY KEY,
+      fetched_at INTEGER
+    );
   `);
   return d;
 }
@@ -118,7 +135,9 @@ export async function dbStats(): Promise<{ games: number; hashes: number; consol
 
 export async function clearDb(): Promise<void> {
   const d = await db();
-  await d.execAsync('DELETE FROM hashes; DELETE FROM games; DELETE FROM sync_state;');
+  // hash_names/game_hash_sync go too — this is the explicit "clean slate", and
+  // keeping fetched ROM names would still show regions for an emptied database.
+  await d.execAsync('DELETE FROM hashes; DELETE FROM games; DELETE FROM sync_state; DELETE FROM hash_names; DELETE FROM game_hash_sync;');
 }
 
 // ---- games browser --------------------------------------------------------
@@ -203,8 +222,51 @@ export async function collectionInsights(): Promise<CollectionInsights> {
   };
 }
 
+// ---- official ROM names (authoritative region source) ---------------------
+export type HashName = { md5: string; rom_name: string | null; region: string; langs: string };
+
+// Games whose hashes we have not asked RetroAchievements about yet, limited to
+// the ones your own collection actually matched — the phone never grinds
+// through the whole database.
+export async function gamesNeedingHashNames(): Promise<number[]> {
+  const d = await db();
+  const rows = await d.getAllAsync<{ game_id: number }>(
+    `SELECT DISTINCT l.game_id FROM library l
+      WHERE l.game_id IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM game_hash_sync s WHERE s.game_id = l.game_id)`);
+  return rows.map((r) => r.game_id);
+}
+
+export async function saveHashNames(
+  gameId: number,
+  entries: { md5: string; rom_name: string | null; region: string; langs: string }[],
+): Promise<void> {
+  const d = await db();
+  await d.withTransactionAsync(async () => {
+    const stmt = await d.prepareAsync(
+      'INSERT OR REPLACE INTO hash_names(md5,rom_name,region,langs,fetched_at) VALUES(?,?,?,?,?)');
+    try {
+      const now = Date.now();
+      for (const e of entries) {
+        if (!e.md5) continue;
+        await stmt.executeAsync([e.md5.toLowerCase(), e.rom_name, e.region, e.langs, now]);
+      }
+    } finally {
+      await stmt.finalizeAsync();
+    }
+    // Recorded even when a game returns nothing, so it is never asked twice.
+    await d.runAsync('INSERT OR REPLACE INTO game_hash_sync(game_id,fetched_at) VALUES(?,?)', gameId, Date.now());
+  });
+}
+
+export async function hashNameCount(): Promise<number> {
+  const d = await db();
+  const r = await d.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM hash_names');
+  return r?.n ?? 0;
+}
+
 // ---- persistent collection (ROMs you've hashed) ---------------------------
-export type LibraryRow = { name: string; md5: string; match: MatchGame | null };
+export type LibraryRow = { name: string; md5: string; match: MatchGame | null; raRegion?: string; raLangs?: string };
 
 export async function upsertLibrary(rows: { md5: string; name: string; gameId: number | null; consoleId: number | null }[]): Promise<void> {
   if (!rows.length) return;
@@ -227,14 +289,32 @@ export async function upsertLibrary(rows: { md5: string; name: string; gameId: n
 export async function getLibrary(limit = 2000): Promise<LibraryRow[]> {
   const d = await db();
   const rows = await d.getAllAsync<any>(
-    `SELECT l.name, l.md5, g.id AS gid, g.title, g.points, g.num_achievements, g.image_icon, g.console_id
-       FROM library l LEFT JOIN games g ON g.id = l.game_id
+    `SELECT l.name, l.md5, g.id AS gid, g.title, g.points, g.num_achievements, g.image_icon, g.console_id,
+            hn.region AS ra_region, hn.langs AS ra_langs
+       FROM library l
+       LEFT JOIN games g ON g.id = l.game_id
+       LEFT JOIN hash_names hn ON hn.md5 = l.md5
        ORDER BY l.scanned_at DESC LIMIT ?`, limit);
   return rows.map((r) => ({
     name: r.name,
     md5: r.md5,
+    raRegion: r.ra_region ?? undefined,
+    raLangs: r.ra_langs ?? undefined,
     match: r.gid != null ? { id: r.gid, title: r.title, points: r.points, num_achievements: r.num_achievements, image_icon: r.image_icon, console_id: r.console_id } : null,
   }));
+}
+
+// The stored names for a set of hashes — used right after a scan so fresh rows
+// pick up their verified region without a reload.
+export async function getHashNames(md5s: string[]): Promise<Map<string, { region: string; langs: string }>> {
+  const out = new Map<string, { region: string; langs: string }>();
+  const list = md5s.filter(Boolean).map((m) => m.toLowerCase());
+  if (!list.length) return out;
+  const d = await db();
+  const ph = list.map(() => '?').join(',');
+  const rows = await d.getAllAsync<any>(`SELECT md5, region, langs FROM hash_names WHERE md5 IN (${ph})`, ...list);
+  for (const r of rows) out.set(r.md5, { region: r.region ?? '', langs: r.langs ?? '' });
+  return out;
 }
 
 // Distinct RA games you actually own (matched at least one file in your

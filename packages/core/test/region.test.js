@@ -74,6 +74,19 @@ test('archive members are judged by their own name', () => {
   assert.deepEqual(regions('/mnt/nas/snes/Chrono Trigger (USA).sfc'), ['US']);
 });
 
+test('a dotted title without an extension keeps its tags', () => {
+  // RetroAchievements stores disc entries without a file extension. Stripping
+  // "everything after the last dot" would eat ". Spy (Europe) (En,Fr,De,Es)"
+  // here and report no region at all — which it did, on real data.
+  assert.deepEqual(parseRomTags('Spy vs. Spy (Europe) (En,Fr,De,Es)'), {
+    regions: ['EU'], languages: ['en', 'fr', 'de', 'es'],
+  });
+  assert.deepEqual(regions('Dr. Mario (Japan)'), ['JP']);
+  // A real extension is still removed, so it can never be read as a tag.
+  assert.deepEqual(regions('Rockman X (Japan).sfc'), ['JP']);
+  assert.deepEqual(regions('Some Game (USA).iso'), ['US']);
+});
+
 test('untagged filenames yield nothing', () => {
   assert.deepEqual(parseRomTags('chrono_trigger.sfc'), { regions: [], languages: [] });
   assert.deepEqual(parseRomTags(''), { regions: [], languages: [] });

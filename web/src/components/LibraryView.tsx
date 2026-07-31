@@ -28,6 +28,7 @@ function mapRow(r: any): ScanItem {
     message: r.message ?? r.match_title, matchTitle: r.match_title, matchImage: r.match_image,
     matchAchievements: r.match_achievements, matchPoints: r.match_points,
     scannedAt: r.scanned_at, region: r.region ?? null, langs: r.langs ?? null,
+    raRegion: r.ra_region ?? null, raLangs: r.ra_langs ?? null, raRomName: r.ra_rom_name ?? null,
   };
 }
 
@@ -52,10 +53,17 @@ const SEGMENTS: { id: 'match' | 'no_match' | 'needs_rahasher' | 'ambiguous' | 'e
 // Order the copies of one game so the preferred region/language comes first.
 // A stable sort keeps the server's path order for ties, so with an empty
 // priority list nothing moves at all.
+function dupItem(f: any) {
+  return {
+    region: f.region ?? null, langs: f.langs ?? null,
+    raRegion: f.ra_region ?? null, raLangs: f.ra_langs ?? null,
+    filePath: f.path, innerPath: f.inner_path,
+  };
+}
 function orderCopies(files: any[], priority: string[]) {
   if (!priority.length) return files;
   return [...files]
-    .map((f, i) => ({ f, i, rank: itemRank({ region: f.region ?? null, langs: f.langs ?? null, filePath: f.path, innerPath: f.inner_path }, priority) }))
+    .map((f, i) => ({ f, i, rank: itemRank(dupItem(f), priority) }))
     .sort((a, b) => a.rank - b.rank || a.i - b.i)
     .map((x) => x.f);
 }
@@ -482,7 +490,7 @@ export function LibraryView({ status, profile, onOpenGame, goScan, onFindVersion
                         <div key={i} className="flex items-center gap-2 font-mono text-sm text-ink-dim">
                           <button className="hover:text-neon-cyan" title={t('rt.explorerTip')} onClick={() => api.reveal(f.path).catch(() => {})}><FolderSearch size={13} /></button>
                           <span className="truncate flex-1" title={f.path}>{i === 0 && <span className="text-neon-green">★ </span>}{basename(f.path)}{f.inner_path ? ` › ${f.inner_path}` : ''}</span>
-                          <RegionBadges item={{ region: f.region ?? null, langs: f.langs ?? null, filePath: f.path, innerPath: f.inner_path }} priority={priority} max={3} />
+                          <RegionBadges item={dupItem(f)} priority={priority} max={3} />
                           {i > 0 && <button className="hover:text-neon-red shrink-0" title={t('lib.delFile')} onClick={() => deleteFiles([f.path])}><Trash2 size={12} /></button>}
                         </div>
                       ))}
@@ -582,7 +590,13 @@ export function LibraryView({ status, profile, onOpenGame, goScan, onFindVersion
               </button>
             )}
           </div>
-          <p className="font-body text-ink-dim text-sm mt-3">{t('lib.regionHint')}</p>
+          {/* Where these values come from — a solid badge is RA's own ROM name
+              for that exact hash, a dashed one is the filename and only as good
+              as the name. Stated plainly instead of implied. */}
+          <p className="font-body text-ink-dim text-sm mt-3">
+            {t('lib.regionSources', { ra: facets.verified, n: facets.total })}
+            {facets.verified < facets.total && <> {t('lib.regionHint')}</>}
+          </p>
         </section>
       )}
 

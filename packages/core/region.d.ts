@@ -10,6 +10,7 @@ export declare const REGION_NAMES: Record<string, string>;
 export declare const REGION_ORDER: string[];
 export declare const LANGUAGE_NAMES: Record<string, string>;
 export declare const LANG_PREFIX: string;
+export declare const TAG_PARSER_VERSION: number;
 
 export declare function romBasename(p: string): string;
 export declare function parseRomTags(name: string): RomTags;

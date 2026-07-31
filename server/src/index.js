@@ -8,7 +8,11 @@ import { join } from 'node:path';
 import { config, ROOT } from './config.js';
 import { registerRoutes } from './routes.js';
 import { ensureTempDir, sweepTempOnStartup } from './hashing/archive.js';
-import { backfillTitleNorm, backfillLibraryTags, applySavedCredentials, applySavedConfig, autoBackup, getSetting } from './db.js';
+import {
+  backfillTitleNorm, backfillLibraryTags, restoreHashNames, seedHashNames,
+  reparseHashNames, markTagParserVersion,
+  applySavedCredentials, applySavedConfig, autoBackup, getSetting,
+} from './db.js';
 import { initWatch } from './watcher.js';
 import { initScheduler } from './scheduler.js';
 import { initPresence } from './presence.js';
@@ -24,6 +28,15 @@ async function main() {
   // Region/language tags for collections scanned before the feature existed —
   // pure filename parsing, so no re-scan and no file access is needed.
   try { const n = backfillLibraryTags(); if (n) console.log(`[db] parsed region/language tags for ${n} collection entries`); } catch (e) { console.warn('[db] tag backfill failed:', e.message); }
+  // Put previously fetched ROM names back onto the hash rows — a console re-sync
+  // rebuilds those, and without this every verified region would be lost.
+  try { const n = seedHashNames(); if (n) console.log(`[db] adopted ${n} previously fetched ROM names`); } catch (e) { console.warn('[db] hash-name seed failed:', e.message); }
+  try { const n = restoreHashNames(); if (n) console.log(`[db] restored ${n} RetroAchievements ROM names`); } catch (e) { console.warn('[db] hash-name restore failed:', e.message); }
+  // A parser change invalidates stored region/language values — re-derive them
+  // from the names we already have, then remember the version. Both passes are
+  // no-ops once the stored version matches.
+  try { const n = reparseHashNames(); if (n) console.log(`[db] re-read region/language on ${n} ROM names`); } catch (e) { console.warn('[db] hash-name reparse failed:', e.message); }
+  try { markTagParserVersion(); } catch { /* next boot retries */ }
 
   const app = Fastify({
     logger: { level: process.env.LOG_LEVEL || 'info', transport: undefined },

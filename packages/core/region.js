@@ -17,6 +17,11 @@
 // lowercase ISO-639-1 (ja/en/de/...). They deliberately live in one flat
 // vocabulary so a single ordered priority list can mix both (see rankTokens).
 
+// Bumped whenever the parsing itself changes. Stored values were produced by an
+// older version and are re-derived from the names we already have (no network,
+// no re-scan) when this number moves.
+export const TAG_PARSER_VERSION = 2;
+
 // ---- vocabulary -----------------------------------------------------------
 
 // Canonical region codes and their English names. The UI shows the code as the
@@ -176,11 +181,20 @@ export function romBasename(p) {
   return s.trim();
 }
 
+// Drop a trailing file extension — but only something that actually looks like
+// one. A greedy /\.[^.]+$/ would eat the whole tail of a name that contains a
+// dot and has no extension at all: RetroAchievements stores disc entries as
+// "Spy vs. Spy (Europe) (En,Fr,De,Es)", where it would strip from "vs." onwards
+// and throw the region away.
+function stripExtension(s) {
+  return s.replace(/\.[A-Za-z0-9_]{1,8}$/, '');
+}
+
 // Every bracketed tag in the filename, keeping the bracket kind. GoodTools puts
 // the region in (parens) and the dump flags in [brackets] — "[a]" is "alternate
 // dump", not Australia — so the two are never treated alike.
 function tagsOf(name) {
-  const stem = romBasename(name).replace(/\.[^.]+$/, '');
+  const stem = stripExtension(romBasename(name));
   const out = [];
   const re = /([([])([^)\]]*)[)\]]/g;
   let m;

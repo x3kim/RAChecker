@@ -7,9 +7,13 @@ import { config, RA_API_BASE, RA_MEDIA_BASE } from './config.js';
 let chain = Promise.resolve();
 let lastCallAt = 0;
 
-function schedule(fn) {
+// `intervalMs` overrides the gap before THIS call. Long-running background jobs
+// (the hash-name enrichment) pass a shorter one; because the chain is FIFO, an
+// interactive call queued during such a job waits behind at most one of them.
+function schedule(fn, intervalMs) {
+  const gap = intervalMs ?? config.rateLimit.minIntervalMs;
   const run = chain.then(async () => {
-    const wait = Math.max(0, config.rateLimit.minIntervalMs - (Date.now() - lastCallAt));
+    const wait = Math.max(0, gap - (Date.now() - lastCallAt));
     if (wait > 0) await sleep(wait);
     lastCallAt = Date.now();
     return fn();
@@ -25,7 +29,7 @@ function authParams() {
   return `z=${encodeURIComponent(config.raUsername)}&y=${encodeURIComponent(config.raApiKey)}`;
 }
 
-async function apiGet(endpoint, params = {}) {
+async function apiGet(endpoint, params = {}, { intervalMs } = {}) {
   const qs = Object.entries(params)
     .filter(([, v]) => v != null)
     .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
@@ -59,7 +63,7 @@ async function apiGet(endpoint, params = {}) {
       }
     }
     throw lastErr ?? new Error(`RA API ${endpoint} failed`);
-  });
+  }, intervalMs);
 }
 
 class RetryableError extends Error {}
@@ -78,8 +82,12 @@ export function getGameList(consoleId, { withHashes = true, onlyWithAchievements
   });
 }
 
-export function getGameHashes(gameId) {
-  return apiGet('API_GetGameHashes.php', { i: gameId });
+// The ONLY endpoint that carries a hash's ROM name (and with it the region of
+// the actual dump). There is no bulk variant anywhere in the v1 API, so a full
+// enrichment is one call per game — measured at ~39 ms and ~200-800 bytes each,
+// which makes our own politeness interval the real cost, not RetroAchievements.
+export function getGameHashes(gameId, { intervalMs } = {}) {
+  return apiGet('API_GetGameHashes.php', { i: gameId }, { intervalMs });
 }
 
 export function getGameExtended(gameId) {

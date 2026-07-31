@@ -183,7 +183,7 @@ not by folder names. A correctly dumped ROM matches no matter how you sort your 
 - **Collection view** — searchable, filterable list of every ROM ever scanned, with multi-select actions.
 - **Collection diff** — after each scan: what's new, newly playable, lost or gone.
 - **DAT completeness check** — import No-Intro/Redump/logiqx/ClrMamePro/MAME catalogs and see per catalog what you have and what's missing (exportable). Matched by real checksums read straight from archives *without* extraction, independent of the RetroAchievements hash. Includes an *unknown dumps* view.
-- **Preferred region & language** — the region and languages baked into ROM filenames (No-Intro, GoodTools, TOSEC, translation tags) are read and shown as short codes. Put your preference in order (e.g. *Japanese → Japan → Europe*) and the collection sorts by it, duplicates mark the copy to keep, and a game's detail window lists which regions RetroAchievements supports and which of them you already own. Filter the collection by any region or language. Nothing is ever hidden or deleted because of it.
+- **Preferred region & language** — every file states its region and languages. For a file that matches, they come **straight from RetroAchievements**: the hash identifies that exact dump, so a renamed or sloppily named file is read correctly anyway (fetched automatically after each scan for the games you own; the whole database on a button). Only files RetroAchievements does not know fall back to the filename (No-Intro, GoodTools, TOSEC, translation tags), and those are marked as such. Put your preference in order (e.g. *Japanese → Japan → Europe*) and the collection sorts by it, duplicates mark the copy to keep, and a game's detail window lists which regions RetroAchievements supports and which of them you already own. Filter by any region or language. Nothing is ever hidden or deleted because of it.
 - **Duplicates (1G1R)** — the same game across multiple files is grouped; extra copies deletable, keeping your preferred region.
 - **Find the right version** — on a miss, match the filename to the game and show accepted versions + RAPatches links.
 - **RA world coverage** — what share of all RA games, achievements and points your collection covers, per system.
@@ -217,7 +217,7 @@ A **standalone** app — no PC, no server, no network beyond the one-time hash s
 - **Archives:** ZIP and **7z** are unpacked and hashed on the phone, including disc images inside them.
 - **Same look and features as the desktop:** profile with collection & insights, games-by-system browser, Discover, 6 themes, English + German.
 - **Clear results:** each file says whether it earns achievements, has no achievement set yet, belongs to a system you haven't synced, or isn't known to RetroAchievements at all.
-- **Region & language:** read from each filename and shown on every row; set your preferred order in Settings to sort and filter by it.
+- **Region & language:** shown on every row — confirmed by RetroAchievements for ROMs that match, read from the filename otherwise; set your preferred order in Settings to sort and filter by it.
 - **Auto-update (opt-in):** checks GitHub on launch and can install newer APKs; decline or disable in Settings.
 
 **Install:** grab the newest `RAChecker-*.apk` from the [Releases page](https://github.com/x3kim/RAChecker/releases)

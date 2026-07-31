@@ -6,10 +6,21 @@ import { colors, radius } from '../theme';
 import { Mono } from '../ui';
 import { parseRomTags, tagTokens, isLangToken, tokenLabel } from '../core';
 
-export function RegionBadges({ name, priority = [], max = 4 }: {
-  name: string; priority?: string[]; max?: number;
+/**
+ * `raRegion`/`raLangs` come from RetroAchievements' own ROM name for that hash
+ * and win over anything the filename claims. A dashed outline marks the values
+ * that are only a guess from the filename.
+ */
+export function RegionBadges({ name, raRegion, raLangs, priority = [], max = 4 }: {
+  name: string; raRegion?: string; raLangs?: string; priority?: string[]; max?: number;
 }) {
-  const tokens: string[] = tagTokens(parseRomTags(name));
+  const verified = !!(raRegion || raLangs);
+  const tokens: string[] = verified
+    ? tagTokens({
+      regions: String(raRegion ?? '').split(',').filter(Boolean),
+      languages: String(raLangs ?? '').split(',').filter(Boolean),
+    })
+    : tagTokens(parseRomTags(name));
   if (!tokens.length) return null;
 
   // Highlight the single token that wins the preference comparison.
@@ -26,7 +37,7 @@ export function RegionBadges({ name, priority = [], max = 4 }: {
       {shown.map((tok) => {
         const color = tok === best ? colors.green : isLangToken(tok) ? colors.inkDim : colors.cyan;
         return (
-          <View key={tok} style={[styles.badge, { borderColor: color }]}>
+          <View key={tok} style={[styles.badge, { borderColor: color, borderStyle: verified ? 'solid' : 'dashed' }]}>
             <Mono size={13} color={color}>{tokenLabel(tok)}</Mono>
           </View>
         );
