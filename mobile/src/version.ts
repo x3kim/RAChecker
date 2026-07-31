@@ -1,7 +1,7 @@
 // Single source of truth for the mobile app version + changelog. Mirror the
 // version in app.json ("version" + android.versionCode). The auto-updater
 // compares this against GitHub releases tagged `android-vX.Y.Z`.
-export const APP_VERSION = '0.5.1';
+export const APP_VERSION = '0.6.0';
 
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
 export const DOCS_URL = 'https://x3kim.github.io/RAChecker/';
@@ -15,6 +15,20 @@ export type ChangelogEntry = { version: string; date: string; en: string[]; de: 
 
 // Newest first. `en`/`de` are bullet lists.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '0.6.0',
+    date: '2026-07-31',
+    en: [
+      'Region and languages are now read from each ROM\'s filename (No-Intro, GoodTools, TOSEC, translation tags) and shown on every scan row — regions uppercase (DE, EU, JP), languages lowercase (de, en, ja).',
+      'New preferred order under Settings: sort regions and languages freely, e.g. "Japanese → Japan → Europe". Tap "Preferred first" above the results to sort by it.',
+      'Scan results and your collection can be filtered by region or language. The chips only offer what your files actually carry.',
+    ],
+    de: [
+      'Region und Sprachen werden jetzt aus dem Dateinamen jeder ROM gelesen (No-Intro, GoodTools, TOSEC, Übersetzungs-Tags) und in jeder Scan-Zeile angezeigt — Regionen groß (DE, EU, JP), Sprachen klein (de, en, ja).',
+      'Neue Wunsch-Reihenfolge in den Einstellungen: Regionen und Sprachen frei sortierbar, z. B. „Japanisch → Japan → Europa". Über den Ergebnissen auf „Wunsch zuerst" tippen, um danach zu sortieren.',
+      'Scan-Ergebnisse und Sammlung lassen sich nach Region oder Sprache filtern. Die Chips zeigen nur, was in deinen Dateien wirklich steht.',
+    ],
+  },
   {
     version: '0.5.1',
     date: '2026-07-29',

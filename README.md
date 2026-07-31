@@ -19,8 +19,8 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/desktop-0.12-22e0ff" alt="Desktop version">
-  <img src="https://img.shields.io/badge/android-0.5-39ff8b" alt="Android version">
+  <img src="https://img.shields.io/badge/desktop-0.13-22e0ff" alt="Desktop version">
+  <img src="https://img.shields.io/badge/android-0.6-39ff8b" alt="Android version">
   <img src="https://img.shields.io/badge/node-22.5%2B-ffb648" alt="Node 22.5+">
   <img src="https://img.shields.io/badge/license-MIT-9d6bff" alt="MIT license">
   <img src="https://img.shields.io/badge/data-%C2%A9%20retroachievements.org-666" alt="Data © retroachievements.org">
@@ -183,7 +183,8 @@ not by folder names. A correctly dumped ROM matches no matter how you sort your 
 - **Collection view** — searchable, filterable list of every ROM ever scanned, with multi-select actions.
 - **Collection diff** — after each scan: what's new, newly playable, lost or gone.
 - **DAT completeness check** — import No-Intro/Redump/logiqx/ClrMamePro/MAME catalogs and see per catalog what you have and what's missing (exportable). Matched by real checksums read straight from archives *without* extraction, independent of the RetroAchievements hash. Includes an *unknown dumps* view.
-- **Duplicates (1G1R)** — the same game across multiple files is grouped; extra copies deletable.
+- **Preferred region & language** — the region and languages baked into ROM filenames (No-Intro, GoodTools, TOSEC, translation tags) are read and shown as short codes. Put your preference in order (e.g. *Japanese → Japan → Europe*) and the collection sorts by it, duplicates mark the copy to keep, and a game's detail window lists which regions RetroAchievements supports and which of them you already own. Filter the collection by any region or language. Nothing is ever hidden or deleted because of it.
+- **Duplicates (1G1R)** — the same game across multiple files is grouped; extra copies deletable, keeping your preferred region.
 - **Find the right version** — on a miss, match the filename to the game and show accepted versions + RAPatches links.
 - **RA world coverage** — what share of all RA games, achievements and points your collection covers, per system.
 - **Exports** — RetroArch `.lpl`, ES-DE/EmulationStation, Playnite, LaunchBox, CSV.
@@ -216,6 +217,7 @@ A **standalone** app — no PC, no server, no network beyond the one-time hash s
 - **Archives:** ZIP and **7z** are unpacked and hashed on the phone, including disc images inside them.
 - **Same look and features as the desktop:** profile with collection & insights, games-by-system browser, Discover, 6 themes, English + German.
 - **Clear results:** each file says whether it earns achievements, has no achievement set yet, belongs to a system you haven't synced, or isn't known to RetroAchievements at all.
+- **Region & language:** read from each filename and shown on every row; set your preferred order in Settings to sort and filter by it.
 - **Auto-update (opt-in):** checks GitHub on launch and can install newer APKs; decline or disable in Settings.
 
 **Install:** grab the newest `RAChecker-*.apk` from the [Releases page](https://github.com/x3kim/RAChecker/releases)
@@ -285,7 +287,8 @@ RAChecker/
 ├─ web/                             frontend (Vite + React + Tailwind)
 ├─ mobile/                          Android app (Expo / React Native)
 │  └─ src/{disc,archive,lzma}/      on-device disc, 7z and LZMA readers
-├─ packages/core/                   hashing rules shared by desktop + mobile
+├─ packages/core/                   hashing rules + filename region/language parser,
+│                                   shared by desktop + mobile
 ├─ electron/                        desktop wrapper
 ├─ docs/                            architecture, hashing, usage, building
 └─ data/                            runtime: DB, images, backups (git-ignored)

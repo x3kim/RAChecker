@@ -2,7 +2,7 @@
   "expo": {
     "name": "RAChecker",
     "slug": "rachecker",
-    "version": "0.5.1",
+    "version": "0.6.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -12,7 +12,7 @@
     },
     "android": {
       "package": "de.rachecker.app",
-      "versionCode": 8,
+      "versionCode": 9,
       "adaptiveIcon": {
         "backgroundColor": "#0a0e14",
         "foregroundImage": "./assets/android-icon-foreground.png",

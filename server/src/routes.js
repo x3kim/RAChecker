@@ -20,7 +20,7 @@ import {
   getLibraryPaths, countLibraryRowsForPaths, deleteLibraryByPaths,
   getLibraryFilesForGame, getOwnedGameIdSet, getGameById, findGamesByTitle,
   getCoverageStats, getRecentSessions, getPlaytimeByGame, playtimeTotals, clearSessions,
-  exportSessions, importSessions,
+  exportSessions, importSessions, libraryTagFacets,
 } from './db.js';
 import { syncAll, enrichGameHashes, consoleNeedsSync, newlySupportedSystems } from './sync.js';
 import { Scanner, checkSingleFile, resolveMatch } from './scanner.js';
@@ -57,6 +57,12 @@ const APP_VERSION = (() => {
 function getEnabledConsoles() {
   const v = getSetting('enabledConsoles', null);
   return Array.isArray(v) && v.length ? v.map(Number).filter(Number.isFinite) : null;
+}
+// Ordered region/language preference, e.g. ['JP','L:ja','EU']. Empty = none set,
+// in which case nothing anywhere changes its ordering.
+function getRegionPriority() {
+  const v = getSetting('regionPriority', null);
+  return Array.isArray(v) ? v.map(String).filter(Boolean) : [];
 }
 // Bytes threshold for copying a big file to local temp before hashing (0=off).
 function bigFileCopyBytes() {
@@ -389,6 +395,7 @@ export async function registerRoutes(app) {
     rateLimit: config.rateLimit,
     rahasherPath: config.rahasherPath,
     downloadDir: getSetting('downloadDir', ''),
+    regionPriority: getRegionPriority(),
   });
 
   app.get('/api/settings', async () => settingsPayload());
@@ -438,6 +445,13 @@ export async function registerRoutes(app) {
     // Where the user drops free-game ROMs they downloaded from external pages
     // (the app can't fetch those pages itself — see /api/open-folder).
     if (typeof body.downloadDir === 'string') setSetting('downloadDir', body.downloadDir.trim());
+    // Ordered region/language preference ("JP" before "EU", "L:de" before "L:en").
+    // An empty list means "no preference" and leaves every sort order untouched.
+    if ('regionPriority' in body) {
+      const list = Array.isArray(body.regionPriority)
+        ? body.regionPriority.map((s) => String(s).trim()).filter(Boolean).slice(0, 64) : [];
+      setSetting('regionPriority', [...new Set(list)]);
+    }
     return { ok: true, ...settingsPayload() };
   });
 
@@ -743,13 +757,22 @@ export async function registerRoutes(app) {
 
   // ---- persistent collection (library) ------------------------------------
   app.get('/api/library', async (req) => {
-    const { status, console_id, q, limit, offset } = req.query;
+    const { status, console_id, q, tag, limit, offset } = req.query;
     return getLibrary({
       status: status || undefined,
       console_id: console_id != null ? Number(console_id) : undefined,
       q: q || undefined,
+      tag: tag || undefined,
       limit: limit ? Number(limit) : 1000,
       offset: offset ? Number(offset) : 0,
+    });
+  });
+  // Region/language chips for the collection filter — only what is actually owned.
+  app.get('/api/library/tags', async (req) => {
+    const { status, console_id } = req.query;
+    return libraryTagFacets({
+      status: status || undefined,
+      console_id: console_id != null ? Number(console_id) : undefined,
     });
   });
   app.get('/api/library/stats', async () => libraryStats());

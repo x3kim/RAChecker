@@ -1,6 +1,6 @@
 // Single source of truth for the app version + changelog. The footer version
 // chip opens a modal rendering CHANGELOG; package.json is kept in sync manually.
-export const APP_VERSION = '0.12.0';
+export const APP_VERSION = '0.13.0';
 
 // GitHub repository — linked from the header (GitHub icon in the "More" menu).
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
@@ -15,6 +15,18 @@ export interface Release { version: string; date: string; title?: { de: string; 
 
 // Newest first. Dates are ISO (YYYY-MM-DD).
 export const CHANGELOG: Release[] = [
+  {
+    version: '0.13.0',
+    date: '2026-07-31',
+    title: { de: 'Wunsch-Region & Sprache', en: 'Preferred region & language' },
+    changes: [
+      { type: 'feature', de: 'Region und Sprache jeder Datei werden jetzt aus dem Dateinamen gelesen (No-Intro, GoodTools, TOSEC, Übersetzungs-Tags) und in der Sammlung als Kürzel angezeigt — Regionen groß (DE, EU, JP), Sprachen klein (de, en, ja).', en: 'The region and languages of every file are now read from its filename (No-Intro, GoodTools, TOSEC, translation tags) and shown in the collection as short codes — regions uppercase (DE, EU, JP), languages lowercase (de, en, ja).' },
+      { type: 'feature', de: 'Neue Wunsch-Reihenfolge unter Einstellungen → Allgemein: Regionen und Sprachen frei sortierbar, z. B. „Japanisch → Japan → Europa". Sie sortiert die Sammlung („Wunsch-Region zuerst"), markiert bei Duplikaten die Kopie zum Behalten und stellt in den Spiel-Details die passende ROM-Version nach oben.', en: 'New preferred order under Settings → General: sort regions and languages freely, e.g. "Japanese → Japan → Europe". It sorts the collection ("Preferred region first"), marks the copy to keep among duplicates, and puts the matching ROM version first in the game details.' },
+      { type: 'feature', de: 'Die Sammlung lässt sich nach Region oder Sprache filtern. Die Auswahl zeigt nur, was du wirklich besitzt, plus „Ohne Angabe" für Dateien ohne solche Kürzel im Namen.', en: 'The collection can be filtered by region or language. The chips only offer what you actually own, plus "Not stated" for files whose name carries no such tags.' },
+      { type: 'feature', de: 'Die Spiel-Details zeigen jetzt, welche Regionen RetroAchievements für dieses Spiel unterstützt, und markieren die Fassungen, die du bereits hast — die Antwort auf „gibt es hier auch eine JP-Version?".', en: 'The game details now show which regions RetroAchievements supports for that game and mark the versions you already own — the answer to "is there a JP version of this too?".' },
+      { type: 'improve', de: 'Bestehende Sammlungen brauchen keinen neuen Scan: die Angaben werden beim ersten Start aus den bereits gespeicherten Dateinamen ergänzt.', en: 'Existing collections need no re-scan: the tags are filled in from the already stored filenames on first start.' },
+    ],
+  },
   {
     version: '0.12.0',
     date: '2026-07-29',

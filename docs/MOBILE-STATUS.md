@@ -44,8 +44,10 @@ mobile/src/
    └─ index.ts          hashDisc(): tries each rule, surfaces fatal container errors
 ```
 
-Shared hash rules: `packages/core/hash/` (source of truth) — **mirrored** into
-`mobile/src/core/` because EAS uploads only `mobile/`. Keep both in sync.
+Shared code: `packages/core/` (source of truth) — hash rules under `hash/`, plus
+`region.js`, which parses the region/language tags out of a ROM filename
+(No-Intro/GoodTools/TOSEC) for both apps. **Mirrored** into `mobile/src/core/`
+because EAS uploads only `mobile/`. Keep both in sync.
 
 ---
 

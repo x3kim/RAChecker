@@ -3,17 +3,23 @@ import {
   Library as LibraryIcon, Search, ScanLine, RefreshCw, Copy, FolderSearch, Dice5,
   Trophy, Star, CheckCircle2, XCircle, Cpu, HelpCircle, Layers, Download, Wand2, AlertTriangle,
   Stethoscope, Trash2, ListMusic, CheckSquare, Play, ChevronDown, FileCode2, FileSpreadsheet,
+  Languages,
 } from 'lucide-react';
-import type { AppStatus, ScanItem, ScanStatus } from '../lib/api';
+import type { AppStatus, ScanItem, ScanStatus, TagFacets } from '../lib/api';
 import { api, imageUrl } from '../lib/api';
 import { ResultsTable } from './ResultsTable';
 import { VersionReport } from './VersionReport';
 import { ConsoleIcon, SectionHeader, ViewToggle, StatusBadge } from './ui';
+import { RegionBadges } from './RegionBadges';
 import { Pct } from './Progress';
 import { SkeletonGrid } from './Skeleton';
 import { useI18n } from '../lib/i18n';
 import { useViewMode } from '../lib/viewmode';
 import { pct, basename, toCsv, downloadText, statusLabel, statusHelp, fmtBytes } from '../lib/util';
+import {
+  loadRegionPriority, cachedRegionPriority, REGION_EVENT, NO_TAGS,
+  itemRank, langToken, tokenName,
+} from '../lib/region';
 
 function mapRow(r: any): ScanItem {
   return {
@@ -21,16 +27,17 @@ function mapRow(r: any): ScanItem {
     consoleId: r.console_id, md5: r.md5, matchGameId: r.match_game_id, status: r.status,
     message: r.message ?? r.match_title, matchTitle: r.match_title, matchImage: r.match_image,
     matchAchievements: r.match_achievements, matchPoints: r.match_points,
-    scannedAt: r.scanned_at,
+    scannedAt: r.scanned_at, region: r.region ?? null, langs: r.langs ?? null,
   };
 }
 
-type SortKey = 'recent' | 'name' | 'achievements' | 'points';
+type SortKey = 'recent' | 'name' | 'achievements' | 'points' | 'region';
 const SORTS: { id: SortKey; key: string }[] = [
   { id: 'recent', key: 'lib.sort.recent' },
   { id: 'name', key: 'lib.sort.name' },
   { id: 'achievements', key: 'lib.sort.achievements' },
   { id: 'points', key: 'lib.sort.points' },
+  { id: 'region', key: 'lib.sort.region' },
 ];
 
 const SEGMENTS: { id: 'match' | 'no_match' | 'needs_rahasher' | 'ambiguous' | 'error' | 'all'; key: string; color: string; glow?: string; icon: any }[] = [
@@ -42,6 +49,17 @@ const SEGMENTS: { id: 'match' | 'no_match' | 'needs_rahasher' | 'ambiguous' | 'e
   { id: 'all', key: 'lib.seg.all', color: 'var(--color-neon-cyan)', icon: Layers },
 ];
 
+// Order the copies of one game so the preferred region/language comes first.
+// A stable sort keeps the server's path order for ties, so with an empty
+// priority list nothing moves at all.
+function orderCopies(files: any[], priority: string[]) {
+  if (!priority.length) return files;
+  return [...files]
+    .map((f, i) => ({ f, i, rank: itemRank({ region: f.region ?? null, langs: f.langs ?? null, filePath: f.path, innerPath: f.inner_path }, priority) }))
+    .sort((a, b) => a.rank - b.rank || a.i - b.i)
+    .map((x) => x.f);
+}
+
 export function LibraryView({ status, profile, onOpenGame, goScan, onFindVersion }: {
   status: AppStatus | null; profile: any; onOpenGame: (id: number) => void; goScan: () => void; onFindVersion: (item: any) => void;
 }) {
@@ -50,6 +68,9 @@ export function LibraryView({ status, profile, onOpenGame, goScan, onFindVersion
   const [rows, setRows] = useState<ScanItem[]>([]);
   const [statusFilter, setStatusFilter] = useState<'all' | ScanStatus>('match');
   const [systemFilter, setSystemFilter] = useState<number | 'all'>('all');
+  const [tagFilter, setTagFilter] = useState<string | 'all'>('all');
+  const [facets, setFacets] = useState<TagFacets | null>(null);
+  const [priority, setPriority] = useState<string[]>(cachedRegionPriority());
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [dupes, setDupes] = useState<any[] | null>(null);
@@ -95,9 +116,18 @@ export function LibraryView({ status, profile, onOpenGame, goScan, onFindVersion
     if (sortBy === 'name') r.sort((a, b) => (a.matchTitle || basename(a.filePath)).localeCompare(b.matchTitle || basename(b.filePath)));
     else if (sortBy === 'achievements') r.sort((a, b) => (b.matchAchievements || 0) - (a.matchAchievements || 0));
     else if (sortBy === 'points') r.sort((a, b) => (b.matchPoints || 0) - (a.matchPoints || 0));
+    // Preferred regions/languages first; inside one rank the title keeps the
+    // list readable, and files with no tags land at the very end.
+    else if (sortBy === 'region') {
+      r.sort((a, b) => {
+        const d = itemRank(a, priority) - itemRank(b, priority);
+        if (d !== 0) return d;
+        return (a.matchTitle || basename(a.filePath)).localeCompare(b.matchTitle || basename(b.filePath));
+      });
+    }
     else r.sort((a, b) => (b.scannedAt || 0) - (a.scannedAt || 0));
     return r;
-  }, [rows, sortBy]);
+  }, [rows, sortBy, priority]);
   const selectedRows = sortedRows.filter((r) => selected.has(rowKey(r)));
 
   const exportCsv = () => {
@@ -113,11 +143,16 @@ export function LibraryView({ status, profile, onOpenGame, goScan, onFindVersion
 
   const loadStats = () => { api.libraryStats().then(setStats).catch(() => {}); api.libraryInsights().then(setInsights).catch(() => {}); };
   const loadDupes = () => api.duplicates().then(setDupes).catch(() => setDupes([]));
+  const loadFacets = () => api.libraryTags({
+    status: statusFilter === 'all' ? undefined : statusFilter,
+    console_id: systemFilter === 'all' ? undefined : systemFilter,
+  }).then(setFacets).catch(() => setFacets(null));
   const loadRows = () => {
     setLoading(true);
     api.library({
       status: statusFilter === 'all' ? undefined : statusFilter,
       console_id: systemFilter === 'all' ? undefined : systemFilter,
+      tag: tagFilter === 'all' ? undefined : tagFilter,
       q: search.trim() || undefined, limit: 3000,
     }).then((r) => setRows(r.map(mapRow))).catch(() => setRows([])).finally(() => setLoading(false));
   };
@@ -232,8 +267,17 @@ export function LibraryView({ status, profile, onOpenGame, goScan, onFindVersion
     setTimeout(() => setLaunchMsg(null), 5000);
   };
 
-  useEffect(() => { loadStats(); }, []);
-  useEffect(() => { const t = setTimeout(loadRows, 200); return () => clearTimeout(t); /* eslint-disable-next-line */ }, [statusFilter, systemFilter, search]);
+  useEffect(() => { loadStats(); loadRegionPriority().then(setPriority); }, []);
+  // Settings fires this after saving so an open collection re-sorts immediately.
+  useEffect(() => {
+    const h = (e: Event) => setPriority(((e as CustomEvent).detail as string[]) ?? []);
+    window.addEventListener(REGION_EVENT, h);
+    return () => window.removeEventListener(REGION_EVENT, h);
+  }, []);
+  useEffect(() => { const t = setTimeout(loadRows, 200); return () => clearTimeout(t); /* eslint-disable-next-line */ }, [statusFilter, systemFilter, tagFilter, search]);
+  // The chips describe what the *other* filters left over, so they follow those
+  // two but deliberately not the tag filter itself (which would empty them out).
+  useEffect(() => { loadFacets(); /* eslint-disable-next-line */ }, [statusFilter, systemFilter]);
   useEffect(() => {
     const h = (e: MouseEvent) => { if (exportRef.current && !exportRef.current.contains(e.target as Node)) setExportOpen(false); };
     document.addEventListener('mousedown', h);
@@ -415,29 +459,37 @@ export function LibraryView({ status, profile, onOpenGame, goScan, onFindVersion
           {!dupes ? <div className="font-mono text-ink-dim">{t('common.loading')}</div>
             : dupes.length === 0 ? <div className="font-mono text-ink-dim">{t('lib.noDupes')}</div>
             : <div className="space-y-2">
-                {dupes.map((d) => (
+                {dupes.map((d) => {
+                  // The copy that best matches the region/language preference is
+                  // the keeper — ★ marks it and "delete extras" spares exactly
+                  // that one. Without a preference this stays the old order.
+                  const files = orderCopies(d.files, priority);
+                  return (
                   <div key={d.game_id} className="panel !rounded-lg p-3">
                     <div className="flex items-center gap-3">
                       {d.image_icon ? <img src={imageUrl(d.image_icon)} width={32} height={32} className="rounded shrink-0" style={{ border: '1px solid var(--color-crt-line)', objectFit: 'contain' }} alt="" /> : null}
                       <button className="font-body text-sm text-neon-green truncate flex-1 text-left" onClick={() => onOpenGame(d.game_id)} title={d.title}>{d.title}</button>
                       <ConsoleIcon id={d.console_id} short={d.console_short} size={20} />
                       <span className="font-mono text-base px-2 py-0.5 rounded" style={{ color: 'var(--color-neon-purple)', border: '1px solid var(--color-neon-purple)' }}>{d.copies}×</span>
-                      <button className="btn btn-danger !py-1 !px-2 text-sm shrink-0" title={t('lib.dupDeleteTip')}
-                        onClick={() => deleteFiles(d.files.slice(1).map((f: any) => f.path))}>
+                      <button className="btn btn-danger !py-1 !px-2 text-sm shrink-0"
+                        title={priority.length ? t('lib.dupDeleteKeepTip', { keep: basename(files[0].path) }) : t('lib.dupDeleteTip')}
+                        onClick={() => deleteFiles(files.slice(1).map((f: any) => f.path))}>
                         <Trash2 size={13} /> {t('lib.dupDelete')}
                       </button>
                     </div>
                     <div className="mt-2 space-y-1 pl-1">
-                      {d.files.map((f: any, i: number) => (
+                      {files.map((f: any, i: number) => (
                         <div key={i} className="flex items-center gap-2 font-mono text-sm text-ink-dim">
                           <button className="hover:text-neon-cyan" title={t('rt.explorerTip')} onClick={() => api.reveal(f.path).catch(() => {})}><FolderSearch size={13} /></button>
                           <span className="truncate flex-1" title={f.path}>{i === 0 && <span className="text-neon-green">★ </span>}{basename(f.path)}{f.inner_path ? ` › ${f.inner_path}` : ''}</span>
+                          <RegionBadges item={{ region: f.region ?? null, langs: f.langs ?? null, filePath: f.path, innerPath: f.inner_path }} priority={priority} max={3} />
                           {i > 0 && <button className="hover:text-neon-red shrink-0" title={t('lib.delFile')} onClick={() => deleteFiles([f.path])}><Trash2 size={12} /></button>}
                         </div>
                       ))}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>}
         </section>
       )}
@@ -491,11 +543,54 @@ export function LibraryView({ status, profile, onOpenGame, goScan, onFindVersion
         </section>
       )}
 
+      {/* region / language — built from what the collection actually contains */}
+      {facets && (facets.regions.length > 0 || facets.languages.length > 0) && (
+        <section className="panel p-4">
+          <SectionHeader accent="var(--color-neon-purple)" title={t('lib.byRegion')} icon={Languages}>
+            <span className="font-mono text-sm text-ink-dim shrink-0">
+              {priority.length ? t('lib.priorityActive', { list: priority.map(tokenName).join(' › ') }) : t('lib.priorityNone')}
+            </span>
+          </SectionHeader>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setTagFilter('all')} className="btn !py-1 !px-2.5 text-sm"
+              style={tagFilter === 'all' ? { borderColor: 'var(--color-neon-purple)' } : {}}>{t('common.all')}</button>
+            {facets.regions.map((r) => (
+              <button key={r.code} onClick={() => setTagFilter(tagFilter === r.code ? 'all' : r.code)}
+                className="btn !py-1 !px-2.5 text-sm" title={tokenName(r.code)}
+                style={tagFilter === r.code ? { borderColor: 'var(--color-neon-purple)', boxShadow: '0 0 0 1px var(--color-neon-purple)' } : {}}>
+                <span className="font-body">{r.code}</span>
+                <span className="font-mono text-ink-dim">{r.n}</span>
+              </button>
+            ))}
+            {facets.languages.map((l) => {
+              const tok = langToken(l.code);
+              return (
+                <button key={tok} onClick={() => setTagFilter(tagFilter === tok ? 'all' : tok)}
+                  className="btn !py-1 !px-2.5 text-sm" title={tokenName(tok)}
+                  style={tagFilter === tok ? { borderColor: 'var(--color-neon-cyan)', boxShadow: '0 0 0 1px var(--color-neon-cyan)' } : {}}>
+                  <span className="font-body text-ink-mid">{l.code}</span>
+                  <span className="font-mono text-ink-dim">{l.n}</span>
+                </button>
+              );
+            })}
+            {facets.untagged > 0 && (
+              <button onClick={() => setTagFilter(tagFilter === NO_TAGS ? 'all' : NO_TAGS)}
+                className="btn !py-1 !px-2.5 text-sm" title={t('lib.untaggedTip')}
+                style={tagFilter === NO_TAGS ? { borderColor: 'var(--color-neon-amber)' } : {}}>
+                <span className="font-body">{t('lib.untagged')}</span>
+                <span className="font-mono text-ink-dim">{facets.untagged}</span>
+              </button>
+            )}
+          </div>
+          <p className="font-body text-ink-dim text-sm mt-3">{t('lib.regionHint')}</p>
+        </section>
+      )}
+
       {rows.length > 0
         ? ((selectMode || mode === 'card')
             ? <LibraryCards rows={sortedRows.slice(0, 800)} shortById={shortById} onOpenGame={onOpenGame}
-                selectMode={selectMode} selected={selected} toggleSel={toggleSel} rowKey={rowKey} onLaunch={launchRom} />
-            : <ResultsTable items={sortedRows} consoleShortById={shortById} onOpenGame={onOpenGame} onFindVersion={onFindVersion} cap={800} />)
+                selectMode={selectMode} selected={selected} toggleSel={toggleSel} rowKey={rowKey} onLaunch={launchRom} priority={priority} />
+            : <ResultsTable items={sortedRows} consoleShortById={shortById} onOpenGame={onOpenGame} onFindVersion={onFindVersion} cap={800} priority={priority} />)
         : loading
           ? <SkeletonGrid n={6} cols="grid-cols-1" />
           : <div className="panel p-8 font-mono text-ink-dim text-center">{statusFilter === 'match' ? t('lib.noMatchFilter') : t('lib.noEntries')}</div>}
@@ -507,10 +602,10 @@ export function LibraryView({ status, profile, onOpenGame, goScan, onFindVersion
 
 // Card grid for the collection (alternative to the ResultsTable rows). One card
 // per entry; matched entries open the game modal on click.
-function LibraryCards({ rows, shortById, onOpenGame, selectMode, selected, toggleSel, rowKey, onLaunch }: {
+function LibraryCards({ rows, shortById, onOpenGame, selectMode, selected, toggleSel, rowKey, onLaunch, priority = [] }: {
   rows: ScanItem[]; shortById: Map<number, string | undefined>; onOpenGame: (id: number) => void;
   selectMode?: boolean; selected?: Set<string>; toggleSel?: (r: ScanItem) => void; rowKey?: (r: ScanItem) => string;
-  onLaunch?: (r: ScanItem) => void;
+  onLaunch?: (r: ScanItem) => void; priority?: string[];
 }) {
   const { t } = useI18n();
   return (
@@ -535,6 +630,8 @@ function LibraryCards({ rows, shortById, onOpenGame, selectMode, selected, toggl
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 <StatusBadge status={r.status} />
                 {r.consoleId != null && <ConsoleIcon id={r.consoleId} short={shortById.get(r.consoleId)} size={16} />}
+                <RegionBadges item={r} priority={priority} />
+
                 {r.status === 'match' && (
                   <span className="font-mono text-sm flex items-center gap-2">
                     <span className="text-neon-amber inline-flex items-center gap-1"><Trophy size={11} /> {r.matchAchievements ?? 0}</span>

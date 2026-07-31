@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { config, ROOT } from './config.js';
 import { registerRoutes } from './routes.js';
 import { ensureTempDir, sweepTempOnStartup } from './hashing/archive.js';
-import { backfillTitleNorm, applySavedCredentials, applySavedConfig, autoBackup, getSetting } from './db.js';
+import { backfillTitleNorm, backfillLibraryTags, applySavedCredentials, applySavedConfig, autoBackup, getSetting } from './db.js';
 import { initWatch } from './watcher.js';
 import { initScheduler } from './scheduler.js';
 import { initPresence } from './presence.js';
@@ -21,6 +21,9 @@ async function main() {
   applySavedConfig();
   try { const b = autoBackup(); if (!b.skipped) console.log(`[db] startup backup -> ${b.file}`); } catch (e) { console.warn('[db] backup failed:', e.message); }
   try { const n = backfillTitleNorm(); if (n) console.log(`[db] backfilled title_norm for ${n} games`); } catch (e) { console.warn('[db] backfill failed:', e.message); }
+  // Region/language tags for collections scanned before the feature existed —
+  // pure filename parsing, so no re-scan and no file access is needed.
+  try { const n = backfillLibraryTags(); if (n) console.log(`[db] parsed region/language tags for ${n} collection entries`); } catch (e) { console.warn('[db] tag backfill failed:', e.message); }
 
   const app = Fastify({
     logger: { level: process.env.LOG_LEVEL || 'info', transport: undefined },

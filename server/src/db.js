@@ -3,6 +3,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, readdirSync, statSync, unlinkSync, existsSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { parseRomTags, packTags } from 'ra-core/region.js';
 import { config } from './config.js';
 
 export const db = new DatabaseSync(config.dbPath);
@@ -168,6 +169,12 @@ addColumn('library', 'crc TEXT');     // raw file CRC32 (lowercase hex) for DAT 
 // md5 — so the DAT raw-file hashes live in their own columns.
 addColumn('library', 'raw_md5 TEXT');  // raw file md5 — fallback match for DATs that carry no CRC
 addColumn('library', 'raw_sha1 TEXT'); // raw file sha1 — Redump CHD / MAME <disk> carry only this
+// Region/language parsed out of the filename (No-Intro/GoodTools/TOSEC tags).
+// Comma-joined codes; '' means "parsed, nothing found", NULL means "not parsed
+// yet" — which is what backfillLibraryTags() looks for after an upgrade.
+addColumn('library', 'region TEXT');
+addColumn('library', 'langs TEXT');
+db.exec('CREATE INDEX IF NOT EXISTS idx_library_region ON library(region)');
 
 // ---- DAT completeness (No-Intro/Redump/logiqx catalogs) -------------------
 // Imported DAT files + their ROM entries. Matching is by raw-file CRC32 (what
@@ -573,14 +580,23 @@ export function totalGameCount() {
 
 // ---- persistent library (collection) --------------------------------------
 const upsertLibraryStmt = db.prepare(`
-  INSERT INTO library(path, inner_path, size, mtime, ext, console_id, md5, status, match_game_id, scanned_at, message)
-  VALUES(@path, @inner_path, @size, @mtime, @ext, @console_id, @md5, @status, @match_game_id, @scanned_at, @message)
+  INSERT INTO library(path, inner_path, size, mtime, ext, console_id, md5, status, match_game_id, scanned_at, message, region, langs)
+  VALUES(@path, @inner_path, @size, @mtime, @ext, @console_id, @md5, @status, @match_game_id, @scanned_at, @message, @region, @langs)
   ON CONFLICT(path, inner_path) DO UPDATE SET
     size = excluded.size, mtime = excluded.mtime, ext = excluded.ext,
     console_id = excluded.console_id, md5 = excluded.md5, status = excluded.status,
-    match_game_id = excluded.match_game_id, scanned_at = excluded.scanned_at, message = excluded.message
+    match_game_id = excluded.match_game_id, scanned_at = excluded.scanned_at, message = excluded.message,
+    region = excluded.region, langs = excluded.langs
 `);
+
+// The region/language tags describe the ROM, so an archive member is judged by
+// its own entry name — "pack.zip" says nothing, "Sonic (Japan).md" does.
+export function tagsForLibraryRow(path, innerPath) {
+  return packTags(parseRomTags(innerPath || path || ''));
+}
+
 export function upsertLibraryItem(row) {
+  const tags = tagsForLibraryRow(row.path, row.inner_path);
   upsertLibraryStmt.run({
     path: row.path,
     inner_path: row.inner_path ?? '',
@@ -593,7 +609,30 @@ export function upsertLibraryItem(row) {
     match_game_id: row.match_game_id ?? null,
     scanned_at: row.scanned_at ?? Date.now(),
     message: row.message ?? null,
+    region: tags.region,
+    langs: tags.langs,
   });
+}
+
+// Fill in region/langs for rows written before this feature existed. Pure string
+// work over filenames we already have, so it is cheap enough to run at boot —
+// but only for rows that were never parsed (region IS NULL).
+export function backfillLibraryTags({ limit = 200000 } = {}) {
+  const rows = db.prepare('SELECT path, inner_path FROM library WHERE region IS NULL LIMIT ?').all(limit);
+  if (!rows.length) return 0;
+  const upd = db.prepare('UPDATE library SET region = ?, langs = ? WHERE path = ? AND inner_path = ?');
+  db.exec('BEGIN');
+  try {
+    for (const r of rows) {
+      const tags = tagsForLibraryRow(r.path, r.inner_path);
+      upd.run(tags.region, tags.langs, r.path, r.inner_path);
+    }
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+  return rows.length;
 }
 const getLibraryItemStmt = db.prepare('SELECT * FROM library WHERE path = ? AND inner_path = ?');
 export function getLibraryItem(path, inner = '') { return getLibraryItemStmt.get(path, inner); }
@@ -609,7 +648,19 @@ export function libraryArchiveUnchanged(path, mtime) {
   return !!archiveUnchangedStmt.get(path, Math.round(mtime));
 }
 
-export function getLibrary({ status, console_id, q, limit = 1000, offset = 0 } = {}) {
+// A priority token ("JP" or "L:ja") against the comma-joined columns. The
+// sentinel 'NONE' selects rows whose filename carried no tags at all — those are
+// exactly the ones a region filter would otherwise hide without explanation.
+const NO_TAGS = 'NONE';
+function tagFilterSql(token) {
+  if (token === NO_TAGS) return { sql: " AND COALESCE(l.region,'') = '' AND COALESCE(l.langs,'') = ''", params: [] };
+  if (String(token).startsWith('L:')) {
+    return { sql: " AND (',' || COALESCE(l.langs,'') || ',') LIKE ?", params: [`%,${String(token).slice(2)},%`] };
+  }
+  return { sql: " AND (',' || COALESCE(l.region,'') || ',') LIKE ?", params: [`%,${token},%`] };
+}
+
+export function getLibrary({ status, console_id, q, tag, limit = 1000, offset = 0 } = {}) {
   let sql = `
     SELECT l.*, g.title AS match_title, g.image_icon AS match_image,
            g.num_achievements AS match_achievements, g.points AS match_points,
@@ -622,9 +673,35 @@ export function getLibrary({ status, console_id, q, limit = 1000, offset = 0 } =
   if (status) { sql += ' AND l.status = ?'; params.push(status); }
   if (console_id != null) { sql += ' AND l.console_id = ?'; params.push(console_id); }
   if (q) { sql += ' AND (l.path LIKE ? OR l.inner_path LIKE ? OR g.title LIKE ?)'; const like = `%${q}%`; params.push(like, like, like); }
+  if (tag) { const f = tagFilterSql(tag); sql += f.sql; params.push(...f.params); }
   sql += ' ORDER BY l.scanned_at DESC LIMIT ? OFFSET ?';
   params.push(limit, offset);
   return db.prepare(sql).all(...params);
+}
+
+// Which region/language tokens actually occur in the collection, with counts —
+// the filter chips are built from this, so nobody is offered a region they don't
+// own. Honours the same status/system filters as the list itself.
+export function libraryTagFacets({ status, console_id } = {}) {
+  let sql = "SELECT COALESCE(region,'') AS region, COALESCE(langs,'') AS langs, COUNT(*) AS n FROM library WHERE 1=1";
+  const params = [];
+  if (status) { sql += ' AND status = ?'; params.push(status); }
+  if (console_id != null) { sql += ' AND console_id = ?'; params.push(console_id); }
+  sql += ' GROUP BY region, langs';
+
+  const regions = new Map();
+  const languages = new Map();
+  let untagged = 0;
+  for (const row of db.prepare(sql).all(...params)) {
+    const n = row.n;
+    const rs = row.region ? row.region.split(',').filter(Boolean) : [];
+    const ls = row.langs ? row.langs.split(',').filter(Boolean) : [];
+    if (!rs.length && !ls.length) untagged += n;
+    for (const r of rs) regions.set(r, (regions.get(r) ?? 0) + n);
+    for (const l of ls) languages.set(l, (languages.get(l) ?? 0) + n);
+  }
+  const sort = (m) => [...m.entries()].map(([code, n]) => ({ code, n })).sort((a, b) => b.n - a.n || a.code.localeCompare(b.code));
+  return { regions: sort(regions), languages: sort(languages), untagged };
 }
 export function libraryStats() {
   const byStatus = db.prepare('SELECT status, COUNT(*) AS n FROM library GROUP BY status').all();
@@ -987,7 +1064,7 @@ export function getDuplicates() {
     ORDER BY copies DESC, g.title`).all();
 }
 export function getDuplicateFiles(gameId) {
-  return db.prepare(`SELECT path, inner_path, size, md5 FROM library WHERE match_game_id = ? AND status='match' ORDER BY path`).all(gameId);
+  return db.prepare(`SELECT path, inner_path, size, md5, region, langs FROM library WHERE match_game_id = ? AND status='match' ORDER BY path`).all(gameId);
 }
 
 // Every RA game id the collection hash-matches, as a Set — the cheap way to

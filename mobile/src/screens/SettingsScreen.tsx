@@ -11,6 +11,7 @@ import { useI18n, Lang } from '../i18n';
 import { APP_VERSION, REPO_URL, DOCS_URL, RA_KEY_URL } from '../version';
 import { checkUpdate, downloadAndInstall, autoCheckEnabled, setAutoCheck, UpdateInfo } from '../update';
 import { ChangelogModal } from './ChangelogModal';
+import { RegionPriorityPanel } from '../components/RegionPriorityPanel';
 
 const DESKTOP_URL = `${REPO_URL}/releases`;
 
@@ -156,6 +157,8 @@ export function SettingsScreen({ onConnected }: { onConnected: () => void }) {
           })}
         </View>
       </Panel>
+
+      <RegionPriorityPanel />
 
       <Panel style={{ marginTop: space.lg }}>
         <SectionHeader title={t('set.data')} color={colors.green} />
