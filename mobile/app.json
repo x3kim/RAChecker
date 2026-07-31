@@ -2,6 +2,7 @@
   "expo": {
     "name": "RAChecker",
     "slug": "rachecker",
+    "owner": "x3kim",
     "version": "0.6.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -27,7 +28,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "b7b1a3b5-50cf-45a2-bce0-24f8baab51ce"
+        "projectId": "a7ee3ee5-82bd-4155-9c1e-f14161db3797"
       }
     }
   }
