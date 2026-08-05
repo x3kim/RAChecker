@@ -19,8 +19,8 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/desktop-0.13-22e0ff" alt="Desktop version">
-  <img src="https://img.shields.io/badge/android-0.6-39ff8b" alt="Android version">
+  <img src="https://img.shields.io/badge/desktop-0.14-22e0ff" alt="Desktop version">
+  <img src="https://img.shields.io/badge/android-0.7-39ff8b" alt="Android version">
   <img src="https://img.shields.io/badge/node-22.5%2B-ffb648" alt="Node 22.5+">
   <img src="https://img.shields.io/badge/license-MIT-9d6bff" alt="MIT license">
   <img src="https://img.shields.io/badge/data-%C2%A9%20retroachievements.org-666" alt="Data © retroachievements.org">
@@ -42,7 +42,7 @@
 >   for large libraries.
 > - **Sync your disc systems.** Disc images can only match if you selected and synced those systems in the
 >   **Hash DB** tab.
-> - **Not everything is supported yet:** RAR archives, GameCube/Wii, CSO/RVZ/GCZ/GDI, split CUE/BIN and M3U,
+> - **Not everything is supported yet:** RAR archives, GameCube/Wii, RVZ/GCZ/GDI, split CUE/BIN and M3U,
 >   and CHDs whose data is FLAC-compressed. Those still need the desktop app.
 >
 > Bug reports are very welcome — please open an [issue](https://github.com/x3kim/RAChecker/issues).
@@ -71,7 +71,7 @@
 | **Best for** | Scanning a whole ROM library | Checking ROMs on your phone |
 | **Needs** | Node 22.5+, or the packaged installer | Nothing — standalone APK |
 | **Cartridge ROMs** | ✅ | ✅ |
-| **Disc images** | ✅ all formats (via RAHasher) | ✅ CHD, ISO, PBP — hashed on the phone |
+| **Disc images** | ✅ all formats (via RAHasher) | ✅ CHD, ISO, CSO/ZSO, PBP — hashed on the phone |
 | **Archives** | ✅ ZIP, 7z, RAR | ✅ ZIP, 7z |
 | **DAT completeness check** | ✅ | — |
 | **Launch in emulator** | ✅ | — |
@@ -223,7 +223,7 @@ A **standalone** app — no PC, no server, no network beyond the one-time hash s
 **Install:** grab the newest `RAChecker-*.apk` from the [Releases page](https://github.com/x3kim/RAChecker/releases)
 (Android tags look like `android-vX.Y.Z`) and allow "install from unknown sources" — the APK is unsigned.
 
-**Still desktop-only:** RAR archives, the remaining disc containers (GameCube/Wii, CSO, RVZ, GCZ, GDI, split CUE/BIN, M3U),
+**Still desktop-only:** RAR archives, the remaining disc containers (GameCube/Wii, RVZ, GCZ, GDI, split CUE/BIN, M3U),
 DAT checks and launching emulators.
 
 <details>
@@ -332,3 +332,15 @@ identically) and verified end-to-end against the official RAHasher.
 
 Setup, tests and conventions: [CONTRIBUTING.md](CONTRIBUTING.md).
 Code is [MIT](LICENSE); game data, hashes and images remain © retroachievements.org.
+
+## Stars
+
+<a href="https://www.star-history.com/#x3kim/RAChecker&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=x3kim/RAChecker&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=x3kim/RAChecker&type=Date" />
+    <img alt="Star history of x3kim/RAChecker" src="https://api.star-history.com/svg?repos=x3kim/RAChecker&type=Date" />
+  </picture>
+</a>
+
+Thanks to everyone who starred it — it is a small project and every one of them is noticed.

@@ -31,6 +31,33 @@ export async function setFolder(uri: string): Promise<void> { await AsyncStorage
 const K_SYSTEMS = 'ra_systems';   // JSON number[] of console ids to sync, or absent = all
 const K_ONBOARDED = 'ra_onboarded';
 
+// Which tab the app opens on, and whether a remembered folder is re-scanned at
+// launch. Both default to "no surprises": the profile opens first and a scan
+// only ever starts when you ask for one — a scan reads every file in the folder,
+// which costs time and battery and should not happen unannounced.
+const K_START_TAB = 'ra_start_tab';
+const K_AUTOSCAN = 'ra_autoscan';
+
+export type StartTab = 'profile' | 'scan' | 'games' | 'discover' | 'sync' | 'settings';
+const START_TABS: StartTab[] = ['profile', 'scan', 'games', 'discover', 'sync', 'settings'];
+export const DEFAULT_START_TAB: StartTab = 'profile';
+
+export async function getStartTab(): Promise<StartTab> {
+  const v = await AsyncStorage.getItem(K_START_TAB);
+  return START_TABS.includes(v as StartTab) ? (v as StartTab) : DEFAULT_START_TAB;
+}
+export async function setStartTab(tab: StartTab): Promise<void> {
+  await AsyncStorage.setItem(K_START_TAB, tab);
+}
+
+export async function getAutoScan(): Promise<boolean> {
+  return (await AsyncStorage.getItem(K_AUTOSCAN)) === '1';
+}
+export async function setAutoScan(on: boolean): Promise<void> {
+  if (on) await AsyncStorage.setItem(K_AUTOSCAN, '1');
+  else await AsyncStorage.removeItem(K_AUTOSCAN);
+}
+
 export async function getSelectedConsoles(): Promise<number[] | null> {
   const raw = await AsyncStorage.getItem(K_SYSTEMS);
   if (!raw) return null;

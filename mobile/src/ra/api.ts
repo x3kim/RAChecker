@@ -47,6 +47,8 @@ export function getGameList(c: Creds, consoleId: number): Promise<RAGame[]> {
 export type RAAchievement = {
   ID: number; Title: string; Description: string; Points: number;
   BadgeName?: string; DateEarned?: string; DateEarnedHardcore?: string; DisplayOrder?: number;
+  // "missable" | "progression" | "win_condition", or absent for untyped ones.
+  Type?: string | null;
 };
 export type RAGameInfo = {
   Title: string; ConsoleID?: number; ConsoleName?: string;

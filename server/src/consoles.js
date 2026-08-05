@@ -31,7 +31,7 @@ export const CONSOLES = [
   { id: 17, short: 'jag',   name: 'Atari Jaguar',              method: 'file',     headerRule: null,      exts: ['.j64', '.jag', '.rom', '.abs', '.cof'] },
   { id: 18, short: 'ds',    name: 'Nintendo DS',               method: 'rahasher', headerRule: null,      exts: ['.nds', '.srl', '.ids'] },
   { id: 19, short: 'wii',   name: 'Wii',                       method: 'rahasher', headerRule: null,      exts: ['.iso', '.rvz', '.wbfs', '.wad'] },
-  { id: 21, short: 'ps2',   name: 'PlayStation 2',             method: 'rahasher', headerRule: null,      exts: ['.iso', '.chd', '.cue', '.bin', '.m3u'] },
+  { id: 21, short: 'ps2',   name: 'PlayStation 2',             method: 'rahasher', headerRule: null,      exts: ['.iso', '.chd', '.cue', '.bin', '.m3u', '.cso'] },
   { id: 23, short: 'mo2',   name: 'Magnavox Odyssey 2',        method: 'file',     headerRule: null,      exts: ['.bin'] },
   { id: 24, short: 'mini',  name: 'Pokemon Mini',              method: 'file',     headerRule: null,      exts: ['.min'] },
   { id: 25, short: '2600',  name: 'Atari 2600',                method: 'file',     headerRule: null,      exts: ['.a26', '.bin'] },
@@ -43,7 +43,7 @@ export const CONSOLES = [
   { id: 38, short: 'a2',    name: 'Apple II',                  method: 'rahasher', headerRule: null,      exts: ['.dsk', '.nib', '.woz', '.po', '.do', '.2mg'] },
   { id: 39, short: 'sat',   name: 'Saturn',                    method: 'rahasher', headerRule: null,      exts: ['.cue', '.chd', '.iso', '.m3u', '.ccd'] },
   { id: 40, short: 'dc',    name: 'Dreamcast',                 method: 'rahasher', headerRule: null,      exts: ['.gdi', '.chd', '.cue', '.cdi', '.m3u'] },
-  { id: 41, short: 'psp',   name: 'PlayStation Portable',      method: 'rahasher', headerRule: null,      exts: ['.iso', '.cso', '.pbp', '.chd'] },
+  { id: 41, short: 'psp',   name: 'PlayStation Portable',      method: 'rahasher', headerRule: null,      exts: ['.iso', '.cso', '.zso', '.ciso', '.pbp', '.chd'] },
   { id: 43, short: '3do',   name: '3DO Interactive Multiplayer', method: 'rahasher', headerRule: null,    exts: ['.cue', '.iso', '.chd', '.m3u'] },
   { id: 44, short: 'cv',    name: 'ColecoVision',              method: 'file',     headerRule: null,      exts: ['.col', '.cv', '.bin', '.rom'] },
   { id: 45, short: 'intv',  name: 'Intellivision',             method: 'file',     headerRule: null,      exts: ['.int', '.itv', '.bin', '.rom'] },
@@ -151,7 +151,7 @@ export const EXT_TO_CONSOLES = (() => {
 
 export const ARCHIVE_EXTS = new Set(['.zip', '.7z', '.rar', '.gz', '.tar', '.tgz']);
 // Disc/playlist containers that should go straight to RAHasher, never extracted.
-export const DISC_EXTS = new Set(['.cue', '.bin', '.iso', '.chd', '.pbp', '.m3u', '.gdi', '.cdi', '.toc', '.ccd', '.img', '.rvz', '.cso', '.wbfs', '.gcm', '.gcz', '.ciso', '.nrg']);
+export const DISC_EXTS = new Set(['.cue', '.bin', '.iso', '.chd', '.pbp', '.m3u', '.gdi', '.cdi', '.toc', '.ccd', '.img', '.rvz', '.cso', '.zso', '.wbfs', '.gcm', '.gcz', '.ciso', '.nrg']);
 
 export function consoleMethod(id) {
   return CONSOLE_BY_ID.get(id)?.method ?? 'unknown';

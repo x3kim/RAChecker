@@ -145,7 +145,10 @@ async function buildGameDetail(id, { force = false } = {}) {
   const ttlMs = getCacheTtls().gameDetailDays * 24 * 60 * 60 * 1000;
   if (!force) {
     const cached = getApiCache(`game:${id}`, ttlMs || null);
-    if (cached) return { ...cached.value, _cachedAt: cached.cachedAt };
+    // Entries cached before 0.14.0 carry neither the point total nor the
+    // achievement types, so they are rebuilt rather than served incomplete —
+    // otherwise the filters would silently be missing for every cached game.
+    if (cached && cached.value?.totalPoints != null) return { ...cached.value, _cachedAt: cached.cachedAt };
   }
   const ext = await getGameExtended(id);
   const hashes = await enrichGameHashes(id).catch(() => []);
@@ -155,13 +158,22 @@ async function buildGameDetail(id, { force = false } = {}) {
       id: a.ID,
       title: a.Title,
       description: a.Description,
-      points: a.Points,
+      points: a.Points ?? 0,
+      trueRatio: a.TrueRatio ?? null,
+      // "missable" | "progression" | "win_condition" | null. The field is
+      // lowercase in API_GetGameExtended and capitalised in the user-progress
+      // endpoint, so both spellings are accepted.
+      type: a.type ?? a.Type ?? null,
       badgeUrl: a.BadgeName ? `https://media.retroachievements.org/Badge/${a.BadgeName}.png` : null,
       displayOrder: a.DisplayOrder ?? 0,
     }))
     .sort((x, y) => x.displayOrder - y.displayOrder);
+  // RetroAchievements does not return a point total for a game — neither here
+  // nor in the user-progress endpoint — so it is summed from the set itself.
+  const totalPoints = achievements.reduce((sum, a) => sum + (Number(a.points) || 0), 0);
   const out = {
     ...ext,
+    totalPoints,
     ImageIconURL: mediaUrl(ext.ImageIcon),
     ImageBoxArtURL: mediaUrl(ext.ImageBoxArt),
     ImageTitleURL: mediaUrl(ext.ImageTitle),
@@ -1049,9 +1061,16 @@ export async function registerRoutes(app) {
     try {
       const d = await getGameInfoAndUserProgress(config.raUsername, Number(req.params.id));
       const earned = {};
+      // The API states no point totals, so they are summed from the set: the
+      // full value of the set and what this account has actually earned.
+      let totalPoints = 0, points = 0, pointsHardcore = 0;
       for (const a of Object.values(d.Achievements || {})) {
+        const value = Number(a.Points) || 0;
+        totalPoints += value;
         if (a.DateEarned || a.DateEarnedHardcore) {
           earned[a.ID] = { date: a.DateEarnedHardcore || a.DateEarned, hardcore: !!a.DateEarnedHardcore };
+          points += value;
+          if (a.DateEarnedHardcore) pointsHardcore += value;
         }
       }
       return {
@@ -1059,6 +1078,9 @@ export async function registerRoutes(app) {
         numAwardedHardcore: d.NumAwardedToUserHardcore ?? 0,
         total: d.NumAchievements ?? 0,
         completion: d.UserCompletion ?? null,
+        totalPoints,
+        points,
+        pointsHardcore,
         earned,
       };
     } catch (e) { return { error: String(e.message) }; }

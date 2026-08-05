@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, Modal, Pressable, ActivityIndicator, Platform, StatusBar as RNStatusBar } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
@@ -14,12 +14,25 @@ import { useI18n } from '../i18n';
 const TOP = Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 24) : 0;
 const TTL = 6 * 60 * 60 * 1000; // 6h
 
+// RetroAchievements tags achievements as missable / progression / win_condition
+// (everything else is untyped) — the same filters its own game pages offer.
+type AchFilter = 'all' | 'missable' | 'progression' | 'win_condition' | 'earned' | 'unearned';
+const ACH_FILTERS: { key: AchFilter; labelKey: string }[] = [
+  { key: 'all', labelKey: 'gd.filter.all' },
+  { key: 'missable', labelKey: 'gd.filter.missable' },
+  { key: 'progression', labelKey: 'gd.filter.progression' },
+  { key: 'win_condition', labelKey: 'gd.filter.win' },
+  { key: 'earned', labelKey: 'gd.filter.earned' },
+  { key: 'unearned', labelKey: 'gd.filter.unearned' },
+];
+
 export function GameDetail({ game, onClose }: { game: MatchGame; onClose: () => void }) {
   const { t } = useI18n();
   const [info, setInfo] = useState<RAGameInfo | null>(null);
   const [lbs, setLbs] = useState<{ lb: Leaderboard; rank?: number; score?: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [achFilter, setAchFilter] = useState<AchFilter>('all');
 
   useEffect(() => {
     (async () => {
@@ -49,13 +62,44 @@ export function GameDetail({ game, onClose }: { game: MatchGame; onClose: () => 
     })();
   }, [game.id, t]);
 
-  const achievements: RAAchievement[] = info?.Achievements
+  const achievements: RAAchievement[] = useMemo(() => (info?.Achievements
     ? Object.values(info.Achievements).sort((a, b) => (a.DisplayOrder ?? 0) - (b.DisplayOrder ?? 0))
-    : [];
+    : []), [info]);
   const box = mediaUrl(info?.ImageBoxArt) || mediaUrl(game.image_icon);
   const total = info?.NumAchievements ?? game.num_achievements;
   const earned = info?.NumAwardedToUser ?? 0;
   const pct = total ? Math.round((earned / total) * 100) : 0;
+  const gotOne = (a: RAAchievement) => !!(a.DateEarned || a.DateEarnedHardcore);
+
+  // RetroAchievements states no point total for a game, so both the value of the
+  // set and what you have earned are summed from the achievements themselves —
+  // the game header used to read "0 pts" for that reason.
+  const { setPoints, earnedPoints } = useMemo(() => {
+    let all = 0, mine = 0;
+    for (const a of achievements) {
+      const value = Number(a.Points) || 0;
+      all += value;
+      if (gotOne(a)) mine += value;
+    }
+    return { setPoints: all || game.points, earnedPoints: mine };
+  }, [achievements, game.points]);
+
+  const achCounts = useMemo(() => {
+    const c: Record<AchFilter, number> = { all: achievements.length, missable: 0, progression: 0, win_condition: 0, earned: 0, unearned: 0 };
+    for (const a of achievements) {
+      if (a.Type === 'missable') c.missable++;
+      else if (a.Type === 'progression') c.progression++;
+      else if (a.Type === 'win_condition') c.win_condition++;
+      if (gotOne(a)) c.earned++; else c.unearned++;
+    }
+    return c;
+  }, [achievements]);
+  const shownAchievements = useMemo(() => {
+    if (achFilter === 'all') return achievements;
+    if (achFilter === 'earned') return achievements.filter(gotOne);
+    if (achFilter === 'unearned') return achievements.filter((a) => !gotOne(a));
+    return achievements.filter((a) => a.Type === achFilter);
+  }, [achievements, achFilter]);
 
   return (
     <Modal visible animationType="slide" onRequestClose={onClose} statusBarTranslucent>
@@ -71,7 +115,10 @@ export function GameDetail({ game, onClose }: { game: MatchGame; onClose: () => 
             <View style={{ flex: 1 }}>
               <Display size={14} color={colors.inkHi}>{info?.Title || game.title}</Display>
               <Body size={12} color={colors.inkMid} style={{ marginTop: 4 }}>{info?.ConsoleName || consoleName(game.console_id) || ''}</Body>
-              <Body size={12} color={colors.inkDim} style={{ marginTop: 2 }}>{total} {t('common.achievements')} · {info?.Points ?? game.points} {t('common.pts')}</Body>
+              <Body size={12} color={colors.inkDim} style={{ marginTop: 2 }}>
+                {total} {t('common.achievements')}
+                {setPoints > 0 ? ` · ${info ? t('gd.pointsOf', { n: earnedPoints, total: setPoints }) : t('gd.pointsN', { n: setPoints })}` : ''}
+              </Body>
             </View>
           </View>
 
@@ -85,16 +132,38 @@ export function GameDetail({ game, onClose }: { game: MatchGame; onClose: () => 
           {loading && <View style={{ paddingVertical: space.xl }}><ActivityIndicator color={colors.cyan} /></View>}
           {error && <Body size={13} color={colors.amber} style={{ marginTop: space.md }}>{error}</Body>}
 
-          <View style={{ gap: space.sm, marginTop: space.lg }}>
-            {achievements.map((a) => {
-              const got = !!(a.DateEarned || a.DateEarnedHardcore);
+          {achievements.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: space.lg }} contentContainerStyle={styles.chipRow}>
+              {ACH_FILTERS.map((f) => {
+                const n = achCounts[f.key];
+                if (f.key !== 'all' && !n) return null;
+                const on = achFilter === f.key;
+                return (
+                  <Pressable key={f.key} onPress={() => setAchFilter(f.key)} style={[styles.chip, on && { borderColor: colors.amber }]}>
+                    <Body size={12} color={on ? colors.amber : colors.inkMid}>{t(f.labelKey)}</Body>
+                    <Mono size={13} color={colors.inkDim}>{n}</Mono>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
+
+          <View style={{ gap: space.sm, marginTop: space.md }}>
+            {shownAchievements.map((a) => {
+              const got = gotOne(a);
               const badge = badgeUrl(a.BadgeName, !got);
+              const typeColor = a.Type === 'missable' ? colors.red : a.Type === 'progression' ? colors.cyan : colors.green;
               return (
                 <View key={a.ID} style={[styles.ach, got && { borderColor: colors.green }]}>
                   {badge ? <Image source={{ uri: badge }} style={[styles.badge, !got && { opacity: 0.55 }]} contentFit="cover" /> : <View style={styles.badge} />}
                   <View style={{ flex: 1 }}>
                     <Body size={13} color={got ? colors.inkHi : colors.inkMid} weight="semibold" numberOfLines={1}>{a.Title}</Body>
                     <Body size={12} color={colors.inkDim} numberOfLines={2}>{a.Description}</Body>
+                    {a.Type ? (
+                      <Body size={11} color={typeColor} style={{ marginTop: 2 }}>
+                        {t(`gd.filter.${a.Type === 'win_condition' ? 'win' : a.Type}`)}
+                      </Body>
+                    ) : null}
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
                     <Mono size={16} color={got ? colors.green : colors.inkDim}>{a.Points}</Mono>
@@ -103,6 +172,9 @@ export function GameDetail({ game, onClose }: { game: MatchGame; onClose: () => 
                 </View>
               );
             })}
+            {achievements.length > 0 && shownAchievements.length === 0 && (
+              <Body size={12} color={colors.inkDim} style={{ textAlign: 'center' }}>{t('gd.filter.none')}</Body>
+            )}
           </View>
 
           {lbs.length > 0 && (
@@ -141,6 +213,12 @@ const styles = StyleSheet.create({
   progress: { marginTop: space.lg },
   track: { height: 8, backgroundColor: colors.surface, borderRadius: 4, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
   fill: { height: '100%', backgroundColor: colors.green },
+  chipRow: { gap: space.sm, paddingRight: space.sm },
+  chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    borderWidth: 1, borderColor: colors.line, borderRadius: radius.md,
+    paddingHorizontal: space.sm, paddingVertical: 4, backgroundColor: colors.panel,
+  },
   ach: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: colors.panel, borderColor: colors.line, borderWidth: 1, borderRadius: radius.md, padding: space.sm },
   badge: { width: 44, height: 44, borderRadius: radius.sm, backgroundColor: colors.surface },
   lb: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: colors.panel, borderColor: colors.line, borderWidth: 1, borderRadius: radius.md, padding: space.sm },

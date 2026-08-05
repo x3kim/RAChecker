@@ -4,6 +4,7 @@
 import { RandomReader } from './reader';
 import { ChdCdReader, BinCdReader, DISC_RULES } from './rules';
 import { ChdError } from './chd';
+import { openCsoReader, CSO_EXTS } from './cso';
 import { md5Create } from '../md5';
 
 export type DiscHashResult = { md5: string; consoleId: number; system: string };
@@ -14,8 +15,9 @@ function extOf(name: string): string {
 }
 
 // Extensions we hash on-device. `.chd` (self-contained, all systems) is the main
-// path; `.iso` covers single-track data discs; `.pbp` is a whole-file PSP hash.
-export const HASHABLE_DISC_EXTS = new Set(['.chd', '.iso', '.pbp']);
+// path; `.iso` covers single-track data discs; `.pbp` is a whole-file PSP hash;
+// `.cso`/`.zso` are compressed ISOs, decompressed block by block as they are read.
+export const HASHABLE_DISC_EXTS = new Set(['.chd', '.iso', '.pbp', '.cso', '.zso', '.ciso']);
 
 async function wholeFileMd5(reader: RandomReader): Promise<string> {
   const md5 = md5Create();
@@ -34,7 +36,16 @@ export async function hashDisc(reader: RandomReader, name: string): Promise<Disc
   // PSP .pbp: hash the whole file (rc_hash_psp pbp path).
   if (ext === '.pbp') return { md5: await wholeFileMd5(reader), consoleId: 41, system: 'PSP' };
 
-  const cd = ext === '.chd' ? await ChdCdReader.open(reader) : await BinCdReader.open(reader);
+  // A compressed ISO is read through a wrapper that expands only the blocks the
+  // rules actually touch — from there it is an ordinary single-track image.
+  let source = reader;
+  if (CSO_EXTS.has(ext)) {
+    const expanded = await openCsoReader(reader);
+    if (!expanded) return null;   // ".ciso" from GameCube, or not a CSO at all
+    source = expanded;
+  }
+
+  const cd = ext === '.chd' ? await ChdCdReader.open(source) : await BinCdReader.open(source);
   if (!cd) return null;
 
   // A rule that throws usually just means "this isn't that system" — but a

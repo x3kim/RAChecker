@@ -167,12 +167,12 @@ ROM darin) und zeigt das Ergebnis sofort, ohne den kompletten Ordner zu scannen.
 
 Es gibt auch eine eigenständige **Android-App** (APK auf der
 [Releases-Seite](https://github.com/x3kim/RAChecker/releases), Tags `android-vX.Y.Z`).
-Sie hasht **Cartridge-ROMs und Disc-Images** (CHD, ISO, PBP) direkt auf dem Gerät,
+Sie hasht **Cartridge-ROMs und Disc-Images** (CHD, ISO, CSO/ZSO, PBP) direkt auf dem Gerät,
 entpackt **ZIP- und 7z-Archive** selbst, synchronisiert die RetroAchievements-Hash-Liste
 on-device und gleicht offline ab — mit DE/EN, Profil (Sammlung & Insights),
 Spiele-Browser nach Systemen und Entdecken.
 
-**Nur am Desktop:** RAR-Archive, die übrigen Disc-Container (GameCube/Wii, CSO, RVZ, GCZ,
+**Nur am Desktop:** RAR-Archive, die übrigen Disc-Container (GameCube/Wii, RVZ, GCZ,
 GDI, geteilte CUE/BIN, M3U), DAT-Abgleich und das Starten von Emulatoren.
 
 > Damit Disc-Images treffen können, müssen im Tab **Hash-DB** auch die Disc-Systeme

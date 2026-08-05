@@ -222,7 +222,6 @@ export function App() {
             <a href={ANDROID_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-neon-green transition-colors" title={t('nav.android')}>
               <Smartphone size={14} /> {t('nav.android')}
             </a>
-            · {t('footer.local')} · {t('footer.hashes', { n: (status?.totals.hashes ?? 0).toLocaleString('de-DE') })}
           </span>
           <span className="text-ink-dim">{t('footer.tip')}</span>
         </footer>

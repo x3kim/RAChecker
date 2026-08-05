@@ -1,6 +1,6 @@
 // Single source of truth for the app version + changelog. The footer version
 // chip opens a modal rendering CHANGELOG; package.json is kept in sync manually.
-export const APP_VERSION = '0.13.0';
+export const APP_VERSION = '0.14.0';
 
 // GitHub repository — linked from the header (GitHub icon in the "More" menu).
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
@@ -15,6 +15,18 @@ export interface Release { version: string; date: string; title?: { de: string; 
 
 // Newest first. Dates are ISO (YYYY-MM-DD).
 export const CHANGELOG: Release[] = [
+  {
+    version: '0.14.0',
+    date: '2026-08-06',
+    title: { de: 'CSO-Images, richtige Punkte, Erfolgs-Filter', en: 'CSO images, correct points, achievement filters' },
+    changes: [
+      { type: 'feature', de: 'Komprimierte Disc-Images (.cso/.zso, verbreitet bei PSP und PS2) werden jetzt gehasht. RAHasher kann sie nicht öffnen und meldete „Could not open track" — RAChecker packt sie dafür kurz in eine echte ISO aus und räumt sie danach wieder weg. Der Hash ist derselbe wie beim unkomprimierten Image (gegen die RetroAchievements-Hashliste geprüft).', en: 'Compressed disc images (.cso/.zso, common for PSP and PS2) are hashed now. RAHasher cannot open them and reported "Could not open track" — RAChecker expands them into a real ISO for the moment it takes to hash, then removes it again. The hash is the same one the uncompressed image produces (verified against the RetroAchievements hash list).' },
+      { type: 'fix', de: 'Die Punkte eines Spiels stimmen. RetroAchievements liefert für ein Spiel gar keine Punktsumme, weshalb im Spiel-Fenster „0" stehen konnte, obwohl einzelne Erfolge Punkte zeigten. Der Wert wird jetzt aus dem Erfolgs-Satz gerechnet und zusammen mit deinem eigenen Stand angezeigt („3 von 514 Punkten").', en: 'A game\'s points are right. RetroAchievements returns no point total for a game at all, which is why the game window could read "0" while individual achievements showed points. The value is now summed from the achievement set and shown together with your own standing ("3 of 514 points").' },
+      { type: 'feature', de: 'Die Erfolgsliste lässt sich filtern — wie auf der RetroAchievements-Seite: verpassbar, Fortschritt, Abschluss, erhalten, offen. Verpassbare Erfolge sind außerdem in der Liste markiert.', en: 'The achievement list can be filtered, the same way the RetroAchievements page does it: missable, progression, win condition, unlocked, remaining. Missable achievements are also marked in the list.' },
+      { type: 'feature', de: 'Der Windows-Installer fragt jetzt, ob eine Desktop-Verknüpfung und ein Startmenü-Eintrag angelegt werden sollen.', en: 'The Windows installer now asks whether to create a desktop shortcut and a Start menu entry.' },
+      { type: 'improve', de: '„lokal · N Hashes gecacht" ist aus der Fußzeile verschwunden — die Zahl steht ohnehin auf der Übersicht.', en: 'The footer no longer repeats "local · N hashes cached" — the number is on the dashboard anyway.' },
+    ],
+  },
   {
     version: '0.13.0',
     date: '2026-07-31',

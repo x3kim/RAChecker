@@ -6,6 +6,7 @@ import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } f
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { colors, applyThemeToColors, loadThemeId } from './src/theme';
 import { I18nProvider, useI18n, loadLang, langChosen, Lang } from './src/i18n';
+import { getStartTab, DEFAULT_START_TAB, StartTab } from './src/storage';
 
 // Shell AND LanguageGate (and every StyleSheet they pull in, incl. ui.tsx) are
 // imported lazily AFTER the saved theme palette has been applied, so every
@@ -23,14 +24,14 @@ const Loading = () => (
   </View>
 );
 
-function AppInner({ needGate }: { needGate: boolean }) {
+function AppInner({ needGate, startTab }: { needGate: boolean; startTab: StartTab }) {
   const { setLang } = useI18n();
   const [gate, setGate] = useState(needGate);
   return (
     <Suspense fallback={<Loading />}>
       {gate
         ? <LanguageGate onPick={(l) => { setLang(l); setGate(false); }} />
-        : <Shell />}
+        : <Shell startTab={startTab} />}
     </Suspense>
   );
 }
@@ -44,12 +45,16 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [lang, setLangInit] = useState<Lang>('en');
   const [needGate, setNeedGate] = useState(false);
+  // Read here rather than inside Shell so the first tab is right on the first
+  // paint — no flash of another screen.
+  const [startTab, setStartTab] = useState<StartTab>(DEFAULT_START_TAB);
 
   useEffect(() => {
     (async () => {
       applyThemeToColors(await loadThemeId());
       setLangInit(await loadLang());
       setNeedGate(!(await langChosen()));
+      setStartTab(await getStartTab());
       setReady(true);
     })();
   }, []);
@@ -58,7 +63,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <I18nProvider initial={lang}>
-        <AppInner needGate={needGate} />
+        <AppInner needGate={needGate} startTab={startTab} />
       </I18nProvider>
     </SafeAreaProvider>
   );

@@ -5,7 +5,7 @@ import { Feather } from '@expo/vector-icons';
 import { colors, space, radius } from '../theme';
 import { Panel, Display, Mono, Body, SectionHeader, Btn } from '../ui';
 import { pickFiles, pickFolder, enumerateFolder, scanTargets, ScanRow, ScanStatus } from '../scan';
-import { getFolder, setFolder, getRegionPriority, onRegionPriorityChange } from '../storage';
+import { getFolder, setFolder, getAutoScan, getRegionPriority, onRegionPriorityChange } from '../storage';
 import { dbStats, MatchGame, upsertLibrary, getLibrary, clearLibrary, getHashNames } from '../db';
 import { enrichCollectionHashNames } from '../hashNames';
 import { consoleName } from '../consoles';
@@ -120,7 +120,9 @@ export function ScanScreen() {
       const f = await getFolder();
       setFolderState(f);
       await loadCollection();
-      if (f && !autoRan.current) { autoRan.current = true; runFolder(f); }
+      // A scan reads every file in the folder, so it only starts on request.
+      // Re-scanning at launch is opt-in (Settings → Scanning).
+      if (f && !autoRan.current && (await getAutoScan())) { autoRan.current = true; runFolder(f); }
     })();
   }, [loadCollection, runFolder]);
 
@@ -186,9 +188,12 @@ export function ScanScreen() {
           <Btn label={t('scan.pickFolder')} onPress={() => runFolder()} disabled={busy} style={{ flex: 1 }} />
         </View>
         {folder && (
-          <Body size={11} color={colors.inkDim} style={{ marginTop: space.sm }} numberOfLines={1}>
-            {t('scan.folderNote')}
-          </Body>
+          <View style={{ marginTop: space.sm }}>
+            <Btn label={t('scan.rescanFolder')} onPress={() => runFolder(folder)} disabled={busy} />
+            <Body size={11} color={colors.inkDim} style={{ marginTop: space.sm }} numberOfLines={2}>
+              {t('scan.folderNote')}
+            </Body>
+          </View>
         )}
 
         {busy && (

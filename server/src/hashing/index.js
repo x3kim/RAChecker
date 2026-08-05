@@ -5,6 +5,7 @@ import { CONSOLE_BY_ID } from '../consoles.js';
 import { hashFile, hashBuffer, md5 } from './file-hash.js';
 import { readEntry } from './archive.js';
 import { hashWithRAHasher, isRAHasherAvailable } from './rahasher.js';
+import { isCsoPath, expandCso } from './cso.js';
 
 // FBNeo parent-folder names that get prefixed into the arcade name hash.
 const ARCADE_KNOWN_PARENTS = new Set([
@@ -81,21 +82,39 @@ export async function hashTarget({ filePath, consoleId, entry, signal, onPhase, 
       try {
         const target = r.tempPath;
         if (!target) return { status: 'error', message: 'Could not extract disc image from archive.' };
-        phase('rahasher');
-        const res = await hashWithRAHasher(consoleId, target, { signal, timeoutMs });
-        return res.md5 ? { md5: res.md5, method: 'rahasher' } : { status: 'error', message: res.error };
+        return await rahasherWithCso(consoleId, target, entry.name, { signal, timeoutMs, phase });
       } finally {
         await r.cleanup?.();
       }
     }
-    phase('rahasher');
-    const res = await hashWithRAHasher(consoleId, filePath, { signal, timeoutMs });
-    if (res.md5) return { md5: res.md5, method: 'rahasher' };
-    if (res.missing) return { status: 'needs_rahasher', message: 'RAHasher not installed.' };
-    return { status: 'error', message: res.error };
+    return await rahasherWithCso(consoleId, filePath, filePath, { signal, timeoutMs, phase });
   }
 
   return { status: 'error', message: `No hashing method for ${c.name}` };
+}
+
+// Run RAHasher against a disc image, expanding compressed ISOs first. RAHasher
+// cannot read .cso/.zso ("Could not open track"), so those are unpacked into a
+// plain .iso in temp and removed again straight after hashing — the hash is the
+// same one RAHasher would produce for the uncompressed image.
+async function rahasherWithCso(consoleId, filePath, displayPath, { signal, timeoutMs, phase }) {
+  let target = filePath;
+  let cleanup = null;
+  if (isCsoPath(displayPath)) {
+    phase('extracting', 0, 0);
+    const expanded = await expandCso(filePath, { signal, onProgress: (d, t) => phase('extracting', d, t) });
+    if (expanded?.error) return { status: 'error', message: expanded.error };
+    if (expanded?.path) { target = expanded.path; cleanup = expanded.cleanup; }
+  }
+  try {
+    phase('rahasher');
+    const res = await hashWithRAHasher(consoleId, target, { signal, timeoutMs });
+    if (res.md5) return { md5: res.md5, method: 'rahasher' };
+    if (res.missing) return { status: 'needs_rahasher', message: 'RAHasher not installed.' };
+    return { status: 'error', message: res.error };
+  } finally {
+    await cleanup?.();
+  }
 }
 
 export { md5 };

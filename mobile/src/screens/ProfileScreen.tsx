@@ -7,7 +7,7 @@ import { Panel, Display, Mono, Body, SectionHeader, Btn } from '../ui';
 import { ConsoleIcon } from '../components/ConsoleIcon';
 import { getCreds, getCache, setCache, Creds } from '../storage';
 import { getUserProfile, getUserCompletionProgress, mediaUrl, RAProfile, CompletionGame } from '../ra/api';
-import { getLibrary, libraryStats, collectionInsights, getOwnedGames, LibraryRow, CollectionInsights, MatchGame } from '../db';
+import { getLibrary, libraryStats, collectionInsights, getOwnedGames, getGameById, LibraryRow, CollectionInsights, MatchGame } from '../db';
 import { consoleName } from '../consoles';
 import { useI18n } from '../i18n';
 import { GameDetail } from './GameDetail';
@@ -70,7 +70,12 @@ export function ProfileScreen({ onGoSettings }: { onGoSettings: () => void }) {
     );
   }
 
+  // The completion feed carries no point value, so the synced game is preferred
+  // where we have it — that is what stops the detail view reading "0 pts".
   const toGame = (g: CompletionGame): MatchGame => ({ id: g.GameID, title: g.Title, points: 0, num_achievements: g.MaxPossible, image_icon: g.ImageIcon ?? null, console_id: g.ConsoleID });
+  const openCompletion = async (g: CompletionGame) => {
+    setOpen((await getGameById(g.GameID).catch(() => null)) ?? toGame(g));
+  };
   const mastery = [...comp].filter((g) => g.MaxPossible > 0).sort((a, b) => (b.NumAwarded / b.MaxPossible) - (a.NumAwarded / a.MaxPossible));
   const hardcore = [...comp].filter((g) => g.NumAwarded > g.NumAwardedHardcore).sort((a, b) => (b.NumAwarded - b.NumAwardedHardcore) - (a.NumAwarded - a.NumAwardedHardcore));
   // Quick Wins mirrors the desktop (routes.js /api/library/quickwins): it ranks
@@ -222,14 +227,14 @@ export function ProfileScreen({ onGoSettings }: { onGoSettings: () => void }) {
 
       {sub === 'mastery' && (
         <View style={{ marginTop: space.md, gap: space.sm }}>
-          {mastery.slice(0, 200).map((g) => <GameRow key={g.GameID} g={g} onOpen={() => setOpen(toGame(g))} trailing={`${Math.round((g.NumAwarded / g.MaxPossible) * 100)}%`} trailingColor={g.NumAwarded === g.MaxPossible ? colors.green : colors.cyan} />)}
+          {mastery.slice(0, 200).map((g) => <GameRow key={g.GameID} g={g} onOpen={() => openCompletion(g)} trailing={`${Math.round((g.NumAwarded / g.MaxPossible) * 100)}%`} trailingColor={g.NumAwarded === g.MaxPossible ? colors.green : colors.cyan} />)}
         </View>
       )}
       {sub === 'hardcore' && (
         <View style={{ marginTop: space.md, gap: space.sm }}>
           <Body size={12} color={colors.inkDim} style={{ marginBottom: space.xs }}>{t('prof.hardcoreBody')}</Body>
           {hardcore.length === 0 ? <Body size={13} color={colors.inkDim}>{t('prof.hardcoreLevel')}</Body>
-            : hardcore.slice(0, 200).map((g) => <GameRow key={g.GameID} g={g} onOpen={() => setOpen(toGame(g))} trailing={`+${g.NumAwarded - g.NumAwardedHardcore}`} trailingColor={colors.amber} />)}
+            : hardcore.slice(0, 200).map((g) => <GameRow key={g.GameID} g={g} onOpen={() => openCompletion(g)} trailing={`+${g.NumAwarded - g.NumAwardedHardcore}`} trailingColor={colors.amber} />)}
         </View>
       )}
 

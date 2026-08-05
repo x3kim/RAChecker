@@ -41,6 +41,11 @@ nsis:
   allowToChangeInstallationDirectory: true
   deleteAppDataOnUninstall: false
   license: LICENSE
+  # The shortcuts are created by build/installer.nsh instead, so the installer
+  # can offer them as a choice. Leaving these on would create both regardless.
+  createDesktopShortcut: false
+  createStartMenuShortcut: false
+  include: build/installer.nsh
   # Space-free name so the on-disk file, latest.yml url and the uploaded GitHub
   # asset all match — otherwise electron-updater 404s on the download.
   artifactName: "RAChecker-Setup-${version}.exe"

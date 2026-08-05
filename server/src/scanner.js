@@ -20,7 +20,7 @@ import {
 // Single-file disc containers — safe to copy to local temp before hashing
 // because they carry no external sidecars. A .cue/.gdi/.ccd references separate
 // tracks, so we must NOT copy just the index file; those hash in place.
-const DISC_SELF_CONTAINED = new Set(['.chd', '.iso', '.cso', '.pbp', '.rvz', '.gcz', '.wbfs', '.wia', '.nrg']);
+const DISC_SELF_CONTAINED = new Set(['.chd', '.iso', '.cso', '.zso', '.ciso', '.pbp', '.rvz', '.gcz', '.wbfs', '.wia', '.nrg']);
 
 // Raw disc tracks / sidecars we skip (the container .cue/.chd/.gdi is hashed).
 const DISC_SIDECAR = new Set(['.bin', '.img', '.sub', '.ccd', '.sbi', '.toc']);

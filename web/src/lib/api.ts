@@ -413,7 +413,7 @@ export const api = {
   },
   searchGames: (q: string, limit = 60) => j<any[]>(`/api/games/search?q=${encodeURIComponent(q)}&limit=${limit}`),
   userProfile: () => j<any>('/api/user/profile'),
-  userGame: (id: number) => j<{ numAwarded: number; numAwardedHardcore: number; total: number; completion: string | null; earned: Record<string, { date: string; hardcore: boolean }>; error?: string }>(`/api/user/game/${id}`),
+  userGame: (id: number) => j<{ numAwarded: number; numAwardedHardcore: number; total: number; completion: string | null; totalPoints: number; points: number; pointsHardcore: number; earned: Record<string, { date: string; hardcore: boolean }>; error?: string }>(`/api/user/game/${id}`),
   userCompletion: (refresh = false) => j<{ _at: number; games: any[]; error?: string }>(`/api/user/completion${refresh ? '?refresh=1' : ''}`),
   duplicates: () => j<any[]>('/api/library/duplicates'),
   collectionDiff: () => j<CollectionDiff>('/api/library/diff'),
