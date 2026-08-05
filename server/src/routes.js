@@ -98,6 +98,7 @@ function tempKind(name) {
   if (name.startsWith('bigcopy-')) return 'bigcopy';   // big-file local-copy scratch
   if (name.startsWith('backup-')) return 'backup';     // backup-download scratch
   if (name.startsWith('rom7z-') || name.startsWith('romzip-')
+    || name.startsWith('cso-')                                       // expanded .cso/.zso
     || name.startsWith('ra-extract') || name.startsWith('extract')) return 'extract'; // archive extraction
   return 'other';
 }
