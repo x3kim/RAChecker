@@ -139,7 +139,7 @@
   <header class="topbar">
     <button class="menu-btn" id="menuBtn" aria-label="Menu">☰</button>
     <span class="brand"><img src="logo.png" alt="" width="24" height="24" style="border-radius:5px;vertical-align:middle"> <b>RACHECKER</b></span>
-    <span class="badge">Docs · v0.12</span>
+    <span class="badge">Docs · v0.14</span>
     <span class="spacer"></span>
     <span class="langtoggle" role="group" aria-label="Language">
       <button id="lang-en" onclick="setLang('en')">EN</button>
@@ -229,7 +229,7 @@ npm run serve      # builds the frontend + starts the server on :8088</code></pr
         <ul style="margin:6px 0 0">
           <li><strong>Big files take minutes.</strong> Decompression runs in JavaScript, so a multi-gigabyte disc image inside a <code>.7z</code> can take several minutes on the phone. The scan shows unpacking progress — it is working, not frozen. For large libraries the desktop app is far faster.</li>
           <li><strong>Sync your disc systems</strong> in the Hash DB tab, otherwise disc images have nothing to match against.</li>
-          <li><strong>Not supported yet:</strong> RAR, GameCube/Wii, CSO/RVZ/GCZ/GDI, split CUE/BIN, M3U, and CHDs whose data is FLAC-compressed.</li>
+          <li><strong>Not supported yet:</strong> RAR, GameCube/Wii, RVZ/GCZ/GDI, split CUE/BIN, M3U, and CHDs whose data is FLAC-compressed.</li>
         </ul>
       </div>
       <p>RAChecker also comes as a <strong>standalone Android app</strong> (Expo / React Native) — no PC or server needed. It hashes your ROMs <strong>directly on the device</strong>, syncs the RetroAchievements hash list on-device and matches everything fully offline.</p>
@@ -245,7 +245,7 @@ npm run serve      # builds the frontend + starts the server on :8088</code></pr
       </ul>
       <div class="callout">
         <div class="t">Desktop vs. Android</div>
-        <strong>Desktop-only:</strong> RAR archives, the remaining disc containers (GameCube/Wii, CSO, RVZ, GCZ, GDI, split CUE/BIN, M3U), whole-library NAS scanning, DAT completeness checks and launching emulators. Everything else — including CHD/ISO/PBP disc hashing and 7z — now works on the phone. The two apps complement each other.
+        <strong>Desktop-only:</strong> RAR archives, the remaining disc containers (GameCube/Wii, RVZ, GCZ, GDI, split CUE/BIN, M3U), whole-library NAS scanning, DAT completeness checks and launching emulators. Everything else — including CHD/ISO/CSO/PBP disc hashing and 7z — now works on the phone. The two apps complement each other.
       </div>
       <div class="callout">
         <div class="t">Disc images not matching?</div>
@@ -427,7 +427,7 @@ npm run serve      # baut das Frontend + startet den Server auf :8088</code></pr
         <ul style="margin:6px 0 0">
           <li><strong>Große Dateien dauern Minuten.</strong> Das Entpacken läuft in JavaScript, ein mehrere Gigabyte großes Disc-Image in einer <code>.7z</code> kann am Handy also einige Minuten brauchen. Der Scan zeigt den Entpack-Fortschritt — es arbeitet, es hängt nicht. Für große Sammlungen ist die Desktop-App deutlich schneller.</li>
           <li><strong>Disc-Systeme synchronisieren</strong> im Tab Hash-DB, sonst haben Disc-Images nichts, wogegen sie treffen könnten.</li>
-          <li><strong>Noch nicht unterstützt:</strong> RAR, GameCube/Wii, CSO/RVZ/GCZ/GDI, geteilte CUE/BIN, M3U und CHDs mit FLAC-komprimierten Daten.</li>
+          <li><strong>Noch nicht unterstützt:</strong> RAR, GameCube/Wii, RVZ/GCZ/GDI, geteilte CUE/BIN, M3U und CHDs mit FLAC-komprimierten Daten.</li>
         </ul>
       </div>
       <p>RAChecker gibt es auch als <strong>eigenständige Android-App</strong> (Expo / React Native) — ohne PC oder Server. Sie hasht deine ROMs <strong>direkt auf dem Gerät</strong>, synchronisiert die RetroAchievements-Hash-Liste on-device und gleicht alles voll offline ab.</p>
@@ -443,7 +443,7 @@ npm run serve      # baut das Frontend + startet den Server auf :8088</code></pr
       </ul>
       <div class="callout">
         <div class="t">Desktop vs. Android</div>
-        <strong>Nur am Desktop:</strong> RAR-Archive, die übrigen Disc-Container (GameCube/Wii, CSO, RVZ, GCZ, GDI, geteilte CUE/BIN, M3U), komplettes NAS-Scannen, DAT-Abgleich und das Starten von Emulatoren. Alles andere — inklusive CHD-/ISO-/PBP-Disc-Hashing und 7z — läuft jetzt am Handy. Die beiden Apps ergänzen sich.
+        <strong>Nur am Desktop:</strong> RAR-Archive, die übrigen Disc-Container (GameCube/Wii, RVZ, GCZ, GDI, geteilte CUE/BIN, M3U), komplettes NAS-Scannen, DAT-Abgleich und das Starten von Emulatoren. Alles andere — inklusive CHD-/ISO-/CSO-/PBP-Disc-Hashing und 7z — läuft jetzt am Handy. Die beiden Apps ergänzen sich.
       </div>
       <div class="callout">
         <div class="t">Disc-Images treffen nicht?</div>

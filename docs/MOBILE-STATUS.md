@@ -13,14 +13,14 @@ This file is the starting point for the next round of work on the mobile app.
 | Area | State |
 |---|---|
 | Cartridge/handheld ROMs | Works. All hashes verified against `bin/RAHasher.exe`. |
-| Disc images `.chd` / `.iso` / `.pbp` | Works — PlayStation, PS2, PSP, Saturn, Sega CD, Dreamcast, PC Engine CD, PC-FX, 3DO, Neo Geo CD, Atari Jaguar CD. |
+| Disc images `.chd` / `.iso` / `.cso` / `.zso` / `.pbp` | Works — PlayStation, PS2, PSP, Saturn, Sega CD, Dreamcast, PC Engine CD, PC-FX, 3DO, Neo Geo CD, Atari Jaguar CD. A CSO is read block by block, so only the sectors the rules touch are decompressed. |
 | CHD compression | `cdzl` (zlib), `cdlz` (LZMA), `cdzs` (zstd), uncompressed. **Not** `cdfl` (FLAC). |
 | Archives | `.zip` (store/deflate + LZMA method 14) and `.7z` (LZMA, LZMA2, Copy). |
 | Identification | By content: every plausible hash is computed and looked up. Folder names irrelevant. |
 | Scan result states | earns achievements · recognised game with no set yet · system not synced · not in RA · note/error. |
 
 ### Not supported on the phone
-RAR · GameCube/Wii · CSO/RVZ/GCZ/WBFS/WIA · GDI/CDI/NRG/MDS/CCD · split CUE+BIN · M3U ·
+RAR · GameCube/Wii · RVZ/GCZ/WBFS/WIA · GDI/CDI/NRG/MDS/CCD · split CUE+BIN · M3U ·
 7z filter chains (BCJ/BCJ2) · PPMd · encrypted archives · CHD v1–v4 · CHDs with a
 FLAC-compressed **data** hunk · CHD parent/child (split) images.
 

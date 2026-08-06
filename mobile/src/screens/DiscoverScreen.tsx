@@ -6,7 +6,8 @@ import { colors, space, radius } from '../theme';
 import { Panel, Body, SectionHeader, Btn, Input } from '../ui';
 import { getCreds, getCache, setCache } from '../storage';
 import { getAchievementOfTheWeek, getActiveClaims, getRecentGameAwards, mediaUrl } from '../ra/api';
-import { getGamesForConsoles, MatchGame } from '../db';
+import { getGamesForConsoles, getGameById, MatchGame } from '../db';
+import { ConsoleIcon } from '../components/ConsoleIcon';
 import { useI18n } from '../i18n';
 import { GameDetail } from './GameDetail';
 // @ts-ignore ported data module
@@ -28,6 +29,9 @@ export function DiscoverScreen({ onGoSettings }: { onGoSettings: () => void }) {
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<MatchGame | null>(null);
+  // The Achievement-of-the-Week feed names a game but carries no artwork, so the
+  // synced DB is asked for the rest (and makes the row openable).
+  const [aotwGame, setAotwGame] = useState<MatchGame | null>(null);
   // resolver: `${consoleId}|${normTitle}` -> synced game (artwork/achievements/detail)
   const [resolver, setResolver] = useState<Map<string, MatchGame>>(new Map());
 
@@ -44,6 +48,8 @@ export function DiscoverScreen({ onGoSettings }: { onGoSettings: () => void }) {
           getCache<any[]>('claims', TTL).then((v) => v ?? getActiveClaims(c).then((r: any) => { const list = Array.isArray(r) ? r : []; setCache('claims', list); return list; })).catch(() => []),
         ]);
         setAotw(a); setAwards(aw || []); setClaims(cl || []);
+        const gid = Number(a?.Game?.ID) || 0;
+        if (gid) setAotwGame(await getGameById(gid).catch(() => null));
       } finally { setLoading(false); }
     })();
   }, []);
@@ -60,6 +66,12 @@ export function DiscoverScreen({ onGoSettings }: { onGoSettings: () => void }) {
   }, []);
 
   const resolve = (g: any): MatchGame | null => resolver.get(`${g.consoleId}|${normKey(g.title || '')}`) ?? null;
+
+  // Feeds name a game id but carry no achievement counts or points; the synced
+  // DB has both, so prefer it and fall back to what the feed gave us.
+  const openById = async (id: number, fallback: MatchGame) => {
+    setOpen((await getGameById(id).catch(() => null)) ?? fallback);
+  };
 
   const free = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -130,7 +142,7 @@ export function DiscoverScreen({ onGoSettings }: { onGoSettings: () => void }) {
           <Body size={12} color={colors.inkDim} style={{ marginBottom: space.xs }}>{t('disc.radarBody')}</Body>
           {claims.length === 0 && !loading ? <Body size={13} color={colors.inkDim}>{t('disc.noClaims')}</Body> :
             claims.slice(0, 60).map((c: any, i: number) => (
-              <Pressable key={i} onPress={() => c.GameID && setOpen({ id: c.GameID, title: c.GameTitle, points: 0, num_achievements: 0, image_icon: c.GameIcon ?? null, console_id: c.ConsoleID ?? 0 })}>
+              <Pressable key={i} onPress={() => c.GameID && openById(c.GameID, { id: c.GameID, title: c.GameTitle, points: 0, num_achievements: 0, image_icon: c.GameIcon ?? null, console_id: c.ConsoleID ?? 0 })}>
                 <View style={styles.row}>
                   {mediaUrl(c.GameIcon) ? <Image source={{ uri: mediaUrl(c.GameIcon)! }} style={styles.icon} contentFit="cover" /> : <View style={styles.icon} />}
                   <View style={{ flex: 1, minWidth: 0 }}>
@@ -154,11 +166,33 @@ export function DiscoverScreen({ onGoSettings }: { onGoSettings: () => void }) {
                   <Image source={{ uri: mediaUrl(aotw.Achievement.BadgeURL || `/Badge/${aotw.Achievement.BadgeName}.png`)! }} style={styles.icon} contentFit="cover" />
                 ) : <View style={styles.icon} />}
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Body size={13} color={colors.inkHi} weight="semibold" numberOfLines={1}>{aotw.Achievement.Title}</Body>
-                  <Body size={12} color={colors.inkDim} numberOfLines={2}>{aotw.Achievement.Description}</Body>
-                  {aotw.Game?.Title ? <Body size={12} color={colors.inkMid} numberOfLines={1}>{aotw.Game.Title}</Body> : null}
+                  <Body size={13} color={colors.inkHi} weight="semibold" numberOfLines={2}>{aotw.Achievement.Title}</Body>
+                  <Body size={12} color={colors.inkDim} numberOfLines={3}>{aotw.Achievement.Description}</Body>
+                  {aotw.Achievement.Points != null && (
+                    <Body size={12} color={colors.amber} style={{ marginTop: 2 }}>{aotw.Achievement.Points} {t('common.pts')}</Body>
+                  )}
                 </View>
               </View>
+
+              {/* Which game the achievement belongs to — the website says this
+                  right next to it, and without it the entry is unplaceable. */}
+              {aotw.Game?.Title ? (
+                <Pressable onPress={() => aotwGame && setOpen(aotwGame)} disabled={!aotwGame} style={{ marginTop: space.sm }}>
+                  <View style={styles.row}>
+                    {aotwGame && mediaUrl(aotwGame.image_icon)
+                      ? <Image source={{ uri: mediaUrl(aotwGame.image_icon)! }} style={styles.icon} contentFit="cover" transition={150} />
+                      : <View style={[styles.icon, styles.iconFallback]}><ConsoleIcon id={aotw.Console?.ID ?? aotwGame?.console_id ?? 0} size={24} /></View>}
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Body size={13} color={colors.inkHi} weight="semibold" numberOfLines={2}>{aotw.Game.Title}</Body>
+                      <Body size={12} color={colors.inkDim} numberOfLines={1}>
+                        {aotw.Console?.Title ?? ''}
+                        {aotwGame ? ` · ${aotwGame.num_achievements} ${t('common.achievements')}` : ''}
+                      </Body>
+                    </View>
+                    {aotwGame && <Feather name="chevron-right" size={16} color={colors.inkDim} />}
+                  </View>
+                </Pressable>
+              ) : null}
             </Panel>
           )}
           <Body size={12} color={colors.inkDim} style={{ marginBottom: space.xs }}>{t('disc.recent')}</Body>

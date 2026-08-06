@@ -3,7 +3,7 @@
     "name": "RAChecker",
     "slug": "rachecker",
     "owner": "x3dev",
-    "version": "0.6.0",
+    "version": "0.7.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "de.rachecker.app",
-      "versionCode": 9,
+      "versionCode": 10,
       "adaptiveIcon": {
         "backgroundColor": "#0a0e14",
         "foregroundImage": "./assets/android-icon-foreground.png",

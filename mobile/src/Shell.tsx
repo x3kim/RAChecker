@@ -16,14 +16,14 @@ import { ProfileScreen } from './screens/ProfileScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { OnboardingModal } from './screens/OnboardingModal';
 import { ChangelogModal } from './screens/ChangelogModal';
-import { isOnboarded } from './storage';
+import { isOnboarded, DEFAULT_START_TAB, StartTab } from './storage';
 import { APP_VERSION } from './version';
 
 // Remembers the last version the user has seen so we can show the changelog once
 // after an update. First install just records the version silently (no popup).
 const SEEN_VERSION_KEY = 'ra_seen_version';
 
-type Tab = 'scan' | 'games' | 'discover' | 'sync' | 'profile' | 'settings';
+type Tab = StartTab;
 const TABS: { key: Tab; labelKey: string; icon: keyof typeof Feather.glyphMap }[] = [
   { key: 'scan', labelKey: 'nav.scan', icon: 'search' },
   { key: 'games', labelKey: 'nav.games', icon: 'grid' },
@@ -33,11 +33,11 @@ const TABS: { key: Tab; labelKey: string; icon: keyof typeof Feather.glyphMap }[
   { key: 'settings', labelKey: 'nav.settings', icon: 'settings' },
 ];
 
-export default function Shell() {
+export default function Shell({ startTab = DEFAULT_START_TAB }: { startTab?: StartTab }) {
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
-  const [tab, setTab] = useState<Tab>('scan');
-  const [visited, setVisited] = useState<Set<Tab>>(() => new Set<Tab>(['scan']));
+  const [tab, setTab] = useState<Tab>(startTab);
+  const [visited, setVisited] = useState<Set<Tab>>(() => new Set<Tab>([startTab]));
   const show = (t: Tab) => { setTab(t); setVisited((v) => (v.has(t) ? v : new Set(v).add(t))); };
   const [onboarding, setOnboarding] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);

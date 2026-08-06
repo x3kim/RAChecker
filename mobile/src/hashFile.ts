@@ -291,13 +291,13 @@ export const CART_EXTS = new Set([
   '.wasm', '.mx1', '.mx2', '.rom',
 ]);
 
-// Disc-image formats. On-device hashing needs RAHasher (rcheevos disc rules),
-// which the desktop app bundles but mobile can't run — so we DETECT these and
-// flag them clearly (Scan shows a "use the desktop app" note) instead of
-// silently ignoring them. `.bin` is intentionally absent: it's a Mega Drive
-// cart ext (in CART_EXTS) and hashing it raw is harmless when it's a disc track.
+// Disc-image formats we recognise. The ones in HASHABLE_DISC_EXTS are hashed
+// right here; the rest are DETECTED and flagged clearly (Scan shows a "use the
+// desktop app" note) instead of being silently ignored. `.bin` is intentionally
+// absent: it's a Mega Drive cart ext (in CART_EXTS) and hashing it raw is
+// harmless when it's a disc track.
 export const DISC_EXTS = new Set([
-  '.chd', '.cue', '.iso', '.pbp', '.cso', '.rvz', '.gcz', '.wbfs', '.wia',
+  '.chd', '.cue', '.iso', '.pbp', '.cso', '.zso', '.ciso', '.rvz', '.gcz', '.wbfs', '.wia',
   '.gdi', '.cdi', '.nrg', '.mds', '.ccd', '.m3u',
 ]);
 

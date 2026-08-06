@@ -10,6 +10,7 @@ import {
   consoleFromFolderSegments,
 } from './consoles.js';
 import { hashTarget } from './hashing/index.js';
+import { isCsoPath, expandCso } from './hashing/cso.js';
 import { listEntries, archiveType } from './hashing/archive.js';
 import { config } from './config.js';
 import {
@@ -20,7 +21,7 @@ import {
 // Single-file disc containers — safe to copy to local temp before hashing
 // because they carry no external sidecars. A .cue/.gdi/.ccd references separate
 // tracks, so we must NOT copy just the index file; those hash in place.
-const DISC_SELF_CONTAINED = new Set(['.chd', '.iso', '.cso', '.pbp', '.rvz', '.gcz', '.wbfs', '.wia', '.nrg']);
+const DISC_SELF_CONTAINED = new Set(['.chd', '.iso', '.cso', '.zso', '.ciso', '.pbp', '.rvz', '.gcz', '.wbfs', '.wia', '.nrg']);
 
 // Raw disc tracks / sidecars we skip (the container .cue/.chd/.gdi is hashed).
 const DISC_SIDECAR = new Set(['.bin', '.img', '.sub', '.ccd', '.sbi', '.toc']);
@@ -211,11 +212,11 @@ export class Scanner {
   // (which seeks all over the file) we first copy to local temp — that turns a
   // random-access read over the NAS into a fast local one. A streamed sequential
   // MD5 ('file' method) is NOT copied: copying would just double the I/O.
-  async hashFile(filePath, ext, consoleId, method, phaseFile) {
+  async hashFile(filePath, ext, consoleId, method, phaseFile, { localCopy = true } = {}) {
     const onPhase = (p, done, total) => this.emit('phase', { file: phaseFile, phase: p, done, total });
     let target = filePath;
     let tmp = null;
-    if (this.bigFileCopyBytes > 0 && method === 'rahasher' && DISC_SELF_CONTAINED.has(ext)) {
+    if (localCopy && this.bigFileCopyBytes > 0 && method === 'rahasher' && DISC_SELF_CONTAINED.has(ext)) {
       let size = 0;
       try { size = (await stat(filePath)).size; } catch { /* hashTarget will error */ }
       const underCap = this.bigFileMaxBytes <= 0 || size <= this.bigFileMaxBytes;
@@ -252,22 +253,45 @@ export class Scanner {
     if (ids.length <= 1) {
       return { res: await this.hashFile(filePath, ext, ids[0], cls.method, phaseFile), consoleId: ids[0] };
     }
-    let firstRes = null;
-    let firstId = ids[0];
-    for (const id of ids) {
-      if (this.cancelled) break;
-      let res;
-      try { res = await this.hashFile(filePath, ext, id, cls.method, phaseFile); }
-      catch (e) { if (this.cancelled) throw e; continue; }
-      if (!res?.md5) continue;
-      if (!firstRes) { firstRes = res; firstId = id; }
-      // A hash the DB knows identifies the game and its console outright.
-      if (lookupHash(res.md5).length) return { res, consoleId: id };
+
+    // A compressed ISO is expanded once and every candidate console is then
+    // tried against that same temp image. Left to hashTarget it would be
+    // expanded per candidate, repeating minutes of work on a large disc. The
+    // expanded file is already local, so the big-file local copy is skipped.
+    let target = filePath;
+    let targetExt = ext;
+    let localCopy = true;
+    let cleanup = null;
+    if (isCsoPath(filePath)) {
+      const onPhase = (p, done, total) => this.emit('phase', { file: phaseFile, phase: p, done, total });
+      const expanded = await expandCso(filePath, {
+        signal: this.signal,
+        onProgress: (done, total) => onPhase('extracting', done, total),
+      });
+      if (expanded?.error) return { res: { error: expanded.error }, consoleId: ids[0] };
+      if (expanded?.path) { target = expanded.path; targetExt = '.iso'; localCopy = false; cleanup = expanded.cleanup; }
     }
-    // Nothing matched the DB. Keep the first hash we managed to produce so the
-    // file is reported as a real "no match" rather than "couldn't identify".
-    if (firstRes) return { res: firstRes, consoleId: firstId };
-    return { res: { error: 'Disc image not recognised as any supported system' }, consoleId: ids[0] };
+
+    try {
+      let firstRes = null;
+      let firstId = ids[0];
+      for (const id of ids) {
+        if (this.cancelled) break;
+        let res;
+        try { res = await this.hashFile(target, targetExt, id, cls.method, phaseFile, { localCopy }); }
+        catch (e) { if (this.cancelled) throw e; continue; }
+        if (!res?.md5) continue;
+        if (!firstRes) { firstRes = res; firstId = id; }
+        // A hash the DB knows identifies the game and its console outright.
+        if (lookupHash(res.md5).length) return { res, consoleId: id };
+      }
+      // Nothing matched the DB. Keep the first hash we managed to produce so the
+      // file is reported as a real "no match" rather than "couldn't identify".
+      if (firstRes) return { res: firstRes, consoleId: firstId };
+      return { res: { error: 'Disc image not recognised as any supported system' }, consoleId: ids[0] };
+    } finally {
+      await cleanup?.();
+    }
   }
 
   async *walk(dir) {

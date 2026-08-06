@@ -3,7 +3,10 @@ import { View, ScrollView, StyleSheet, Alert, Pressable, Linking, Switch } from 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, space, radius, PALETTES, THEME_LIST, loadThemeId, saveThemeId } from '../theme';
 import { Panel, Display, Mono, Body, SectionHeader, Btn, Input } from '../ui';
-import { getCreds, setCreds, clearCreds } from '../storage';
+import {
+  getCreds, setCreds, clearCreds,
+  getStartTab, setStartTab, getAutoScan, setAutoScan, StartTab,
+} from '../storage';
 import { getUserProfile } from '../ra/api';
 import { dbStats, clearDb, libraryStats, clearLibrary } from '../db';
 import { shareCollectionCsv } from '../export';
@@ -15,6 +18,16 @@ import { RegionPriorityPanel } from '../components/RegionPriorityPanel';
 
 const DESKTOP_URL = `${REPO_URL}/releases`;
 
+// Same order as the tab bar, so the picker reads like the app looks.
+const START_TABS: { key: StartTab; labelKey: string }[] = [
+  { key: 'profile', labelKey: 'nav.profile' },
+  { key: 'scan', labelKey: 'nav.scan' },
+  { key: 'games', labelKey: 'nav.games' },
+  { key: 'discover', labelKey: 'nav.discover' },
+  { key: 'sync', labelKey: 'nav.sync' },
+  { key: 'settings', labelKey: 'nav.settings' },
+];
+
 export function SettingsScreen({ onConnected }: { onConnected: () => void }) {
   const { t, lang, setLang } = useI18n();
   const [username, setUsername] = useState('');
@@ -23,6 +36,8 @@ export function SettingsScreen({ onConnected }: { onConnected: () => void }) {
   const [status, setStatus] = useState<{ kind: 'ok' | 'err' | 'busy'; msg: string } | null>(null);
 
   const [theme, setTheme] = useState('cyan');
+  const [startTab, setStartTabState] = useState<StartTab>('profile');
+  const [autoScan, setAutoScanState] = useState(false);
   const [csvMsg, setCsvMsg] = useState<string | null>(null);
   const [data, setData] = useState<{ hashes: number; games: number; collection: number }>({ hashes: 0, games: 0, collection: 0 });
   const [changelog, setChangelog] = useState(false);
@@ -43,6 +58,8 @@ export function SettingsScreen({ onConnected }: { onConnected: () => void }) {
       if (c) { setUsername(c.username); setHasKey(true); }
       else { const u = await AsyncStorage.getItem('ra_user'); if (u) setUsername(u); }
       setTheme(await loadThemeId());
+      setStartTabState(await getStartTab());
+      setAutoScanState(await getAutoScan());
       setAutoUpd(await autoCheckEnabled());
       await refreshData();
     })();
@@ -158,6 +175,28 @@ export function SettingsScreen({ onConnected }: { onConnected: () => void }) {
         </View>
       </Panel>
 
+      <Panel style={{ marginTop: space.lg }}>
+        <SectionHeader title={t('set.scanning')} color={colors.cyan} />
+        <Body size={12} color={colors.inkDim} style={{ marginBottom: space.md }}>{t('set.startTab')}</Body>
+        <View style={styles.themes}>
+          {START_TABS.map((tb) => {
+            const on = startTab === tb.key;
+            return (
+              <Pressable key={tb.key} onPress={() => { setStartTabState(tb.key); setStartTab(tb.key); }}
+                style={[styles.tabChip, on && { borderColor: colors.cyan, backgroundColor: colors.panel }]}>
+                <Body size={12} color={on ? colors.cyan : colors.inkMid} weight={on ? 'semibold' : undefined}>{t(tb.labelKey)}</Body>
+              </Pressable>
+            );
+          })}
+        </View>
+        <View style={[styles.switchRow, { marginTop: space.lg }]}>
+          <Body size={13} color={colors.inkMid} style={{ flex: 1 }}>{t('set.autoScan')}</Body>
+          <Switch value={autoScan} onValueChange={(v) => { setAutoScanState(v); setAutoScan(v); }}
+            trackColor={{ true: colors.green, false: colors.line }} thumbColor={colors.inkHi} />
+        </View>
+        <Body size={12} color={colors.inkDim} style={{ marginTop: space.sm }}>{t('set.autoScanHelp')}</Body>
+      </Panel>
+
       <RegionPriorityPanel />
 
       <Panel style={{ marginTop: space.lg }}>
@@ -233,6 +272,7 @@ const styles = StyleSheet.create({
   stat: { flex: 1, alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.line, borderWidth: 1, borderRadius: radius.md, paddingVertical: space.md },
   themes: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   swatch: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: radius.md, paddingVertical: 8, paddingHorizontal: 10 },
+  tabChip: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: colors.surface },
   dot: { width: 10, height: 10, borderRadius: 5, marginRight: 3 },
   langRow: { flexDirection: 'row', gap: space.sm },
   langBtn: { flex: 1, alignItems: 'center', paddingVertical: space.md, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.surface },

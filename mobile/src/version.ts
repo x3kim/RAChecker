@@ -1,7 +1,7 @@
 // Single source of truth for the mobile app version + changelog. Mirror the
 // version in app.json ("version" + android.versionCode). The auto-updater
 // compares this against GitHub releases tagged `android-vX.Y.Z`.
-export const APP_VERSION = '0.6.0';
+export const APP_VERSION = '0.7.0';
 
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
 export const DOCS_URL = 'https://x3kim.github.io/RAChecker/';
@@ -15,6 +15,24 @@ export type ChangelogEntry = { version: string; date: string; en: string[]; de: 
 
 // Newest first. `en`/`de` are bullet lists.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '0.7.0',
+    date: '2026-08-06',
+    en: [
+      'The app opens on your profile, and scanning never starts on its own any more. A scan reads every file in the folder, so it now only runs when you ask for it. Both are yours to change under Settings → Scanning & start.',
+      'Compressed disc images (.cso/.zso, common for PSP) hash on the device. Only the parts of the image the hash actually needs are decompressed, so it takes a moment rather than minutes.',
+      'A game\'s points are right. RetroAchievements returns no point total for a game, which is why the game view could read "0 pts" while an achievement showed 3. It is now summed from the achievement set and shown with your own standing ("3 of 514 points").',
+      'The achievement list can be filtered like the RetroAchievements page: missable, progression, win condition, unlocked, remaining.',
+      'Achievement of the Week now names the game and the system it belongs to, and opens the game when tapped.',
+    ],
+    de: [
+      'Die App startet mit deinem Profil, und es wird nicht mehr von selbst gescannt. Ein Scan liest jede Datei im Ordner — das passiert jetzt nur noch, wenn du es anstößt. Beides lässt sich unter Einstellungen → Scannen & Start ändern.',
+      'Komprimierte Disc-Images (.cso/.zso, verbreitet bei PSP) werden auf dem Gerät gehasht. Entpackt wird nur, was der Hash wirklich braucht — daher dauert es Momente statt Minuten.',
+      'Die Punkte eines Spiels stimmen. RetroAchievements liefert für ein Spiel gar keine Punktsumme, weshalb in der Spielansicht „0 pts" stehen konnte, während ein Erfolg 3 zeigte. Der Wert wird jetzt aus dem Erfolgs-Satz gerechnet und mit deinem Stand angezeigt („3 von 514 Punkten").',
+      'Die Erfolgsliste lässt sich filtern wie auf der RetroAchievements-Seite: verpassbar, Fortschritt, Abschluss, erhalten, offen.',
+      'Die Errungenschaft der Woche nennt jetzt Spiel und System dazu und öffnet das Spiel per Tipp.',
+    ],
+  },
   {
     version: '0.6.0',
     date: '2026-07-31',

@@ -195,6 +195,14 @@ export async function resolveGameByTitle(title: string, consoleId: number): Prom
   return d.getFirstAsync<MatchGame>(`${sel} AND title LIKE ? ORDER BY num_achievements DESC LIMIT 1`, consoleId, `${title}%`);
 }
 
+// One synced game by its RA id — used where an API feed names a game id but no
+// artwork (Achievement of the Week, claims).
+export async function getGameById(id: number): Promise<MatchGame | null> {
+  const d = await db();
+  return d.getFirstAsync<MatchGame>(
+    'SELECT id, title, points, num_achievements, image_icon, console_id FROM games WHERE id = ?', id);
+}
+
 // ---- collection insights (coverage) ---------------------------------------
 export type CollectionInsights = {
   files: number; matched: number; achievements: number; points: number;

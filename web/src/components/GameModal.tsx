@@ -16,6 +16,24 @@ import {
   parseRomTags, tagTokens, rankTokens, tokenLabel, tokenName,
 } from '../lib/region';
 
+// RetroAchievements tags achievements as missable / progression / win_condition
+// (everything else is untyped). The list can be narrowed to one of those, or to
+// what you have or have not unlocked yet.
+type AchFilter = 'all' | 'missable' | 'progression' | 'win_condition' | 'earned' | 'unearned';
+const ACH_FILTERS: { key: AchFilter; labelKey: string }[] = [
+  { key: 'all', labelKey: 'gm.filter.all' },
+  { key: 'missable', labelKey: 'gm.filter.missable' },
+  { key: 'progression', labelKey: 'gm.filter.progression' },
+  { key: 'win_condition', labelKey: 'gm.filter.win' },
+  { key: 'earned', labelKey: 'gm.filter.earned' },
+  { key: 'unearned', labelKey: 'gm.filter.unearned' },
+];
+const ACH_TYPE_COLOR: Record<string, string> = {
+  missable: 'var(--color-neon-red)',
+  progression: 'var(--color-neon-cyan)',
+  win_condition: 'var(--color-neon-green)',
+};
+
 export function GameModal({ gameId, onClose }: { gameId: number; onClose: () => void }) {
   const { t } = useI18n();
   const [game, setGame] = useState<any>(null);
@@ -34,6 +52,8 @@ export function GameModal({ gameId, onClose }: { gameId: number; onClose: () => 
   // emulator core hint + launch
   const [cores, setCores] = useState<ConsoleCores | null>(null);
   const [coreAlt, setCoreAlt] = useState(false);
+  // achievement list filter: everything, one of RA's types, or by unlock state
+  const [achFilter, setAchFilter] = useState<AchFilter>('all');
   const [launching, setLaunching] = useState(false);
   const [launchMsg, setLaunchMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -146,6 +166,28 @@ export function GameModal({ gameId, onClose }: { gameId: number; onClose: () => 
 
   const earned = prog?.earned || {};
   const compPct = prog ? (prog.total ? Math.round((prog.numAwarded / prog.total) * 100) : 0) : 0;
+  // RetroAchievements states no point total for a game, so it is summed from the
+  // set (server-side). Without it the header used to read "0 pts".
+  const setPoints = prog?.totalPoints || game?.totalPoints || 0;
+
+  // ---- achievement filters (mirrors the ones on the RA game page) ----------
+  const achievements: any[] = Array.isArray(game?.achievements) ? game.achievements : [];
+  const achCounts = useMemo(() => {
+    const c = { all: achievements.length, missable: 0, progression: 0, win_condition: 0, earned: 0, unearned: 0 };
+    for (const a of achievements) {
+      if (a.type === 'missable') c.missable++;
+      else if (a.type === 'progression') c.progression++;
+      else if (a.type === 'win_condition') c.win_condition++;
+      if (earned[a.id]) c.earned++; else c.unearned++;
+    }
+    return c;
+  }, [achievements, earned]);
+  const shownAchievements = useMemo(() => {
+    if (achFilter === 'all') return achievements;
+    if (achFilter === 'earned') return achievements.filter((a) => earned[a.id]);
+    if (achFilter === 'unearned') return achievements.filter((a) => !earned[a.id]);
+    return achievements.filter((a) => a.type === achFilter);
+  }, [achievements, achFilter, earned]);
   const coreList = cores?.cores || [];
   const primaryCore = coreList[0] || null;
   const altCores = coreList.slice(1);
@@ -198,8 +240,15 @@ export function GameModal({ gameId, onClose }: { gameId: number; onClose: () => 
                   {game.Genre && <span>{t('gm.genre')}: <span className="text-ink-hi">{game.Genre}</span></span>}
                   {game.Released && <span>{t('gm.released')}: <span className="text-ink-hi">{game.Released}</span></span>}
                 </div>
-                <div className="flex items-center gap-2 font-mono text-lg text-neon-amber pt-1">
-                  <Trophy size={16} /> {t('gm.achievementsN', { n: game.NumAchievements ?? 0 })}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-lg text-neon-amber pt-1">
+                  <span className="flex items-center gap-2"><Trophy size={16} /> {t('gm.achievementsN', { n: game.NumAchievements ?? 0 })}</span>
+                  {setPoints > 0 && (
+                    <span>
+                      {prog
+                        ? t('gm.pointsOf', { n: prog.points, total: setPoints })
+                        : t('gm.pointsN', { n: setPoints })}
+                    </span>
+                  )}
                 </div>
 
                 {/* recommended emulator core for this console */}
@@ -307,13 +356,30 @@ export function GameModal({ gameId, onClose }: { gameId: number; onClose: () => 
             </div>
 
             {/* achievements */}
-            {Array.isArray(game.achievements) && game.achievements.length > 0 && (
+            {achievements.length > 0 && (
               <div className="mt-5">
-                <SectionHeader accent="var(--color-neon-amber)" title={t('gm.achTitle', { n: game.achievements.length })} icon={Trophy}>
+                <SectionHeader accent="var(--color-neon-amber)" title={t('gm.achTitle', { n: achievements.length })} icon={Trophy}>
                   {prog && <span className="font-mono text-neon-green text-base shrink-0">{t('gm.unlocked', { n: prog.numAwarded })}</span>}
                 </SectionHeader>
+                {/* Filters. A chip is only offered when it would actually show
+                    something — an untyped set gets no "missable" chip. */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {ACH_FILTERS.map((f) => {
+                    const n = achCounts[f.key];
+                    if (f.key !== 'all' && !n) return null;
+                    if ((f.key === 'earned' || f.key === 'unearned') && !prog) return null;
+                    const on = achFilter === f.key;
+                    return (
+                      <button key={f.key} className="btn !py-0.5 !px-2 text-sm"
+                        style={on ? { borderColor: 'var(--color-neon-amber)', color: 'var(--color-neon-amber)' } : undefined}
+                        onClick={() => setAchFilter(f.key)}>
+                        {t(f.labelKey)} <span className="text-ink-dim">{n}</span>
+                      </button>
+                    );
+                  })}
+                </div>
                 <div className={`grid grid-cols-1 sm:grid-cols-2 gap-1.5 overflow-auto pr-1 ${full ? 'xl:grid-cols-3 max-h-[58vh]' : 'max-h-80'}`}>
-                  {game.achievements.map((a: any) => {
+                  {shownAchievements.map((a: any) => {
                     const got = earned[a.id];
                     return (
                       <div key={a.id} className="panel !rounded-md p-2 flex items-start gap-2.5"
@@ -326,11 +392,19 @@ export function GameModal({ gameId, onClose }: { gameId: number; onClose: () => 
                             {got && <Check size={13} className="text-neon-green shrink-0 mt-0.5" />}<span>{a.title}</span>
                           </div>
                           <div className="font-body text-ink-dim text-sm leading-snug mt-0.5">{a.description}</div>
+                          {a.type && ACH_TYPE_COLOR[a.type] && (
+                            <span className="badge mt-1 inline-block" style={{ color: ACH_TYPE_COLOR[a.type] }}>
+                              {t(`gm.type.${a.type}`)}
+                            </span>
+                          )}
                         </div>
                         <span className="font-mono text-neon-amber text-base shrink-0">{a.points}</span>
                       </div>
                     );
                   })}
+                  {shownAchievements.length === 0 && (
+                    <div className="font-body text-ink-dim text-sm p-2">{t('gm.filter.none')}</div>
+                  )}
                 </div>
               </div>
             )}
