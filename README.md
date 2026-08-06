@@ -333,14 +333,14 @@ identically) and verified end-to-end against the official RAHasher.
 Setup, tests and conventions: [CONTRIBUTING.md](CONTRIBUTING.md).
 Code is [MIT](LICENSE); game data, hashes and images remain © retroachievements.org.
 
-## Stars
+## Star History
 
-<a href="https://www.star-history.com/#x3kim/RAChecker&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=x3kim/RAChecker&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=x3kim/RAChecker&type=Date" />
-    <img alt="Star history of x3kim/RAChecker" src="https://api.star-history.com/svg?repos=x3kim/RAChecker&type=Date" />
-  </picture>
+<a href="https://www.star-history.com/?repos=x3kim%2FRAChecker&type=date&legend=bottom-right">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=x3kim/RAChecker&type=date&theme=dark&legend=bottom-right&sealed_token=czoJclEh_FXVf5ElsbTa1Hk1YK-Ekii_7sbm33bGt2amcXQPlUJQUPJtbM4xvEMA9FK8B1gncIE2GMoY8lcydsTcNKZlvIVwOjjjlgGA__vfcj_rv_u-l7lGS7CO8VrhmNnABiX0QaUaB0g-E87HBIb2Hr872sUcs_HIh1u2w1He5MFcsSHro0DVpTVI" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=x3kim/RAChecker&type=date&legend=bottom-right&sealed_token=czoJclEh_FXVf5ElsbTa1Hk1YK-Ekii_7sbm33bGt2amcXQPlUJQUPJtbM4xvEMA9FK8B1gncIE2GMoY8lcydsTcNKZlvIVwOjjjlgGA__vfcj_rv_u-l7lGS7CO8VrhmNnABiX0QaUaB0g-E87HBIb2Hr872sUcs_HIh1u2w1He5MFcsSHro0DVpTVI" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=x3kim/RAChecker&type=date&legend=bottom-right&sealed_token=czoJclEh_FXVf5ElsbTa1Hk1YK-Ekii_7sbm33bGt2amcXQPlUJQUPJtbM4xvEMA9FK8B1gncIE2GMoY8lcydsTcNKZlvIVwOjjjlgGA__vfcj_rv_u-l7lGS7CO8VrhmNnABiX0QaUaB0g-E87HBIb2Hr872sUcs_HIh1u2w1He5MFcsSHro0DVpTVI" />
+ </picture>
 </a>
 
 Thanks to everyone who starred it — it is a small project and every one of them is noticed.
