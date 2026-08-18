@@ -6,6 +6,7 @@ import { hashFile, hashBuffer, md5 } from './file-hash.js';
 import { readEntry } from './archive.js';
 import { hashWithRAHasher, isRAHasherAvailable } from './rahasher.js';
 import { isCompressedDisc, expandDiscImage } from './expand.js';
+import { readNkitMarker, nkitMessage } from './nkit.js';
 
 // FBNeo parent-folder names that get prefixed into the arcade name hash.
 const ARCADE_KNOWN_PARENTS = new Set([
@@ -110,6 +111,11 @@ async function rahasherWithExpansion(consoleId, filePath, displayPath, { signal,
     if (expanded?.path) { target = expanded.path; cleanup = expanded.cleanup; }
   }
   try {
+    // An NKit image would hash without complaint and match nothing, so say what
+    // it is instead. Checked after expansion, which also covers a .nkit.gcz.
+    const nkit = await readNkitMarker(target);
+    if (nkit) return { status: 'error', message: nkitMessage(nkit) };
+
     phase('rahasher');
     const res = await hashWithRAHasher(consoleId, target, { signal, timeoutMs });
     if (res.md5) return { md5: res.md5, method: 'rahasher' };

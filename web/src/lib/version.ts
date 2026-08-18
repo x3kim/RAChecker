@@ -1,6 +1,6 @@
 // Single source of truth for the app version + changelog. The footer version
 // chip opens a modal rendering CHANGELOG; package.json is kept in sync manually.
-export const APP_VERSION = '0.16.0';
+export const APP_VERSION = '0.17.0';
 
 // GitHub repository — linked from the header (GitHub icon in the "More" menu).
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
@@ -15,6 +15,16 @@ export interface Release { version: string; date: string; title?: { de: string; 
 
 // Newest first. Dates are ISO (YYYY-MM-DD).
 export const CHANGELOG: Release[] = [
+  {
+    version: '0.17.0',
+    date: '2026-08-19',
+    title: { de: 'WBFS, CISO und NKit-Erkennung', en: 'WBFS, CISO and NKit detection' },
+    changes: [
+      { type: 'fix', de: 'NKit-Images werden endlich erkannt. NKit verkleinert einen Dump, indem es das Padding entfernt, mit dem die Disc gemastert wurde — die Datei behält aber die Endung .iso und einen echten Disc-Header. RAHasher hasht sie deshalb klaglos, nur passt das Ergebnis zu nichts: RAChecker meldete „kein Treffer“ für Spiele, die RetroAchievements voll unterstützt, ohne jeden Hinweis auf die Ursache. Jetzt steht da, was die Datei ist und was zu tun ist.', en: 'NKit images are recognised at last. NKit shrinks a dump by stripping the padding the disc was mastered with, but the file keeps the .iso extension and a genuine disc header. RAHasher therefore hashes it without complaint, and the result matches nothing: RAChecker reported „no match“ for games RetroAchievements fully supports, with no hint as to why. It now says what the file is and what to do about it.' },
+      { type: 'feature', de: 'WBFS-Dateien werden gehasht — das Format, in dem USB-Loader Wii-Spiele ablegen. RAHasher las bei einer .wbfs den Container-Kopf, als wäre er die Disc, und wies die Datei ab. Sie wird jetzt zum Hashen kurz in eine echte .iso zurückverwandelt.', en: 'WBFS files are hashed — the format USB loaders keep Wii games in. RAHasher read a .wbfs container header as if it were the disc and rejected the file. It is now turned back into a real .iso for the moment it takes to hash.' },
+      { type: 'feature', de: 'Die GameCube- und Wii-Variante von .ciso wird ebenfalls gehasht. Die Endung steht für zwei völlig verschiedene Formate — PSP-Dumps benutzen sie anders als GameCube-Werkzeuge — und nur das PSP-Format wurde bisher gelesen.', en: 'The GameCube and Wii flavour of .ciso is hashed as well. The extension names two completely different formats — PSP dumps use it one way, GameCube tools another — and only the PSP one was read before.' },
+    ],
+  },
   {
     version: '0.16.0',
     date: '2026-08-18',

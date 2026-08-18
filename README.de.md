@@ -253,14 +253,18 @@ Der automatische Download geht nur unter Windows. Unter Linux/macOS RAHasher sel
 
 **Android** braucht keinen RAHasher — die Disc-Regeln sind direkt in der App umgesetzt.
 
-**Komprimierte Container, die RAHasher nicht öffnen kann** — `.cso`/`.zso` (PSP, PS2) sowie
-Dolphins `.rvz`/`.wia` und das ältere `.gcz` (GameCube, Wii) — werden für die Dauer des
-Hashens in eine echte `.iso` im Temp-Ordner ausgepackt und danach wieder entfernt. Der Hash
-ist derselbe wie beim unkomprimierten Image. Alle Kompressionsverfahren, die WIA/RVZ kennt,
-werden gelesen: none, Purge, bzip2, LZMA, LZMA2 und Zstandard.
+**Container, die RAHasher nicht öffnen kann** — `.cso`/`.zso` (PSP, PS2), Dolphins
+`.rvz`/`.wia` und das ältere `.gcz`, das `.wbfs` der USB-Loader sowie die GameCube-/Wii-Variante
+von `.ciso` — werden für die Dauer des Hashens in eine echte `.iso` im Temp-Ordner ausgepackt
+und danach wieder entfernt. Der Hash ist derselbe wie beim unkomprimierten Image. Alle
+Kompressionsverfahren, die WIA/RVZ kennt, werden gelesen: none, Purge, bzip2, LZMA, LZMA2 und
+Zstandard.
 
-`.wbfs` wird **noch nicht** unterstützt. RAHasher liest den Container-Header, als wäre er die
-Disc, und weist die Datei ab — solche Images können vorerst gar nicht zugeordnet werden.
+**NKit-Images werden benannt, nicht gehasht.** NKit entfernt das Padding, mit dem eine Disc
+gemastert wurde — der Hash kann also nie passen. Die Datei behält aber die Endung `.iso` und
+einen echten Disc-Header, und RAHasher hasht sie klaglos. RAChecker sagt jetzt, was die Datei
+ist, statt ein voll unterstütztes Spiel als „kein Treffer" zu melden. Mit dem NKit-Tool in ein
+echtes `.iso` zurückwandeln und erneut scannen.
 
 Was in einem Disc-Image wirklich steckt — Kompression, Chunk-Größe, Disc-Typ — zeigt
 `npm run rvz:info -- "D:\ROMs\GameCube"`. Das Script liest nur die ersten 92 Byte pro Datei

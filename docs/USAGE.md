@@ -16,9 +16,11 @@ Tab **Hash-DB** → **Synchronisieren** (oder **Komplett neu** für ein vollstä
 Nur nötig für Disc-Systeme (PS1/PS2/PSP/Saturn/Dreamcast/…) und `.chd`.
 Tab **Einstellungen** → **RAHasher herunterladen.** Cartridge-Systeme funktionieren ohne.
 
-Komprimierte Container, die RAHasher nicht öffnet — `.cso`/`.zso` sowie Dolphins `.rvz`/`.wia`
-und `.gcz` — packt RAChecker zum Hashen kurz in eine echte `.iso` aus und räumt sie danach
-wieder weg; alle Kompressionsverfahren von WIA/RVZ werden gelesen. `.wbfs` geht noch nicht.
+Container, die RAHasher nicht öffnet — `.cso`/`.zso`, Dolphins `.rvz`/`.wia` und `.gcz`, das
+`.wbfs` der USB-Loader und die GameCube-/Wii-Variante von `.ciso` — packt RAChecker zum Hashen
+kurz in eine echte `.iso` aus und räumt sie danach wieder weg; alle Kompressionsverfahren von
+WIA/RVZ werden gelesen. NKit-Images (`NKIT`-Kennung, meist `.nkit.iso`) werden als solche
+gemeldet: sie lassen sich nicht hashen und müssen erst mit dem NKit-Tool zurückgewandelt werden.
 
 ## 3. Bibliothek scannen
 Tab **Scannen**:
