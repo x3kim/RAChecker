@@ -1,6 +1,6 @@
 {
   "name": "ra-checker",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "private": true,
   "type": "module",
   "description": "RetroAchievements ROM Compatibility Checker — scan your ROM library and find which games can earn achievements.",
@@ -24,6 +24,7 @@
     "serve": "npm run build && npm run start",
     "test": "node --no-warnings --test server/test/*.test.js packages/core/test/*.test.js",
     "icon": "node scripts/make-icon.mjs",
+    "rvz:info": "node scripts/rvz-info.mjs",
     "app:dev": "npm run build && electron .",
     "app:dist": "npm run build && electron-builder --win",
     "app:dir": "npm run build && electron-builder --win --dir",

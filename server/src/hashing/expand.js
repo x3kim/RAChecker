@@ -5,9 +5,10 @@
 // return the same shape, so callers only need this one entry point.
 import { isCsoPath, expandCso } from './cso.js';
 import { isRvzPath, expandRvz } from './rvz.js';
+import { isGczPath, expandGcz } from './gcz.js';
 
 export function isCompressedDisc(filePath) {
-  return isCsoPath(filePath) || isRvzPath(filePath);
+  return isCsoPath(filePath) || isRvzPath(filePath) || isGczPath(filePath);
 }
 
 /**
@@ -22,5 +23,6 @@ export async function expandDiscImage(filePath, displayPath, options) {
   const name = displayPath ?? filePath;
   if (isCsoPath(name)) return expandCso(filePath, options);
   if (isRvzPath(name)) return expandRvz(filePath, options);
+  if (isGczPath(name)) return expandGcz(filePath, options);
   return null;
 }

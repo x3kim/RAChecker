@@ -252,10 +252,17 @@ The automatic download is Windows-only. On Linux/macOS, build RAHasher yourself 
 **Android** doesn't need RAHasher — the disc rules are implemented natively in the app.
 
 **Compressed containers RAHasher cannot open** — `.cso`/`.zso` (PSP, PS2) and Dolphin's
-`.rvz`/`.wia` (GameCube, Wii) — are expanded into a plain `.iso` in the temp folder for the
-moment it takes to hash, then removed again. The hash is the one the raw image produces.
-`.rvz`/`.wia` written with bzip2, LZMA or LZMA2 are reported as unsupported; re-compress them
-in Dolphin with **Zstandard**, which is what it defaults to.
+`.rvz`/`.wia` and older `.gcz` (GameCube, Wii) — are expanded into a plain `.iso` in the temp
+folder for the moment it takes to hash, then removed again. The hash is the one the raw image
+produces. Every compression method WIA/RVZ defines is read: none, Purge, bzip2, LZMA, LZMA2
+and Zstandard.
+
+`.wbfs` is **not** supported yet. RAHasher reads the container header as if it were the disc
+and rejects the file, so those images cannot be matched at all for now.
+
+To see what a disc image actually holds — its compression, chunk size and disc type —
+run `npm run rvz:info -- "D:\ROMs\GameCube"`. It reads only the first 92 bytes of each file,
+so it is quick even over a network share.
 
 ---
 
