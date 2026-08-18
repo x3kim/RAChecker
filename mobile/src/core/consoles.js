@@ -18,6 +18,9 @@ const EXT = {
   '.lnx': { consoleId: 13, headerRule: 'lynx' },
   '.pce': { consoleId: 8,  headerRule: 'pce' },
   '.a78': { consoleId: 51, headerRule: 'a7800' },
+  '.nds': { consoleId: 18, headerRule: null },
+  '.dsi': { consoleId: 78, headerRule: null },
+  '.ids': { consoleId: 18, headerRule: null },
 };
 
 export function consoleForExt(ext) {

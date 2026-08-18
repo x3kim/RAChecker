@@ -2,10 +2,11 @@
 // RetroAchievements hash through the shared core, the disc rules, or an archive.
 import { unzipSync } from 'fflate';
 // Vendored shared core (source of truth: packages/core).
-import { consoleForExt } from './core';
+import { consoleForExt, hashNds, NDS_EXTS } from './core';
 import { hashDisc, HASHABLE_DISC_EXTS } from './disc';
 import { RandomReader, bufferReader } from './disc/reader';
 import { hashCartCandidates, rulesForExt, Candidate } from './hashCandidates';
+import { md5Create } from './md5';
 import { openFileReader, createTempFile } from './fileIO';
 import { openSevenZip, extractSevenZipEntry, SevenZipError } from './archive/sevenZip';
 import { lzma1Decode } from './lzma/decoder';
@@ -40,10 +41,34 @@ export type Hashed = {
 export const UNSUPPORTED_ARCHIVE_EXTS = new Set(['.rar', '.tar', '.gz', '.bz2', '.xz']);
 export const ARCHIVE_EXTS = new Set(['.zip', '.7z']);
 
+// Every plausible hash for a cartridge file.
+//
+// A Nintendo DS ROM is a container rather than a flat image: RetroAchievements
+// hashes its header plus the ARM9/ARM7 code and icon blocks the header points
+// at (see core/nds.js). A whole-file MD5 of a .nds therefore never matches,
+// which is why DS ROMs used to come back as "no match" on the phone even though
+// the desktop identified them.
+async function cartCandidates(reader: RandomReader, ext: string): Promise<Candidate[]> {
+  let nds: Candidate | null = null;
+  if (NDS_EXTS.has(ext)) {
+    try {
+      const md5 = await hashNds(reader, md5Create);
+      if (md5) nds = { rule: 'nds', md5 };
+    } catch { /* not a DS ROM after all — the cartridge rules below still apply */ }
+  }
+  // For a DS-only extension the whole-file pass is dead weight: it cannot match
+  // anything, and skipping it turns a 128 MB read on the phone into about 1 MB.
+  // `.srl` is shared with Game Boy Advance, so there both hashes are wanted.
+  if (nds && ext !== '.srl') return [nds];
+
+  const rest = await hashCartCandidates(reader, reader.size, rulesForExt(ext));
+  return nds ? [...rest, nds] : rest;
+}
+
 async function hashBytesCandidates(displayName: string, extName: string, bytes: Uint8Array): Promise<Hashed> {
   const ext = extOf(extName);
   const meta = consoleForExt(ext);
-  const candidates = await hashCartCandidates(bufferReader(bytes), bytes.length, rulesForExt(ext));
+  const candidates = await cartCandidates(bufferReader(bytes), ext);
   return {
     name: displayName, ext, rule: meta?.headerRule ?? null,
     consoleId: meta?.consoleId ?? null,
@@ -64,7 +89,7 @@ export async function hashTarget(uri: string, name: string, sizeHint?: number): 
 // that were unpacked to a scratch file).
 async function hashReader(reader: RandomReader, name: string): Promise<Hashed> {
   const ext = extOf(name);
-  const candidates = await hashCartCandidates(reader, reader.size, rulesForExt(ext));
+  const candidates = await cartCandidates(reader, ext);
   const meta = consoleForExt(ext);
   return {
     name, ext, rule: meta?.headerRule ?? null,
@@ -289,6 +314,9 @@ export const CART_EXTS = new Set([
   '.vb', '.vboy', '.min', '.sg', '.sc', '.col', '.cv', '.int', '.itv', '.vec',
   '.gam', '.ws', '.wsc', '.pc2', '.chf', '.sv', '.uze', '.hex', '.arduboy',
   '.wasm', '.mx1', '.mx2', '.rom',
+  // Nintendo DS/DSi. Hashed by the container rule in core/nds.js, not by a
+  // whole-file MD5 — without these the scanner skipped DS ROMs entirely.
+  '.nds', '.dsi', '.ids',
 ]);
 
 // Disc-image formats we recognise. The ones in HASHABLE_DISC_EXTS are hashed
