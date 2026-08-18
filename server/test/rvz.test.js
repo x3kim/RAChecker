@@ -445,14 +445,15 @@ test('expandRvz ignores files that are not WIA/RVZ', async () => {
   assert.equal(await rvz.expandRvz(path), null);
 });
 
-test('expandRvz names the compression it cannot read', async () => {
+test('expandRvz reports a compression method it does not know', async () => {
+  // Every method the format documents is implemented, so this can only be a file
+  // from a newer Dolphin than the spec this was written against.
   const { file } = gameCubeFixture(NONE);
-  file.writeUInt32BE(4, 0x48 + 0x04); // claim LZMA2
-  const path = join(tempDataDir, 'lzma2.rvz');
+  file.writeUInt32BE(6, 0x48 + 0x04);
+  const path = join(tempDataDir, 'future-codec.rvz');
   writeFileSync(path, file);
   const result = await rvz.expandRvz(path);
-  assert.match(result.error, /LZMA2/);
-  assert.match(result.error, /Zstandard/);
+  assert.match(result.error, /compression type 6/);
 });
 
 test('isRvzPath covers both extensions and nothing else', () => {

@@ -32,6 +32,8 @@ import { join, basename, extname } from 'node:path';
 import { createHash, createCipheriv } from 'node:crypto';
 import { zstdDecompressSync } from 'node:zlib';
 import { config } from '../config.js';
+import { bzip2Decompress } from './bzip2.js';
+import { lzma1Decompress, lzma2Decompress } from './lzma.js';
 
 export const RVZ_EXTS = new Set(['.rvz', '.wia']);
 
@@ -48,9 +50,7 @@ const DISC_TYPE_WII = 2;
 
 const COMPRESSION = { NONE: 0, PURGE: 1, BZIP2: 2, LZMA: 3, LZMA2: 4, ZSTD: 5 };
 const COMPRESSION_NAMES = ['none', 'Purge', 'bzip2', 'LZMA', 'LZMA2', 'Zstandard'];
-// Node ships a Zstandard decoder; bzip2/LZMA/LZMA2 would each need a decoder of
-// their own. Zstandard is what Dolphin defaults to, so those three are rare.
-const SUPPORTED_COMPRESSION = new Set([COMPRESSION.NONE, COMPRESSION.PURGE, COMPRESSION.ZSTD]);
+const SUPPORTED_COMPRESSION = new Set(Object.values(COMPRESSION));
 
 // Wii disc geometry. A sector is 0x8000 bytes on disc: a 0x400 hash block
 // followed by 0x7c00 bytes of encrypted payload.
@@ -75,10 +75,21 @@ async function readExact(fh, size, position) {
 
 // Whole-stream codecs. PURGE is not one of these — it is a sparse-segment
 // encoding applied to the group payload itself, decoded by decodePurge.
-function decompressStream(method, input) {
-  if (method === COMPRESSION.NONE) return input;
-  if (method === COMPRESSION.ZSTD) return zstdDecompressSync(input);
-  throw new Error(`compression method ${COMPRESSION_NAMES[method] ?? method} is not supported`);
+//
+// `maxSize` is how much output the caller can possibly need. bzip2 and LZMA2 use
+// it only to bound their allocation; raw LZMA1 needs it as the target length,
+// because the format stores neither a length nor, in Dolphin's writer, an
+// end-of-stream marker.
+function decompressStream(method, input, comprData, maxSize) {
+  switch (method) {
+    case COMPRESSION.NONE: return input;
+    case COMPRESSION.ZSTD: return zstdDecompressSync(input);
+    case COMPRESSION.BZIP2: return bzip2Decompress(input, maxSize);
+    case COMPRESSION.LZMA: return lzma1Decompress(input, comprData[0], maxSize);
+    case COMPRESSION.LZMA2: return lzma2Decompress(input, maxSize);
+    default:
+      throw new Error(`compression method ${COMPRESSION_NAMES[method] ?? method} is not supported`);
+  }
 }
 
 // PURGE (WIA only): a run of {offset, size, data} segments covering the parts of
@@ -274,6 +285,9 @@ async function readRvzHeader(fh) {
     compression: disc.readUInt32BE(0x04),
     chunkSize: disc.readUInt32BE(0x0c),
     discHead: Buffer.from(disc.subarray(0x10, 0x90)),
+    // Codec parameters: the LZMA properties byte and dictionary size for LZMA,
+    // the dictionary size property for LZMA2, unused by the others.
+    comprData: Buffer.from(disc.subarray(0xd5, 0xdc)),
     groupEntrySize: isRvz ? 12 : 8,
   };
 
@@ -297,10 +311,9 @@ async function readRvzHeader(fh) {
   const groupSize = disc.readUInt32BE(0xd0);
 
   if (!SUPPORTED_COMPRESSION.has(ctx.compression)) {
-    const name = COMPRESSION_NAMES[ctx.compression] ?? `type ${ctx.compression}`;
     const err = new Error(
-      `this image is compressed with ${name}; RAChecker can only read Zstandard-compressed ones. ` +
-      'Re-compress it in Dolphin (Convert File… → Zstandard) and scan it again'
+      `this image uses compression type ${ctx.compression}, which RAChecker does not know. ` +
+      'It is newer than the documented WIA/RVZ format — please report the file'
     );
     err.unsupportedCompression = true;
     throw err;
@@ -330,7 +343,7 @@ async function readRvzHeader(fh) {
 
   const readTable = async (offset, packedSize, expected) => {
     const raw = await readExact(fh, packedSize, offset);
-    const table = decompressStream(ctx.compression, raw);
+    const table = decompressStream(ctx.compression, raw, ctx.comprData, expected);
     if (table.length < expected) throw new Error('a table decompressed to fewer bytes than it declares');
     return table;
   };
@@ -378,9 +391,19 @@ async function decodeGroup(ctx, fh, index, { logicalSize, exceptionLists, baseDi
 
   const method = compressed ? ctx.compression : COMPRESSION.NONE;
   const raw = await readExact(fh, storedSize, group.dataOffset);
+  // How much this group can possibly decompress to. The payload's size is known
+  // up front; the exception lists in front of it are not, so they are bounded —
+  // a sector's 0x400-byte hash block holds at most 47 hashes (31 H0, 8 H1, 8 H2)
+  // and one list covers at most a 64-sector group.
+  const payloadSize = group.packedSize > 0 ? group.packedSize : logicalSize;
+  const maxSize = payloadSize + (exceptionLists > 0
+    ? exceptionLists * (2 + SECTORS_PER_GROUP * 47 * 22) + 4
+    : 0);
   // Purge is applied to the payload only, so its exception lists sit in front of
   // the still-encoded data rather than inside a decompressed stream.
-  const stream = method === COMPRESSION.PURGE ? raw : decompressStream(method, raw);
+  const stream = method === COMPRESSION.PURGE
+    ? raw
+    : decompressStream(method, raw, ctx.comprData, maxSize);
 
   let pos = 0;
   const exceptions = [];

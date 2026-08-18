@@ -1,6 +1,6 @@
 // Single source of truth for the app version + changelog. The footer version
 // chip opens a modal rendering CHANGELOG; package.json is kept in sync manually.
-export const APP_VERSION = '0.15.0';
+export const APP_VERSION = '0.16.0';
 
 // GitHub repository — linked from the header (GitHub icon in the "More" menu).
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
@@ -15,6 +15,15 @@ export interface Release { version: string; date: string; title?: { de: string; 
 
 // Newest first. Dates are ISO (YYYY-MM-DD).
 export const CHANGELOG: Release[] = [
+  {
+    version: '0.16.0',
+    date: '2026-08-18',
+    title: { de: 'Alle GameCube- und Wii-Container', en: 'Every GameCube and Wii container' },
+    changes: [
+      { type: 'feature', de: 'RVZ- und WIA-Images werden jetzt in jedem Kompressionsverfahren gelesen, das Dolphin anbietet. Bisher lief nur Zstandard; bei bzip2, LZMA oder LZMA2 kam der Hinweis zurück, die Datei neu zu komprimieren. Das ist nicht mehr nötig.', en: 'RVZ and WIA images are read in every compression method Dolphin offers. Only Zstandard worked before; bzip2, LZMA and LZMA2 came back asking you to re-compress the file. That is no longer necessary.' },
+      { type: 'feature', de: 'Das ältere GCZ-Format von Dolphin wird jetzt ebenfalls gehasht. RAHasher las bei einer .gcz den Container-Kopf, als wäre er die Disc, und meldete „Not a Gamecube disc“ — solche Dateien ließen sich gar nicht zuordnen. Sie werden nun wie RVZ und CSO kurz ausgepackt und danach wieder aufgeräumt.', en: 'The older GCZ format Dolphin writes is hashed as well now. RAHasher read a .gcz container header as if it were the disc and reported „Not a Gamecube disc“, so those files could not be matched at all. They are now expanded for the moment it takes to hash, like RVZ and CSO.' },
+    ],
+  },
   {
     version: '0.15.0',
     date: '2026-08-18',
