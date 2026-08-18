@@ -18,11 +18,14 @@ import { join } from 'node:path';
 const tempDataDir = mkdtempSync(join(tmpdir(), 'ra-classify-test-'));
 process.env.RA_DATA_DIR = tempDataDir;
 
-let classifyFile, Scanner;
+let classifyFile, Scanner, EXT_TO_CONSOLES, CONSOLE_BY_ID, ARCHIVE_EXTS;
+// Mirrors scanner.js — disc tracks are hashed via their .cue/.chd, never alone.
+const DISC_SIDECAR = new Set(['.bin', '.img', '.sub', '.ccd', '.sbi', '.toc']);
 before(async () => {
   const mod = await import('../src/scanner.js');
   classifyFile = mod.classifyFile;
   Scanner = mod.Scanner;
+  ({ EXT_TO_CONSOLES, CONSOLE_BY_ID, ARCHIVE_EXTS } = await import('../src/consoles.js'));
 });
 after(() => { try { rmSync(tempDataDir, { recursive: true, force: true }); } catch { /* win locks */ } });
 
@@ -43,14 +46,44 @@ test('.nds inside a recognized DS folder pins the console (no candidate sweep)',
   assert.equal(cls.candidates, undefined, 'a folder hint settles it — hash once');
 });
 
-test('other RAHasher-only extensions are classified too (.dsi/.wad/.woz/.d88)', () => {
-  for (const [ext, expected] of [['.dsi', 78], ['.wad', 19], ['.woz', 38], ['.d88', 47]]) {
+test('the named RAHasher-only extensions all resolve to their console', () => {
+  // The formats the bug report and changelog name explicitly, spelled out so a
+  // regression in any single one is obvious from the failure message.
+  const named = {
+    '.nds': [18, 78], '.ids': [18, 78], '.dsi': [78],
+    '.wad': [19],
+    '.woz': [38], '.po': [38], '.do': [38], '.2mg': [38], '.nib': [38],
+    '.sna': [37], '.cpr': [37], '.cdt': [37],
+    '.d88': [47], '.d98': [47], '.88d': [47], '.cmt': [47],
+  };
+  for (const [ext, expected] of Object.entries(named)) {
     const cls = classifyFile(`C:/roms/misc/x${ext}`, ext, null);
-    assert.ok(!cls.unknown && !cls.skip, `${ext} must be classified`);
+    assert.ok(!cls.unknown && !cls.skip, `${ext} must be classified, got ${JSON.stringify(cls)}`);
     assert.equal(cls.method, 'rahasher', `${ext} -> RAHasher`);
     const ids = cls.candidates?.length ? cls.candidates : [cls.consoleId];
-    assert.ok(ids.includes(expected), `${ext} -> console ${expected} (got ${ids})`);
+    assert.deepEqual(ids, expected, `${ext} -> consoles ${expected}`);
   }
+});
+
+test('EVERY RAHasher-only extension is classified — including consoles added later', () => {
+  // Derived from the console table rather than a hand-kept list: a system added
+  // in the future with an extension only RAHasher can hash is covered the day it
+  // is added, which is exactly how .nds slipped through in the first place.
+  const missed = [];
+  for (const [ext, ids] of EXT_TO_CONSOLES) {
+    const consoles = ids.map((id) => CONSOLE_BY_ID.get(id)).filter(Boolean);
+    // Extensions any in-process rule can handle take the 'file' path, and disc
+    // sidecars/archives are deliberately skipped — neither is this test's business.
+    if (consoles.some((c) => c.method !== 'rahasher')) continue;
+    if (DISC_SIDECAR.has(ext) || ARCHIVE_EXTS.has(ext)) continue;
+
+    const cls = classifyFile(`C:/roms/misc/x${ext}`, ext, null);
+    const got = cls.candidates?.length ? cls.candidates : [cls.consoleId];
+    if (cls.unknown || cls.skip || cls.method !== 'rahasher' || got.join() !== ids.join()) {
+      missed.push(`${ext} -> expected ${ids}, got ${JSON.stringify(cls)}`);
+    }
+  }
+  assert.deepEqual(missed, [], `every RAHasher-only extension must classify:\n  ${missed.join('\n  ')}`);
 });
 
 test('cartridge extensions keep their in-process file rule (no RAHasher regression)', () => {
