@@ -253,6 +253,12 @@ Der automatische Download geht nur unter Windows. Unter Linux/macOS RAHasher sel
 
 **Android** braucht keinen RAHasher — die Disc-Regeln sind direkt in der App umgesetzt.
 
+**Komprimierte Container, die RAHasher nicht öffnen kann** — `.cso`/`.zso` (PSP, PS2) und
+Dolphins `.rvz`/`.wia` (GameCube, Wii) — werden für die Dauer des Hashens in eine echte `.iso`
+im Temp-Ordner ausgepackt und danach wieder entfernt. Der Hash ist derselbe wie beim
+unkomprimierten Image. `.rvz`/`.wia` mit bzip2, LZMA oder LZMA2 werden als nicht unterstützt
+gemeldet — in Dolphin mit **Zstandard** neu komprimieren, der Voreinstellung.
+
 ---
 
 ## Konfiguration

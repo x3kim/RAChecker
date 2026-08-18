@@ -10,7 +10,7 @@ import {
   consoleFromFolderSegments,
 } from './consoles.js';
 import { hashTarget } from './hashing/index.js';
-import { isCsoPath, expandCso } from './hashing/cso.js';
+import { isCompressedDisc, expandDiscImage } from './hashing/expand.js';
 import { listEntries, archiveType } from './hashing/archive.js';
 import { config } from './config.js';
 import {
@@ -270,9 +270,9 @@ export class Scanner {
     let targetExt = ext;
     let localCopy = true;
     let cleanup = null;
-    if (isCsoPath(filePath)) {
+    if (isCompressedDisc(filePath)) {
       const onPhase = (p, done, total) => this.emit('phase', { file: phaseFile, phase: p, done, total });
-      const expanded = await expandCso(filePath, {
+      const expanded = await expandDiscImage(filePath, filePath, {
         signal: this.signal,
         onProgress: (done, total) => onPhase('extracting', done, total),
       });

@@ -5,7 +5,7 @@ import { CONSOLE_BY_ID } from '../consoles.js';
 import { hashFile, hashBuffer, md5 } from './file-hash.js';
 import { readEntry } from './archive.js';
 import { hashWithRAHasher, isRAHasherAvailable } from './rahasher.js';
-import { isCsoPath, expandCso } from './cso.js';
+import { isCompressedDisc, expandDiscImage } from './expand.js';
 
 // FBNeo parent-folder names that get prefixed into the arcade name hash.
 const ARCADE_KNOWN_PARENTS = new Set([
@@ -82,27 +82,30 @@ export async function hashTarget({ filePath, consoleId, entry, signal, onPhase, 
       try {
         const target = r.tempPath;
         if (!target) return { status: 'error', message: 'Could not extract disc image from archive.' };
-        return await rahasherWithCso(consoleId, target, entry.name, { signal, timeoutMs, phase });
+        return await rahasherWithExpansion(consoleId, target, entry.name, { signal, timeoutMs, phase });
       } finally {
         await r.cleanup?.();
       }
     }
-    return await rahasherWithCso(consoleId, filePath, filePath, { signal, timeoutMs, phase });
+    return await rahasherWithExpansion(consoleId, filePath, filePath, { signal, timeoutMs, phase });
   }
 
   return { status: 'error', message: `No hashing method for ${c.name}` };
 }
 
-// Run RAHasher against a disc image, expanding compressed ISOs first. RAHasher
-// cannot read .cso/.zso ("Could not open track"), so those are unpacked into a
-// plain .iso in temp and removed again straight after hashing — the hash is the
-// same one RAHasher would produce for the uncompressed image.
-async function rahasherWithCso(consoleId, filePath, displayPath, { signal, timeoutMs, phase }) {
+// Run RAHasher against a disc image, expanding compressed ones first. RAHasher
+// cannot read .cso/.zso ("Could not open track") or Dolphin's .rvz/.wia, so
+// those are unpacked into a plain .iso in temp and removed again straight after
+// hashing — the hash is the same one RAHasher would produce for the raw image.
+async function rahasherWithExpansion(consoleId, filePath, displayPath, { signal, timeoutMs, phase }) {
   let target = filePath;
   let cleanup = null;
-  if (isCsoPath(displayPath)) {
+  if (isCompressedDisc(displayPath)) {
     phase('extracting', 0, 0);
-    const expanded = await expandCso(filePath, { signal, onProgress: (d, t) => phase('extracting', d, t) });
+    const expanded = await expandDiscImage(filePath, displayPath, {
+      signal,
+      onProgress: (d, t) => phase('extracting', d, t),
+    });
     if (expanded?.error) return { status: 'error', message: expanded.error };
     if (expanded?.path) { target = expanded.path; cleanup = expanded.cleanup; }
   }

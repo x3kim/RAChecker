@@ -1,6 +1,6 @@
 // Single source of truth for the app version + changelog. The footer version
 // chip opens a modal rendering CHANGELOG; package.json is kept in sync manually.
-export const APP_VERSION = '0.14.1';
+export const APP_VERSION = '0.15.0';
 
 // GitHub repository — linked from the header (GitHub icon in the "More" menu).
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
@@ -15,6 +15,15 @@ export interface Release { version: string; date: string; title?: { de: string; 
 
 // Newest first. Dates are ISO (YYYY-MM-DD).
 export const CHANGELOG: Release[] = [
+  {
+    version: '0.15.0',
+    date: '2026-08-18',
+    title: { de: 'GameCube- und Wii-Images (RVZ)', en: 'GameCube and Wii images (RVZ)' },
+    changes: [
+      { type: 'feature', de: 'Die komprimierten GameCube- und Wii-Images von Dolphin (.rvz, .wia) werden jetzt gehasht. RAHasher kann sie nicht öffnen, deshalb blieben solche Dateien bisher ohne Hash liegen — RAChecker packt sie dafür kurz in eine echte ISO aus und räumt sie danach wieder weg. Bei Wii-Discs werden die Partitionen dabei neu gehasht und verschlüsselt, damit das Ergebnis dem Original-Dump Byte für Byte entspricht. Mit bzip2, LZMA oder LZMA2 komprimierte Images meldet RAChecker als nicht unterstützt — in Dolphin mit Zstandard neu komprimieren, der Voreinstellung.', en: 'The compressed GameCube and Wii images Dolphin writes (.rvz, .wia) are hashed now. RAHasher cannot open them, so those files were left without a hash — RAChecker expands them into a real ISO for the moment it takes to hash, then removes it again. For Wii discs the partitions are re-hashed and re-encrypted along the way, so the result matches the original dump byte for byte. Images compressed with bzip2, LZMA or LZMA2 are reported as unsupported — re-compress them in Dolphin with Zstandard, its default.' },
+      { type: 'fix', de: 'Die Endung .wia war keinem System zugeordnet und wurde beim Scannen übergangen. Sie zählt jetzt wie .rvz zu GameCube und Wii.', en: 'The .wia extension was not assigned to any system and was passed over while scanning. It now counts towards GameCube and Wii just like .rvz.' },
+    ],
+  },
   {
     version: '0.14.1',
     date: '2026-08-18',

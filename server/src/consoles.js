@@ -27,10 +27,10 @@ export const CONSOLES = [
   { id: 13, short: 'lynx',  name: 'Atari Lynx',                method: 'file',     headerRule: 'lynx',    exts: ['.lnx', '.lyx'] },
   { id: 14, short: 'ngp',   name: 'Neo Geo Pocket',            method: 'file',     headerRule: null,      exts: ['.ngp', '.ngc', '.npc'] },
   { id: 15, short: 'gg',    name: 'Game Gear',                 method: 'file',     headerRule: null,      exts: ['.gg'] },
-  { id: 16, short: 'gc',    name: 'GameCube',                  method: 'rahasher', headerRule: null,      exts: ['.iso', '.rvz', '.gcm', '.gcz', '.ciso'] },
+  { id: 16, short: 'gc',    name: 'GameCube',                  method: 'rahasher', headerRule: null,      exts: ['.iso', '.rvz', '.wia', '.gcm', '.gcz', '.ciso'] },
   { id: 17, short: 'jag',   name: 'Atari Jaguar',              method: 'file',     headerRule: null,      exts: ['.j64', '.jag', '.rom', '.abs', '.cof'] },
   { id: 18, short: 'ds',    name: 'Nintendo DS',               method: 'rahasher', headerRule: null,      exts: ['.nds', '.srl', '.ids'] },
-  { id: 19, short: 'wii',   name: 'Wii',                       method: 'rahasher', headerRule: null,      exts: ['.iso', '.rvz', '.wbfs', '.wad'] },
+  { id: 19, short: 'wii',   name: 'Wii',                       method: 'rahasher', headerRule: null,      exts: ['.iso', '.rvz', '.wia', '.wbfs', '.wad'] },
   { id: 21, short: 'ps2',   name: 'PlayStation 2',             method: 'rahasher', headerRule: null,      exts: ['.iso', '.chd', '.cue', '.bin', '.m3u', '.cso'] },
   { id: 23, short: 'mo2',   name: 'Magnavox Odyssey 2',        method: 'file',     headerRule: null,      exts: ['.bin'] },
   { id: 24, short: 'mini',  name: 'Pokemon Mini',              method: 'file',     headerRule: null,      exts: ['.min'] },
@@ -151,7 +151,7 @@ export const EXT_TO_CONSOLES = (() => {
 
 export const ARCHIVE_EXTS = new Set(['.zip', '.7z', '.rar', '.gz', '.tar', '.tgz']);
 // Disc/playlist containers that should go straight to RAHasher, never extracted.
-export const DISC_EXTS = new Set(['.cue', '.bin', '.iso', '.chd', '.pbp', '.m3u', '.gdi', '.cdi', '.toc', '.ccd', '.img', '.rvz', '.cso', '.zso', '.wbfs', '.gcm', '.gcz', '.ciso', '.nrg']);
+export const DISC_EXTS = new Set(['.cue', '.bin', '.iso', '.chd', '.pbp', '.m3u', '.gdi', '.cdi', '.toc', '.ccd', '.img', '.rvz', '.wia', '.cso', '.zso', '.wbfs', '.gcm', '.gcz', '.ciso', '.nrg']);
 
 export function consoleMethod(id) {
   return CONSOLE_BY_ID.get(id)?.method ?? 'unknown';
