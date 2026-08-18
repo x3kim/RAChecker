@@ -18,8 +18,8 @@ export function JobHud({ onGo }: { onGo: (tab: Tab) => void }) {
     const tot = scan.totals;
     rows.push({
       key: 'scan', icon: ScanLine, label: t('hud.scan'), color: 'var(--color-neon-cyan)',
-      detail: scan.current?.file ? scan.current.file : `${tot.scanned}/${tot.files || tot.scanned}`,
-      pct: tot.files ? Math.round((tot.scanned / tot.files) * 100) : 5, tab: 'scan',
+      detail: scan.current?.file ? scan.current.file : `${tot.processed}/${tot.files || tot.processed}`,
+      pct: tot.files ? Math.round((tot.processed / tot.files) * 100) : 5, tab: 'scan',
     });
   }
   if (sync.active) {

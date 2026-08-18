@@ -116,9 +116,38 @@ function tempBreakdown() {
 }
 
 // ---- shared mutable state -------------------------------------------------
-let activeScan = null;   // { id, controller, rootPath }
+let activeScan = null;   // { id, controller, rootPath, sid, listeners, scanner }
 let activeSync = false;
 let hashNameJob = null;  // { scope, done, total, controller }
+
+// Outcome of the last few scans, keyed by the client's session id, so a browser
+// whose SSE connection dropped can learn how its run ended instead of starting
+// a fresh one. Tiny and in-memory: a restarted server simply forgets.
+const finishedScans = new Map();
+const FINISHED_SCANS_KEEP = 8;
+// How many already-streamed rows a reconnecting client gets replayed. Matches
+// the default page size of /api/scan/:id/items; the full set is in the DB.
+const SCAN_REPLAY_LIMIT = 5000;
+
+function rememberFinishedScan(sid, info) {
+  if (!sid) return;
+  finishedScans.set(sid, info);
+  while (finishedScans.size > FINISHED_SCANS_KEEP) {
+    finishedScans.delete(finishedScans.keys().next().value);
+  }
+}
+
+// A scan_items row as the SSE 'result' event the frontend already understands.
+function scanItemToEvent(row) {
+  return {
+    filePath: row.file_path, innerPath: row.inner_path, ext: row.ext, size: row.size,
+    consoleId: row.console_id, md5: row.md5, matchGameId: row.match_game_id,
+    status: row.status, message: row.message, hashMethod: row.hash_method,
+    durationMs: row.duration_ms, matchTitle: row.match_title, matchImage: row.match_image,
+    matchAchievements: row.match_achievements, matchPoints: row.match_points,
+    scannedAt: row.created_at, replayed: true,
+  };
+}
 
 // Fire-and-forget enrichment, used after a scan finishes. Never throws into the
 // caller and never starts a second run — the SSE endpoint below is the
@@ -388,7 +417,11 @@ export async function registerRoutes(app) {
         root: w.root, processed: w.processed, scanning: w.scanning,
         lastRunAt: w.lastRunAt, nextRunAt: w.nextRunAt, recentMatches,
       },
-      activeScan: activeScan ? { id: activeScan.id, rootPath: activeScan.rootPath } : null,
+      // sid is handed out so a reloaded page can reattach to the running scan
+      // instead of being locked out of it — it identifies a run, nothing more.
+      activeScan: activeScan
+        ? { id: activeScan.id, rootPath: activeScan.rootPath, sid: activeScan.sid, watchers: activeScan.listeners.size }
+        : null,
       activeSync,
       consoles: consoles.map((c) => {
         const s = syncById.get(c.id);
@@ -710,10 +743,55 @@ export async function registerRoutes(app) {
   });
 
   // ---- library scan (SSE) -------------------------------------------------
+  // A scan runs on the server, not in the browser: the SSE connection only
+  // watches it. Any hiccup on that connection (laptop sleeping, Wi-Fi blip,
+  // a reloaded tab) used to strand the user — the scan kept walking the library
+  // headless while every reconnect was answered with "A scan is already
+  // running", so on a big library there was no way back in for a long time.
+  //
+  // The client now stamps each run with a session id and simply reconnects:
+  //   same sid, scan still running  -> attach to it (progress + cancel are back)
+  //   sid of a run that has finished -> replay its result and close (crucially,
+  //                                     this does NOT kick off a second scan)
+  //   different sid, scan running    -> the honest "already running" error
   app.get('/api/scan/stream', (req, reply) => {
     const { send, close } = openSSE(req, reply);
     const rootPath = req.query.path || getSetting('romRoot', config.romRoot);
-    if (activeScan) { send('error', { message: 'A scan is already running.' }); return void close(); }
+    const sid = String(req.query.sid || '').slice(0, 64) || null;
+
+    if (activeScan) {
+      if (!sid || activeScan.sid !== sid) {
+        send('error', { message: 'A scan is already running.' });
+        return void close();
+      }
+      // Reconnect of the run we are already streaming: add this connection to
+      // the fan-out and catch it up on everything so far.
+      const listener = { send, close };
+      activeScan.listeners.add(listener);
+      req.raw.on('close', () => activeScan?.listeners.delete(listener));
+      send('init', { scanId: activeScan.id, rootPath: activeScan.rootPath, attached: true });
+      try {
+        for (const row of getScanItems(activeScan.id, { limit: SCAN_REPLAY_LIMIT })) send('result', scanItemToEvent(row));
+      } catch { /* replay is a nicety — the live stream below is what matters */ }
+      send('progress', { ...activeScan.scanner.totals, totals: activeScan.scanner.totals });
+      return; // keep the connection open; the scan's fan-out drives it from here
+    }
+
+    // The run this connection belongs to already finished while the connection
+    // was down. Report the outcome instead of silently starting it all over.
+    // Only for the same root: a stale sid must never swallow a request to scan
+    // a different folder.
+    const remembered = sid ? finishedScans.get(sid) : null;
+    const finished = remembered && remembered.rootPath === rootPath ? remembered : null;
+    if (finished) {
+      send('init', { scanId: finished.scanId, rootPath: finished.rootPath, attached: true });
+      try {
+        for (const row of getScanItems(finished.scanId, { limit: SCAN_REPLAY_LIMIT })) send('result', scanItemToEvent(row));
+      } catch { /* ignore */ }
+      send('done', { status: finished.status, totals: finished.totals, bySystem: finished.bySystem });
+      return void close();
+    }
+
     if (!acquireScanLock('scan')) {
       send('error', { message: `A ${scanLockHolder() === 'schedule' ? 'scheduled' : 'watch'} scan is already running — try again in a moment.` });
       return void close();
@@ -724,7 +802,10 @@ export async function registerRoutes(app) {
     // diff and show what changed (Sammlung-Diff). Non-fatal if it fails.
     try { snapshotLibraryBaseline(); } catch { /* diff just won't be available */ }
     const scanId = createScan(rootPath, Date.now());
-    activeScan = { id: scanId, controller, rootPath };
+    const self = { send, close };
+    const listeners = new Set([self]);
+    const fanout = (ev, data) => { for (const l of listeners) { try { l.send(ev, data); } catch { /* socket gone */ } } };
+    req.raw.on('close', () => listeners.delete(self));
     send('init', { scanId, rootPath });
 
     const onlyConsole = req.query.console ? Number(req.query.console) : null;
@@ -736,17 +817,27 @@ export async function registerRoutes(app) {
       bigFileCopyBytes: bigFileCopyBytes(),
       bigFileMaxBytes: bigFileMaxBytes(),
       skipCollected: !!getSetting('skipCollected', false),
-      emit: (ev, data) => send(ev, data),
+      emit: fanout,
     });
+    activeScan = { id: scanId, controller, rootPath, sid, listeners, scanner };
+
     const concurrency = Number(req.query.concurrency) || Math.max(1, Math.min(16, Number(getSetting('scanConcurrency', 1)) || 1));
     scanner.run({ concurrency })
-      .then((r) => finishScan(scanId, r.status, { totals: r.totals, bySystem: r.bySystem }, Date.now()))
-      .catch((e) => { send('error', { message: String(e.message) }); finishScan(scanId, 'error', { error: String(e.message) }, Date.now()); })
+      .then((r) => {
+        finishScan(scanId, r.status, { totals: r.totals, bySystem: r.bySystem }, Date.now());
+        rememberFinishedScan(sid, { scanId, rootPath, status: r.status, totals: r.totals, bySystem: r.bySystem });
+      })
+      .catch((e) => {
+        fanout('error', { message: String(e.message) });
+        finishScan(scanId, 'error', { error: String(e.message) }, Date.now());
+        rememberFinishedScan(sid, { scanId, rootPath, status: 'error', totals: scanner.totals, bySystem: {} });
+      })
       .finally(() => {
         activeScan = null;
         releaseScanLock('scan');
         try { autoBackup({ minIntervalMs: 30 * 60 * 1000 }); } catch { /* non-fatal */ }
-        close();
+        for (const l of listeners) { try { l.close(); } catch { /* already gone */ } }
+        listeners.clear();
         // Pull the canonical ROM names for whatever the scan just matched, so
         // their regions come from RetroAchievements instead of the filename.
         // Only the games you own, so this is seconds for a normal library.

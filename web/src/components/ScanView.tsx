@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScanLine, FolderOpen, Square, Search, Download, RotateCw, Library as LibraryIcon, Trophy, Star, FolderSearch, AlertTriangle } from 'lucide-react';
+import { ScanLine, FolderOpen, Square, Search, Download, RotateCw, Library as LibraryIcon, Trophy, Star, FolderSearch, AlertTriangle, Plug } from 'lucide-react';
 import type { AppStatus, ScanStatus, ScanItem } from '../lib/api';
 import { api, imageUrl } from '../lib/api';
 import { useJobs } from '../lib/jobs';
@@ -108,14 +108,25 @@ export function ScanView({ status, onOpenGame, goLibrary, onFindVersion }: {
           </div>
         )}
         {runningElsewhere && (
-          <div className="mt-3 font-mono text-sm flex items-center gap-2" style={{ color: 'var(--color-neon-amber)' }}>
+          <div className="mt-3 font-mono text-sm flex items-center gap-2 flex-wrap" style={{ color: 'var(--color-neon-amber)' }}>
             <AlertTriangle size={15} className="shrink-0" /> <span>{t('scan.runningElsewhere')}</span>
+            {/* After a page reload this view is empty while the scan keeps
+                running on the server. Reattach rather than leaving the user
+                with a disabled Start button and no way to stop it either. */}
+            {status?.activeScan?.sid && (
+              <button className="btn !py-1 !px-2.5 text-sm"
+                onClick={() => jobs.startScan(status.activeScan!.rootPath, null, status.activeScan!.sid!)}>
+                <Plug size={15} /> {t('scan.attach')}
+              </button>
+            )}
           </div>
         )}
 
         {(scan.active || totals.files > 0) && (
           <div className="mt-4">
-            <ProgressBar value={totals.scanned} max={totals.files || totals.scanned} label={scan.active ? t('scan.scanning') : t('scan.finished')} />
+            {/* Progress counts *files handled*, not result rows: a library full
+                of BIOS blobs and save files would otherwise never reach 100%. */}
+            <ProgressBar value={totals.processed} max={totals.files || totals.processed} label={scan.active ? t('scan.scanning') : t('scan.finished')} />
             {scan.active && scan.current && (
               <div className="font-mono text-sm mt-2 flex items-center gap-2 min-w-0">
                 <span className="animate-blink text-neon-cyan shrink-0">▮</span>
