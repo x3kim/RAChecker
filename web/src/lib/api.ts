@@ -22,7 +22,7 @@ export interface AppStatus {
     lastRunAt?: number | null; nextRunAt?: number | null;
     recentMatches?: { gameId: number | null; title: string; at: number }[];
   };
-  activeScan: { id: number; rootPath: string } | null;
+  activeScan: { id: number; rootPath: string; sid?: string | null; watchers?: number } | null;
   activeSync: boolean;
   consoles: ConsoleStatus[];
 }
@@ -68,7 +68,10 @@ export interface OwnedFiles {
 }
 
 export interface ScanTotals {
-  files: number; scanned: number; match: number; no_match: number;
+  // files = everything the walk found; processed = files finished (whatever the
+  // outcome) and therefore the progress denominator; scanned = files that
+  // produced a result row, which is what the status counters add up to.
+  files: number; processed: number; scanned: number; match: number; no_match: number;
   needs_rahasher: number; unsupported: number; error: number; skipped: number; ambiguous: number;
 }
 

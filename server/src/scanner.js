@@ -6,7 +6,7 @@ import { createReadStream, createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { join, extname, basename, relative, sep } from 'node:path';
 import {
-  CONSOLE_BY_ID, EXT_TO_CONSOLES, ARCHIVE_EXTS, DISC_EXTS,
+  CONSOLE_BY_ID, EXT_TO_CONSOLES, ARCHIVE_EXTS,
   consoleFromFolderSegments,
 } from './consoles.js';
 import { hashTarget } from './hashing/index.js';
@@ -50,7 +50,7 @@ function isArchive(ext) { return ARCHIVE_EXTS.has(ext); }
 const PERSISTED_STATUS = new Set(['match', 'no_match', 'needs_rahasher', 'unsupported', 'ambiguous', 'error']);
 
 // Decide which console + hashing rule applies to a plain file.
-function classifyFile(filePath, ext, folderConsoleId) {
+export function classifyFile(filePath, ext, folderConsoleId) {
   if (!ext || JUNK_EXTS.has(ext)) return { skip: true, reason: 'non-ROM file' };
   const extIds = EXT_TO_CONSOLES.get(ext) || [];
   const folder = folderConsoleId != null ? CONSOLE_BY_ID.get(folderConsoleId) : null;
@@ -75,10 +75,13 @@ function classifyFile(filePath, ext, folderConsoleId) {
     : extIds.map((id) => CONSOLE_BY_ID.get(id)).find((c) => c && c.method === 'file');
   if (fileConsole) return { consoleId: fileConsole.id, method: 'file', headerRule: fileConsole.headerRule };
 
-  // 5) Disc container without a folder hint: single disc-console ext -> use it.
-  if (DISC_EXTS.has(ext) && !DISC_SIDECAR.has(ext)) {
+  // 5) Anything left that belongs to a RAHasher system: disc containers
+  // (.iso/.chd/.cue…) but also cartridge formats only RAHasher can hash
+  // (.nds/.dsi -> DS/DSi, .wad -> Wii, .woz/.po -> Apple II, .d88 -> PC-8801…).
+  // Gating this on DISC_EXTS used to drop those cartridges as "unrecognized"
+  // whenever the path held no system-named folder.
+  if (!DISC_SIDECAR.has(ext)) {
     const discIds = extIds.filter((id) => CONSOLE_BY_ID.get(id)?.method === 'rahasher');
-    if (folder && folder.method === 'rahasher') return { consoleId: folder.id, method: 'rahasher', headerRule: null };
     if (discIds.length === 1) return { consoleId: discIds[0], method: 'rahasher', headerRule: null };
     if (discIds.length > 1) {
       // The extension alone can't say which system this is (.iso/.chd/.cue are
@@ -157,7 +160,12 @@ export class Scanner {
     // Never copy files larger than this (0 = no cap) — guards local disk space.
     this.bigFileMaxBytes = Number(bigFileMaxBytes) || 0;
     this.totals = {
-      files: 0, scanned: 0, match: 0, no_match: 0,
+      // `files` = everything the walk found. `processed` = files we are done
+      // with, whatever the outcome — this is what the progress bar must use, so
+      // it still reaches 100% in a library full of BIOS blobs, save states and
+      // other non-ROM files. `scanned` only counts files that produced a result
+      // row, so it stays the honest denominator for the status counters.
+      files: 0, processed: 0, scanned: 0, match: 0, no_match: 0,
       needs_rahasher: 0, unsupported: 0, error: 0, skipped: 0, ambiguous: 0,
     };
     this.bySystem = new Map(); // consoleId -> {match,total}
@@ -537,8 +545,12 @@ export class Scanner {
           // don't log those as file errors.
           if (!this.cancelled) this.record({ filePath: files[my], status: 'error', message: String(e.message).slice(0, 160) });
         }
-        if ((this.totals.scanned & 7) === 0) {
-          this.emit('progress', { scanned: this.totals.scanned, files: files.length, totals: this.totals });
+        // Count the file as done regardless of outcome. Ticking on `processed`
+        // (not `scanned`) also keeps progress flowing through long stretches of
+        // skipped files, where the old counter never moved and the bar froze.
+        this.totals.processed++;
+        if ((this.totals.processed & 7) === 0 || this.totals.processed === files.length) {
+          this.emit('progress', { processed: this.totals.processed, scanned: this.totals.scanned, files: files.length, totals: this.totals });
         }
       }
     };

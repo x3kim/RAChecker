@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { openStream } from './api';
 import type { ScanItem, ScanTotals } from './api';
 
-const EMPTY: ScanTotals = { files: 0, scanned: 0, match: 0, no_match: 0, needs_rahasher: 0, unsupported: 0, error: 0, skipped: 0, ambiguous: 0 };
+const EMPTY: ScanTotals = { files: 0, processed: 0, scanned: 0, match: 0, no_match: 0, needs_rahasher: 0, unsupported: 0, error: 0, skipped: 0, ambiguous: 0 };
 
 interface SyncState { active: boolean; done: boolean; cur: { done: number; total: number; name: string }; summary: any | null; error: string | null; }
 interface WarmState { active: boolean; done: boolean; total: number; doneCount: number; images: number; errors: number; title: string; }
@@ -20,7 +20,7 @@ interface JobsValue {
     getBuffer: () => ScanItem[];
     getSysAgg: () => Map<number, { match: number; total: number }>;
   };
-  startScan: (path: string, consoleId?: number | null) => void;
+  startScan: (path: string, consoleId?: number | null, existingSid?: string) => void;
   cancelScan: () => void;
   sync: SyncState;
   startSync: (force: boolean, consoleIds?: number[]) => void;
@@ -66,15 +66,27 @@ export function JobsProvider({ children, onChange }: { children: ReactNode; onCh
     onChange?.();
   }, [onChange]);
 
-  const startScan = useCallback((path: string, consoleId?: number | null) => {
+  // `existingSid` reconnects to a scan that is already running on the server —
+  // used after a page reload, where this provider is fresh but the scan is not.
+  const startScan = useCallback((path: string, consoleId?: number | null, existingSid?: string) => {
     if (scanEs.current) return;
     bufRef.current = []; sysRef.current = new Map(); totalsRef.current = { ...EMPTY }; curRef.current = null;
     setScanMeta({ active: true, done: false, scanId: null, rootPath: path, error: null });
     setVersion((v) => v + 1);
-    const url = `/api/scan/stream?path=${encodeURIComponent(path)}`
+    // Session id for this run. EventSource reconnects on its own after a
+    // network hiccup; the sid lets the server tell "this is my watcher coming
+    // back" from "someone wants a second scan", so a dropped connection
+    // reattaches instead of leaving the scan unreachable until it finishes.
+    const sid = existingSid || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    const url = `/api/scan/stream?path=${encodeURIComponent(path)}&sid=${encodeURIComponent(sid)}`
       + (consoleId != null ? `&console=${consoleId}` : '');
     const es = openStream(url, {
-      init: (d) => setScanMeta((m) => ({ ...m, scanId: d.scanId })),
+      init: (d) => {
+        // Reattached: the server replays the rows it already sent, so drop what
+        // this client collected before the drop or they would appear twice.
+        if (d.attached) { bufRef.current = []; sysRef.current = new Map(); }
+        setScanMeta((m) => ({ ...m, scanId: d.scanId, active: true, done: false, error: null }));
+      },
       processing: (d) => { curRef.current = { file: d.file || '', index: d.index || 0, total: d.total || 0 }; },
       phase: (d) => {
         const cur = curRef.current || { file: d.file || '', index: 0, total: 0 };
@@ -93,7 +105,10 @@ export function JobsProvider({ children, onChange }: { children: ReactNode; onCh
       },
       done: (d) => { if (d.totals) totalsRef.current = d.totals; stopScan(); },
       error: (d) => stopScan(d?.message),
-      __error: () => stopScan(),
+      // A transient drop leaves EventSource in CONNECTING while it retries —
+      // let it, the server reattaches us to the still-running scan. Only a
+      // genuinely closed stream ends the run for this client.
+      __error: () => { if (!scanEs.current || scanEs.current.readyState === EventSource.CLOSED) stopScan(); },
     });
     scanEs.current = es;
     flushTimer.current = window.setInterval(() => setVersion((v) => v + 1), 300);

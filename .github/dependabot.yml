@@ -1,0 +1,38 @@
+version: 2
+
+updates:
+  # GitHub Actions are pinned to commit SHAs in .github/workflows/*.yml, which
+  # is what makes a compromised tag harmless — but a pin never updates itself.
+  # Dependabot is what keeps those pins current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore(ci)
+
+  # Desktop app + server (npm workspaces: root, web/, packages/core).
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore(deps)
+    groups:
+      # One PR per week for the routine patch/minor churn; majors stay separate
+      # so they can be reviewed on their own.
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  # The Expo/React Native app has its own lockfile.
+  - package-ecosystem: npm
+    directory: /mobile
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore(mobile-deps)
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]

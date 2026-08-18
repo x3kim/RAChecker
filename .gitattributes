@@ -1,0 +1,5 @@
+# npm on Windows rewrites package-lock.json with CRLF, which turns every
+# install into a ~7000-line diff that buries the actual dependency changes.
+# Pin the lockfiles to LF so only the real changes show up in review.
+package-lock.json text eol=lf
+mobile/package-lock.json text eol=lf

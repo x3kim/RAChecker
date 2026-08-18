@@ -16,6 +16,17 @@ export interface Release { version: string; date: string; title?: { de: string; 
 // Newest first. Dates are ISO (YYYY-MM-DD).
 export const CHANGELOG: Release[] = [
   {
+    version: '0.14.1',
+    date: '2026-08-18',
+    title: { de: 'Scan-Fortschritt, DS-ROMs, Sicherheits-Updates', en: 'Scan progress, DS ROMs, security updates' },
+    changes: [
+      { type: 'fix', de: 'Nintendo-DS-ROMs (.nds) landen jetzt in der Sammlung. Lag die Datei nicht in einem nach dem System benannten Ordner, galt sie als unbekannte Endung und wurde stillschweigend übergangen — verschlüsselt wie entschlüsselt. Betroffen waren auch .dsi (DSi), .wad (Wii), .woz/.po/.do/.2mg (Apple II), .sna/.cpr/.cdt (Amstrad CPC) und .d88/.d98/.cmt (PC-8801). Wie bei Disc-Images wird das System jetzt am Inhalt erkannt.', en: 'Nintendo DS ROMs (.nds) end up in your collection now. When the file did not sit in a folder named after the system, it counted as an unknown extension and was passed over silently — encrypted and decrypted alike. The same affected .dsi (DSi), .wad (Wii), .woz/.po/.do/.2mg (Apple II), .sna/.cpr/.cdt (Amstrad CPC) and .d88/.d98/.cmt (PC-8801). As with disc images, the system is now identified by the file\'s content.' },
+      { type: 'fix', de: 'Der Fortschrittsbalken erreicht 100 %. Gezählt wurden bisher nur Dateien mit einem Ergebnis, gemessen aber an allen gefundenen Dateien — jede BIOS-Datei, jeder Spielstand und jede Textdatei ließ also eine Lücke stehen. Bei einer Sammlung mit vielen Nicht-ROM-Dateien blieb der Balken deutlich vor dem Ende stehen und der Scan wirkte hängengeblieben, obwohl er längst fertig war.', en: 'The progress bar reaches 100%. It counted only files that produced a result but measured against every file found, so each BIOS blob, save file and readme left a permanent gap. In a collection with many non-ROM files the bar stopped well short of the end and the scan looked stuck although it had long finished.' },
+      { type: 'fix', de: 'Ein Scan bleibt nach einem Verbindungsabbruch erreichbar. Der Scan läuft im Programm, nicht im Fenster — brach die Verbindung ab (Ruhezustand, neu geladene Seite), lief er unsichtbar weiter und jeder neue Versuch wurde mit „Es läuft bereits ein Scan" abgewiesen, bei großen Sammlungen sehr lange. Das Fenster verbindet sich jetzt von selbst wieder und holt Fortschritt und bisherige Treffer nach; nach einem Neuladen führt eine Schaltfläche zurück zum laufenden Scan.', en: 'A scan stays reachable after the connection drops. The scan runs in the program, not in the window — if the connection broke (sleep, a reloaded page) it kept going invisibly and every new attempt was refused with "a scan is already running", on large collections for a very long time. The window now reconnects by itself and catches up on progress and the matches so far; after a reload a button leads back to the running scan.' },
+      { type: 'improve', de: 'Sicherheits-Updates: alle bekannten Schwachstellen in den mitgelieferten Abhängigkeiten sind behoben, darunter ein Pfad-Durchgriff im Auslieferer der Oberfläche. RAChecker prüft Abhängigkeiten ab jetzt automatisch.', en: 'Security updates: every known vulnerability in the bundled dependencies is fixed, among them a path traversal in the component serving the user interface. RAChecker now checks its dependencies automatically.' },
+    ],
+  },
+  {
     version: '0.14.0',
     date: '2026-08-06',
     title: { de: 'CSO-Images, richtige Punkte, Erfolgs-Filter', en: 'CSO images, correct points, achievement filters' },
