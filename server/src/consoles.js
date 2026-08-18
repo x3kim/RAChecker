@@ -30,7 +30,7 @@ export const CONSOLES = [
   { id: 16, short: 'gc',    name: 'GameCube',                  method: 'rahasher', headerRule: null,      exts: ['.iso', '.rvz', '.wia', '.gcm', '.gcz', '.ciso'] },
   { id: 17, short: 'jag',   name: 'Atari Jaguar',              method: 'file',     headerRule: null,      exts: ['.j64', '.jag', '.rom', '.abs', '.cof'] },
   { id: 18, short: 'ds',    name: 'Nintendo DS',               method: 'rahasher', headerRule: null,      exts: ['.nds', '.srl', '.ids'] },
-  { id: 19, short: 'wii',   name: 'Wii',                       method: 'rahasher', headerRule: null,      exts: ['.iso', '.rvz', '.wia', '.wbfs', '.wad'] },
+  { id: 19, short: 'wii',   name: 'Wii',                       method: 'rahasher', headerRule: null,      exts: ['.iso', '.rvz', '.wia', '.wbfs', '.ciso', '.wad'] },
   { id: 21, short: 'ps2',   name: 'PlayStation 2',             method: 'rahasher', headerRule: null,      exts: ['.iso', '.chd', '.cue', '.bin', '.m3u', '.cso'] },
   { id: 23, short: 'mo2',   name: 'Magnavox Odyssey 2',        method: 'file',     headerRule: null,      exts: ['.bin'] },
   { id: 24, short: 'mini',  name: 'Pokemon Mini',              method: 'file',     headerRule: null,      exts: ['.min'] },
