@@ -20,3 +20,13 @@ test('mobile/src/core/region.js is an exact copy of packages/core/region.js', ()
     'Copy packages/core/region.js over mobile/src/core/region.js after changing it.',
   );
 });
+
+test('mobile/src/core/nds.js is an exact copy of packages/core/hash/nds.js', () => {
+  const source = readFileSync(join(ROOT, 'packages', 'core', 'hash', 'nds.js'), 'utf8');
+  const mirror = readFileSync(join(ROOT, 'mobile', 'src', 'core', 'nds.js'), 'utf8');
+  assert.equal(
+    mirror,
+    source,
+    'Copy packages/core/hash/nds.js over mobile/src/core/nds.js after changing it.',
+  );
+});

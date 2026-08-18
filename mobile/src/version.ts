@@ -1,7 +1,7 @@
 // Single source of truth for the mobile app version + changelog. Mirror the
 // version in app.json ("version" + android.versionCode). The auto-updater
 // compares this against GitHub releases tagged `android-vX.Y.Z`.
-export const APP_VERSION = '0.7.0';
+export const APP_VERSION = '0.7.1';
 
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
 export const DOCS_URL = 'https://x3kim.github.io/RAChecker/';
@@ -15,6 +15,18 @@ export type ChangelogEntry = { version: string; date: string; en: string[]; de: 
 
 // Newest first. `en`/`de` are bullet lists.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '0.7.1',
+    date: '2026-08-18',
+    en: [
+      'Nintendo DS games are found now. A .nds file is a container, not a flat ROM: RetroAchievements hashes its header plus the ARM9/ARM7 code and icon blocks the header points at, so the plain whole-file hash the app used could never match — and DS ROMs were skipped by the folder scan entirely. Both are fixed; the hashes were checked against RAHasher over 14 retail dumps and are identical.',
+      'Security updates for the bundled dependencies.',
+    ],
+    de: [
+      'Nintendo-DS-Spiele werden jetzt gefunden. Eine .nds-Datei ist ein Container, kein flaches ROM: RetroAchievements hasht ihren Header sowie die ARM9-/ARM7-Code- und Icon-Blöcke, auf die der Header zeigt. Der einfache Hash über die ganze Datei, den die App bildete, konnte deshalb nie treffen — und der Ordner-Scan übersprang DS-ROMs ohnehin. Beides behoben; die Hashes wurden an 14 Originaldumps gegen RAHasher geprüft und sind identisch.',
+      'Sicherheits-Updates für die Abhängigkeiten der App.',
+    ],
+  },
   {
     version: '0.7.0',
     date: '2026-08-06',
