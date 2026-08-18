@@ -1,6 +1,6 @@
 // Single source of truth for the app version + changelog. The footer version
 // chip opens a modal rendering CHANGELOG; package.json is kept in sync manually.
-export const APP_VERSION = '0.14.0';
+export const APP_VERSION = '0.14.1';
 
 // GitHub repository — linked from the header (GitHub icon in the "More" menu).
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
