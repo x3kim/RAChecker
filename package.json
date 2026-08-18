@@ -44,7 +44,7 @@
     "ra-core": "*"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2",
+    "concurrently": "^10.0.5",
     "electron": "^43.1.0",
     "electron-builder": "^26.15.3",
     "js-md5": "^0.9.2"
