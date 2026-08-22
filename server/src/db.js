@@ -1034,7 +1034,7 @@ export function libraryGenreFacets({ status, console_id, major } = {}) {
     for (const gname of list) counts.set(gname, (counts.get(gname) ?? 0) + row.n);
   }
   const genres = [...counts.entries()].map(([genre, n]) => ({ genre, n }))
-    .sort((a, b) => b.n - a.n || a.genre.localeCompare(b.genre));
+    .sort((a, b) => a.genre.localeCompare(b.genre));
   return { genres, unknown, total };
 }
 
@@ -1056,7 +1056,7 @@ export function libraryMajorGenreFacets({ status, console_id } = {}) {
     if (!row.major_genre) { unknown += row.n; continue; }
     genres.push({ genre: row.major_genre, n: row.n });
   }
-  genres.sort((a, b) => b.n - a.n || a.genre.localeCompare(b.genre));
+  genres.sort((a, b) => a.genre.localeCompare(b.genre));
   return { genres, unknown, total };
 }
 export function libraryStats() {
