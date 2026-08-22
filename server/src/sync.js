@@ -200,6 +200,8 @@ export async function enrichHashNames({ scope = 'collection', onProgress = () =>
 export const GENRE_INTERVAL_MS = 250;
 
 export async function fetchGameGenre(gameId, { intervalMs } = {}) {
+  // Cancellation only takes effect between requests; getGame/apiGet do not
+  // receive an abort signal.
   const info = await getGame(gameId, { intervalMs });
   return setGameGenre(gameId, info?.Genre ?? null);
 }

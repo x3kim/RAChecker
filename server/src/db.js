@@ -945,7 +945,7 @@ function tagFilterSql(token) {
 
 // A genre token against the comma-joined `games.genre` of the matched game.
 function genreFilterSql(genre) {
-  return { sql: " AND (', ' || COALESCE(g.genre,'') || ', ') LIKE ?", params: [`%, ${genre}, %`] };
+  return { sql: " AND (', ' || COALESCE(g.genre,'') || ', ') LIKE ? ESCAPE '\\'", params: [`%, ${String(genre).replace(/[\\%_]/g, '\\$&')}, %`] };
 }
 
 export function getLibrary({ status, console_id, q, tag, genre, major, limit = 1000, offset = 0 } = {}) {
