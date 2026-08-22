@@ -94,6 +94,13 @@ export function getGameExtended(gameId) {
   return apiGet('API_GetGameExtended.php', { i: gameId });
 }
 
+// Basic game metadata (title, console, Genre, release date) — same Genre field
+// as GetGameExtended but without the achievement payload, so it is the cheap
+// call for a genre-only enrichment pass.
+export function getGame(gameId, { intervalMs } = {}) {
+  return apiGet('API_GetGame.php', { i: gameId }, { intervalMs });
+}
+
 // ---- user (your own progress) ---------------------------------------------
 export function getUserProfile(user) {
   return apiGet('API_GetUserProfile.php', { u: user });

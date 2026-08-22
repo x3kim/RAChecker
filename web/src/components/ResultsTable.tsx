@@ -38,7 +38,14 @@ export function ResultRow({ item, consoleShort, onOpenGame, onFindVersion, dense
           {isMatch ? (
             <div className="flex items-center gap-2 min-w-0">
               {item.matchImage && <img src={imageUrl(item.matchImage)} width={26} height={26} loading="lazy" className="rounded shrink-0" style={{ border: '1px solid var(--color-crt-line)', objectFit: 'contain' }} alt="" />}
-              <span className={`font-body text-neon-green ${clamp28}`} title={item.matchTitle}>{item.matchTitle}</span>
+              <div className="min-w-0">
+                <span className={`font-body text-neon-green block ${clamp28}`} title={item.matchTitle}>{item.matchTitle}</span>
+                {item.genreMajor && (
+                  <span className={`font-mono text-ink-dim text-sm block ${clamp28}`} title={item.genre || item.genreMajor}>
+                    {item.genreMajor}{item.genre && item.genre !== item.genreMajor ? ` · ${item.genre}` : ''}
+                  </span>
+                )}
+              </div>
             </div>
           ) : (
             <span className={`font-mono text-ink-dim text-base block ${clamp34}`} title={item.message || ''}>{item.message || '—'}</span>
@@ -57,6 +64,7 @@ export function ResultRow({ item, consoleShort, onOpenGame, onFindVersion, dense
               {isMatch && <>
                 <span className="text-ink-mid">{t('rt.ach')}: <span className="text-neon-amber">{item.matchAchievements ?? '?'}</span></span>
                 <span className="text-ink-mid">{t('rt.points')}: <span className="text-neon-cyan">{item.matchPoints ?? '?'}</span></span>
+                {item.genreMajor && <span className="text-ink-mid">{t('gm.genre')}: <span className="text-ink-hi">{item.genreMajor}{item.genre && item.genre !== item.genreMajor ? ` · ${item.genre}` : ''}</span></span>}
                 {item.romName && <span className="text-ink-mid">{t('rt.refRom')}: <span className="text-ink-hi">{item.romName}</span></span>}
               </>}
               {item.md5 && <span className="text-ink-mid">{t('rt.hash')}: <span className="text-ink-hi">{item.md5}</span></span>}

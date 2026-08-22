@@ -13,6 +13,7 @@ import { APP_VERSION } from '../lib/version';
 import { fmtBytes, fmtDate, fmtAgo } from '../lib/util';
 import { FolderPicker } from './FolderPicker';
 import { RegionPriority } from './RegionPriority';
+import { GenrePanel } from './GenrePanel';
 import { ConsoleIcon } from './ui';
 
 // Settings are split into groups shown one at a time via a top nav — keeps the
@@ -952,6 +953,9 @@ export function Settings({ status, refresh, onAuthChange, theme, changeTheme }: 
 
       {/* Preferred region/language of a ROM version */}
       <RegionPriority />
+
+      {/* Genres fetched from RetroAchievements */}
+      <GenrePanel />
 
       {/* Theme */}
       <section className="panel p-5">
