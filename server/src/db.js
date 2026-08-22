@@ -714,8 +714,8 @@ export function gamesNeedingGenre(scope = 'collection') {
 
 export function genreStats() {
   const games = db.prepare('SELECT COUNT(*) AS n FROM games').get().n;
-  const fetched = db.prepare('SELECT COUNT(*) AS n FROM game_genres').get().n;
-  const withGenre = db.prepare('SELECT COUNT(*) AS n FROM game_genres WHERE genre IS NOT NULL').get().n;
+  const fetched = db.prepare('SELECT COUNT(*) AS n FROM game_genres gg JOIN games g ON g.id = gg.game_id').get().n;
+  const withGenre = db.prepare('SELECT COUNT(*) AS n FROM game_genres gg JOIN games g ON g.id = gg.game_id WHERE gg.genre IS NOT NULL').get().n;
   const owned = db.prepare(
     "SELECT COUNT(DISTINCT match_game_id) AS n FROM library WHERE status='match' AND match_game_id IS NOT NULL",
   ).get().n;
