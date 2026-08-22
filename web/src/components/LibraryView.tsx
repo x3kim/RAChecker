@@ -3,7 +3,7 @@ import {
   Library as LibraryIcon, Search, ScanLine, RefreshCw, Copy, FolderSearch, Dice5,
   Trophy, Star, CheckCircle2, XCircle, Cpu, HelpCircle, Layers, Download, Wand2, AlertTriangle,
   Stethoscope, Trash2, ListMusic, CheckSquare, Play, ChevronDown, FileCode2, FileSpreadsheet,
-  Languages, Tags,
+  Languages, Tags, ChevronRight,
 } from 'lucide-react';
 import type { AppStatus, ScanItem, ScanStatus, TagFacets, GenreFacets } from '../lib/api';
 import { api, imageUrl } from '../lib/api';
@@ -80,6 +80,7 @@ export function LibraryView({ status, profile, onOpenGame, goScan, onFindVersion
   const [tagFilter, setTagFilter] = useState<string | 'all'>('all');
   const [genreFilter, setGenreFilter] = useState<string | 'all'>('all');
   const [majorFilter, setMajorFilter] = useState<string | 'all'>('all');
+  const [subGenreOpen, setSubGenreOpen] = useState(false);
   const [facets, setFacets] = useState<TagFacets | null>(null);
   const [genreFacets, setGenreFacets] = useState<GenreFacets | null>(null);
   const [majorFacets, setMajorFacets] = useState<GenreFacets | null>(null);
@@ -618,44 +619,60 @@ export function LibraryView({ status, profile, onOpenGame, goScan, onFindVersion
         </section>
       )}
 
-      {/* genre — normalized to RA's documented major genres */}
-      {majorFacets && majorFacets.genres.length > 0 && (
+      {/* genre — normalized to RA's documented major genres. Stays visible with
+          a hint when nothing has been fetched yet, so it doesn't just vanish. */}
+      {majorFacets && (majorFacets.genres.length > 0 || majorFacets.unknown > 0) && (
         <section className="panel p-4">
           <SectionHeader accent="var(--color-neon-amber)" title={t('lib.byGenre')} icon={Tags} />
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => setMajorFilter('all')} className="btn !py-1 !px-2.5 text-sm"
-              style={majorFilter === 'all' ? { borderColor: 'var(--color-neon-amber)' } : {}}>{t('common.all')}</button>
-            {majorFacets.genres.map((g) => (
-              <button key={g.genre} onClick={() => { setMajorFilter(majorFilter === g.genre ? 'all' : g.genre); setGenreFilter('all'); }}
-                className="btn !py-1 !px-2.5 text-sm" title={g.genre}
-                style={majorFilter === g.genre ? { borderColor: 'var(--color-neon-amber)', boxShadow: '0 0 0 1px var(--color-neon-amber)' } : {}}>
-                <span className="font-body">{g.genre}</span>
-                <span className="font-mono text-ink-dim">{g.n}</span>
-              </button>
-            ))}
-          </div>
+          {majorFacets.genres.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => setMajorFilter('all')} className="btn !py-1 !px-2.5 text-sm"
+                style={majorFilter === 'all' ? { borderColor: 'var(--color-neon-amber)' } : {}}>{t('common.all')}</button>
+              {majorFacets.genres.map((g) => (
+                <button key={g.genre} onClick={() => { setMajorFilter(majorFilter === g.genre ? 'all' : g.genre); setGenreFilter('all'); }}
+                  className="btn !py-1 !px-2.5 text-sm" title={g.genre}
+                  style={majorFilter === g.genre ? { borderColor: 'var(--color-neon-amber)', boxShadow: '0 0 0 1px var(--color-neon-amber)' } : {}}>
+                  <span className="font-body">{g.genre}</span>
+                  <span className="font-mono text-ink-dim">{g.n}</span>
+                </button>
+              ))}
+            </div>
+          )}
           {majorFacets.unknown > 0 && (
             <p className="font-body text-ink-dim text-sm mt-3">{t('lib.genreUnknown', { n: majorFacets.unknown })}</p>
           )}
         </section>
       )}
 
-      {/* sub genre — the raw RetroAchievements genre string, token by token */}
+      {/* sub genre — the raw RetroAchievements genre string, token by token.
+          Collapsed by default: there are hundreds of them. */}
       {genreFacets && genreFacets.genres.length > 0 && (
         <section className="panel p-4">
-          <SectionHeader accent="var(--color-neon-purple)" title={t('lib.bySubGenre')} icon={Tags} />
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => setGenreFilter('all')} className="btn !py-1 !px-2.5 text-sm"
-              style={genreFilter === 'all' ? { borderColor: 'var(--color-neon-purple)' } : {}}>{t('common.all')}</button>
-            {genreFacets.genres.map((g) => (
-              <button key={g.genre} onClick={() => setGenreFilter(genreFilter === g.genre ? 'all' : g.genre)}
-                className="btn !py-1 !px-2.5 text-sm" title={g.genre}
-                style={genreFilter === g.genre ? { borderColor: 'var(--color-neon-purple)', boxShadow: '0 0 0 1px var(--color-neon-purple)' } : {}}>
-                <span className="font-body">{g.genre}</span>
-                <span className="font-mono text-ink-dim">{g.n}</span>
-              </button>
-            ))}
-          </div>
+          <button className="w-full flex items-center gap-2 text-left" onClick={() => setSubGenreOpen((o) => !o)}
+            aria-expanded={subGenreOpen}>
+            {subGenreOpen ? <ChevronDown size={16} className="text-ink-dim shrink-0" /> : <ChevronRight size={16} className="text-ink-dim shrink-0" />}
+            <span className="flex-1 min-w-0 [&>div]:!mb-0">
+              <SectionHeader accent="var(--color-neon-purple)" title={t('lib.bySubGenre')} icon={Tags}>
+                <span className="font-mono text-sm text-ink-dim shrink-0">
+                  {genreFilter === 'all' ? genreFacets.genres.length : genreFilter}
+                </span>
+              </SectionHeader>
+            </span>
+          </button>
+          {subGenreOpen && (
+            <div className="flex flex-wrap gap-2 mt-4">
+              <button onClick={() => setGenreFilter('all')} className="btn !py-1 !px-2.5 text-sm"
+                style={genreFilter === 'all' ? { borderColor: 'var(--color-neon-purple)' } : {}}>{t('common.all')}</button>
+              {genreFacets.genres.map((g) => (
+                <button key={g.genre} onClick={() => setGenreFilter(genreFilter === g.genre ? 'all' : g.genre)}
+                  className="btn !py-1 !px-2.5 text-sm" title={g.genre}
+                  style={genreFilter === g.genre ? { borderColor: 'var(--color-neon-purple)', boxShadow: '0 0 0 1px var(--color-neon-purple)' } : {}}>
+                  <span className="font-body">{g.genre}</span>
+                  <span className="font-mono text-ink-dim">{g.n}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </section>
       )}
 

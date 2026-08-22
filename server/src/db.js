@@ -1095,7 +1095,9 @@ export function resetHashDb() {
   // hash_names/game_hash_sync go too: this is the explicit "clean slate" action,
   // and leaving fetched ROM names behind would mean regions still shown for a
   // database the user just emptied. They are re-fetched by the enrichment job.
-  const counts = wipeTables(['games', 'hashes', 'console_sync', 'hash_names', 'game_hash_sync', 'game_genres']);
+  // game_genres survives on purpose — it is per game (not per hash), costs one
+  // API call each to rebuild, and is replayed by restoreGameGenres().
+  const counts = wipeTables(['games', 'hashes', 'console_sync', 'hash_names', 'game_hash_sync']);
   clearApiCache('game:');
   // No synchronous VACUUM here — it can be very slow on a large DB and would
   // block the reset endpoint. Freed pages go to the freelist and are reclaimed
