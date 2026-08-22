@@ -52,6 +52,17 @@ export interface HashNameStatus {
   running: { scope: 'collection' | 'all'; done: number; total: number } | null;
   intervalMs: number;
 }
+export interface GenreStatus {
+  games: number; fetched: number; withGenre: number; owned: number; ownedFetched: number;
+  running: { scope: 'collection' | 'all'; done: number; total: number } | null;
+  intervalMs: number;
+}
+export interface GenreFacets {
+  genres: { genre: string; n: number }[];
+  /** files whose matched game has no genre yet (or that match nothing) */
+  unknown: number;
+  total: number;
+}
 export interface ScheduleStatus { enabled: boolean; time: string; running: boolean; lastRunAt: number | null; }
 export interface StorageInfo {
   dataDir: string; db: number; wal?: number; images: number; backups: number; temp: number; total: number;
@@ -89,6 +100,8 @@ export interface ScanItem {
   // authoritative, because the file matched by content. Present once the game
   // has been enriched.
   raRegion?: string | null; raLangs?: string | null; raRomName?: string | null;
+  // Genre of the matched RA game: raw RA string + the normalized major genre.
+  genre?: string | null; genreMajor?: string | null;
 }
 
 export interface QuickWin {
@@ -383,23 +396,41 @@ export const api = {
     }),
   game: (id: number, refresh = false) => j<any>(`/api/game/${id}${refresh ? '?refresh=1' : ''}`),
   rahasherStatus: () => j<{ available: boolean; path: string; platform: string }>('/api/rahasher/status'),
-  library: (q: { status?: string; console_id?: number; q?: string; tag?: string; limit?: number; offset?: number } = {}) => {
+  library: (q: { status?: string; console_id?: number; q?: string; tag?: string; genre?: string; major?: string; limit?: number; offset?: number } = {}) => {
     const p = new URLSearchParams();
     if (q.status) p.set('status', q.status);
     if (q.console_id != null) p.set('console_id', String(q.console_id));
     if (q.q) p.set('q', q.q);
     if (q.tag) p.set('tag', q.tag);
+    if (q.genre) p.set('genre', q.genre);
+    if (q.major) p.set('major', q.major);
     if (q.limit) p.set('limit', String(q.limit));
     if (q.offset) p.set('offset', String(q.offset));
     return j<any[]>(`/api/library?${p.toString()}`);
   },
   hashNameStatus: () => j<HashNameStatus>('/api/hashnames/status'),
   hashNamesCancel: () => j<{ ok: boolean }>('/api/hashnames/cancel', { method: 'POST' }),
+  genreStatus: () => j<GenreStatus>('/api/genres/status'),
+  genresCancel: () => j<{ ok: boolean }>('/api/genres/cancel', { method: 'POST' }),
+  genreFacets: (owned = false) => j<{ genres: { genre: string; count: number }[] }>(`/api/genres/facets${owned ? '?owned=1' : ''}`),
   libraryTags: (q: { status?: string; console_id?: number } = {}) => {
     const p = new URLSearchParams();
     if (q.status) p.set('status', q.status);
     if (q.console_id != null) p.set('console_id', String(q.console_id));
     return j<TagFacets>(`/api/library/tags?${p.toString()}`);
+  },
+  libraryGenres: (q: { status?: string; console_id?: number; major?: string } = {}) => {
+    const p = new URLSearchParams();
+    if (q.status) p.set('status', q.status);
+    if (q.console_id != null) p.set('console_id', String(q.console_id));
+    if (q.major) p.set('major', q.major);
+    return j<GenreFacets>(`/api/library/genres?${p.toString()}`);
+  },
+  libraryMajorGenres: (q: { status?: string; console_id?: number } = {}) => {
+    const p = new URLSearchParams();
+    if (q.status) p.set('status', q.status);
+    if (q.console_id != null) p.set('console_id', String(q.console_id));
+    return j<GenreFacets>(`/api/library/major-genres?${p.toString()}`);
   },
   libraryStats: () => j<{ total: number; byStatus: { status: string; n: number }[]; byConsole: { id: number; name: string; short: string; total: number; matched: number }[] }>('/api/library/stats'),
   libraryInsights: () => j<{ total: number; playableGames: number; playableFiles: number; obtainableAchievements: number; obtainablePoints: number; byStatus: { status: string; n: number }[] }>('/api/library/insights'),

@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, readdirSync, statSync, unlinkSync, existsSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseRomTags, packTags, TAG_PARSER_VERSION } from 'ra-core/region.js';
+import { majorGenre, isMajorGenre, GENRE_MAP_VERSION } from './genres.js';
 import { config } from './config.js';
 
 export const db = new DatabaseSync(config.dbPath);
@@ -163,6 +164,14 @@ function addColumn(table, def) {
 }
 addColumn('games', 'title_norm TEXT');
 db.exec('CREATE INDEX IF NOT EXISTS idx_games_title_norm ON games(title_norm)');
+// RetroAchievements genre string (comma-joined when a game carries several),
+// see https://docs.retroachievements.org/guidelines/content/genre-definitions.html
+addColumn('games', 'genre TEXT');
+// The raw string mixes genres and subgenres; genre_major is the normalized one
+// of the 19 documented genres that everything sorts and filters by.
+addColumn('games', 'genre_major TEXT');
+db.exec('CREATE INDEX IF NOT EXISTS idx_games_genre ON games(genre)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_games_genre_major ON games(genre_major)');
 addColumn('library', 'message TEXT'); // persist scan error/skip reason for the collection view
 addColumn('library', 'crc TEXT');     // raw file CRC32 (lowercase hex) for DAT completeness matching
 // NOTE: library.md5 is the RetroAchievements hash (rcheevos), NOT the raw file
@@ -198,6 +207,15 @@ db.exec(`
     game_id    INTEGER PRIMARY KEY,
     fetched_at INTEGER,
     hash_count INTEGER
+  );
+
+  -- Durable genre store, kept outside the games table for the same reason as
+  -- hash_names: a console re-sync rebuilds it from scratch. A row with genre
+  -- NULL means "asked, RA has no genre" so the job never requests it again.
+  CREATE TABLE IF NOT EXISTS game_genres (
+    game_id    INTEGER PRIMARY KEY,
+    genre      TEXT,
+    fetched_at INTEGER
   );
 `);
 
@@ -623,6 +641,102 @@ export function hashNameStats() {
   return { games, fetched, named, owned, ownedFetched };
 }
 
+// ---- game genres ----------------------------------------------------------
+// Source: API_GetGame / API_GetGameExtended (`Genre`). Values follow RA's genre
+// definitions; multiple genres arrive comma-separated in one string.
+const upsertGameGenreStmt = db.prepare(`
+  INSERT INTO game_genres(game_id, genre, fetched_at) VALUES(?, ?, ?)
+  ON CONFLICT(game_id) DO UPDATE SET genre = excluded.genre, fetched_at = excluded.fetched_at
+`);
+const setGamesGenreStmt = db.prepare('UPDATE games SET genre = ?, genre_major = ? WHERE id = ?');
+
+function normalizeGenre(genre) {
+  const s = String(genre ?? '').replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim();
+  return s ? s : null;
+}
+
+export function setGameGenre(gameId, genre) {
+  const value = normalizeGenre(genre);
+  upsertGameGenreStmt.run(gameId, value, Date.now());
+  setGamesGenreStmt.run(value, majorGenre(value), gameId);
+  return value;
+}
+
+// Replay stored genres onto `games` — called after every console sync, which
+// rebuilds those rows and would otherwise drop the genre.
+export function restoreGameGenres() {
+  const info = db.prepare(`
+    UPDATE games SET genre = (SELECT gg.genre FROM game_genres gg WHERE gg.game_id = games.id)
+    WHERE genre IS NULL AND EXISTS (SELECT 1 FROM game_genres gg WHERE gg.game_id = games.id)
+  `).run();
+  backfillGenreMajor();
+  return Number(info.changes ?? 0);
+}
+
+// Derive genre_major wherever it is still missing — and re-derive everything
+// after a mapping change. Network-free, so it just runs at boot.
+export function backfillGenreMajor() {
+  const full = Number(getSetting('genreMapV', 0)) !== GENRE_MAP_VERSION;
+  const rows = db.prepare(
+    full
+      ? "SELECT id, genre FROM games WHERE genre IS NOT NULL AND genre <> ''"
+      : "SELECT id, genre FROM games WHERE genre IS NOT NULL AND genre <> '' AND genre_major IS NULL",
+  ).all();
+  if (!rows.length) { if (full) setSetting('genreMapV', GENRE_MAP_VERSION); return 0; }
+  const upd = db.prepare('UPDATE games SET genre_major = ? WHERE id = ?');
+  db.exec('BEGIN');
+  try {
+    for (const r of rows) upd.run(majorGenre(r.genre), r.id);
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+  if (full) setSetting('genreMapV', GENRE_MAP_VERSION);
+  return rows.length;
+}
+
+/**
+ * Games whose genre has not been fetched yet.
+ * @param {'collection'|'all'} scope 'collection' = only games you own a file for
+ */
+export function gamesNeedingGenre(scope = 'collection') {
+  const sql = scope === 'all'
+    ? `SELECT g.id FROM games g
+       WHERE NOT EXISTS (SELECT 1 FROM game_genres gg WHERE gg.game_id = g.id)
+       ORDER BY g.id`
+    : `SELECT DISTINCT l.match_game_id AS id FROM library l
+       WHERE l.status = 'match' AND l.match_game_id IS NOT NULL
+         AND NOT EXISTS (SELECT 1 FROM game_genres gg WHERE gg.game_id = l.match_game_id)
+       ORDER BY l.match_game_id`;
+  return db.prepare(sql).all().map((r) => r.id);
+}
+
+export function genreStats() {
+  const games = db.prepare('SELECT COUNT(*) AS n FROM games').get().n;
+  const fetched = db.prepare('SELECT COUNT(*) AS n FROM game_genres').get().n;
+  const withGenre = db.prepare('SELECT COUNT(*) AS n FROM game_genres WHERE genre IS NOT NULL').get().n;
+  const owned = db.prepare(
+    "SELECT COUNT(DISTINCT match_game_id) AS n FROM library WHERE status='match' AND match_game_id IS NOT NULL",
+  ).get().n;
+  const ownedFetched = db.prepare(`
+    SELECT COUNT(DISTINCT l.match_game_id) AS n FROM library l
+    JOIN game_genres gg ON gg.game_id = l.match_game_id
+    WHERE l.status='match' AND l.match_game_id IS NOT NULL`).get().n;
+  return { games, fetched, withGenre, owned, ownedFetched };
+}
+
+// Major-genre chips with counts. `owned` restricts to games in the collection.
+export function genreFacets({ owned = false } = {}) {
+  const rows = owned
+    ? db.prepare(`
+        SELECT g.genre_major AS genre, COUNT(DISTINCT g.id) AS n FROM games g
+        JOIN library l ON l.match_game_id = g.id AND l.status = 'match'
+        WHERE g.genre_major IS NOT NULL GROUP BY g.genre_major`).all()
+    : db.prepare('SELECT genre_major AS genre, COUNT(*) AS n FROM games WHERE genre_major IS NOT NULL GROUP BY genre_major').all();
+  return rows.map((r) => ({ genre: r.genre, count: r.n })).sort((a, b) => b.count - a.count);
+}
+
 // ---- hash lookup (the hot path during a scan) -----------------------------
 const lookupHashStmt = db.prepare(`
   SELECT h.md5, h.game_id, h.console_id, h.rom_name, h.labels, h.patch_url,
@@ -829,10 +943,16 @@ function tagFilterSql(token) {
   return { sql: ` AND (',' || ${EFF_REGION} || ',') LIKE ?`, params: [`%,${token},%`] };
 }
 
-export function getLibrary({ status, console_id, q, tag, limit = 1000, offset = 0 } = {}) {
+// A genre token against the comma-joined `games.genre` of the matched game.
+function genreFilterSql(genre) {
+  return { sql: " AND (', ' || COALESCE(g.genre,'') || ', ') LIKE ? ESCAPE '\\'", params: [`%, ${String(genre).replace(/[\\%_]/g, '\\$&')}, %`] };
+}
+
+export function getLibrary({ status, console_id, q, tag, genre, major, limit = 1000, offset = 0 } = {}) {
   let sql = `
     SELECT l.*, g.title AS match_title, g.image_icon AS match_image,
            g.num_achievements AS match_achievements, g.points AS match_points,
+           g.genre AS match_genre, g.genre_major AS match_genre_major,
            c.name AS console_name, c.short_code AS console_short,
            hn.region AS ra_region, hn.langs AS ra_langs, hn.rom_name AS ra_rom_name
     FROM library l
@@ -845,6 +965,8 @@ export function getLibrary({ status, console_id, q, tag, limit = 1000, offset = 
   if (console_id != null) { sql += ' AND l.console_id = ?'; params.push(console_id); }
   if (q) { sql += ' AND (l.path LIKE ? OR l.inner_path LIKE ? OR g.title LIKE ?)'; const like = `%${q}%`; params.push(like, like, like); }
   if (tag) { const f = tagFilterSql(tag); sql += f.sql; params.push(...f.params); }
+  if (genre) { const f = genreFilterSql(genre); sql += f.sql; params.push(...f.params); }
+  if (major) { sql += ' AND g.genre_major = ?'; params.push(major); }
   sql += ' ORDER BY l.scanned_at DESC LIMIT ? OFFSET ?';
   params.push(limit, offset);
   return db.prepare(sql).all(...params);
@@ -884,6 +1006,59 @@ export function libraryTagFacets({ status, console_id } = {}) {
   const sort = (m) => [...m.entries()].map(([code, n]) => ({ code, n })).sort((a, b) => b.n - a.n || a.code.localeCompare(b.code));
   return { regions: sort(regions), languages: sort(languages), untagged, verified, total };
 }
+
+// Sub-genre chips: the raw RetroAchievements tokens minus the ones that are a
+// major genre themselves (those are the BY GENRE box). `major` narrows the list
+// to the subgenres of the currently selected major genre.
+export function libraryGenreFacets({ status, console_id, major } = {}) {
+  // The alias must NOT be called `genre` — `games.genre` exists, and SQLite
+  // resolves GROUP BY against the table column first, which would group by the
+  // raw string instead of the expression.
+  let sql = `SELECT COALESCE(g.genre,'') AS sub_genre, COUNT(*) AS n
+             FROM library l LEFT JOIN games g ON g.id = l.match_game_id
+             WHERE 1=1`;
+  const params = [];
+  if (status) { sql += ' AND l.status = ?'; params.push(status); }
+  if (console_id != null) { sql += ' AND l.console_id = ?'; params.push(console_id); }
+  if (major) { sql += ' AND g.genre_major = ?'; params.push(major); }
+  sql += ' GROUP BY sub_genre';
+
+  const counts = new Map();
+  let unknown = 0;
+  let total = 0;
+  for (const row of db.prepare(sql).all(...params)) {
+    total += row.n;
+    const list = String(row.sub_genre).split(',').map((s) => s.trim())
+      .filter((s) => s && !isMajorGenre(s));
+    if (!list.length) { unknown += row.n; continue; }
+    for (const gname of list) counts.set(gname, (counts.get(gname) ?? 0) + row.n);
+  }
+  const genres = [...counts.entries()].map(([genre, n]) => ({ genre, n }))
+    .sort((a, b) => a.genre.localeCompare(b.genre));
+  return { genres, unknown, total };
+}
+
+// The same, on the normalized major genre — one chip per documented genre.
+export function libraryMajorGenreFacets({ status, console_id } = {}) {
+  let sql = `SELECT COALESCE(g.genre_major,'') AS major_genre, COUNT(*) AS n
+             FROM library l LEFT JOIN games g ON g.id = l.match_game_id
+             WHERE 1=1`;
+  const params = [];
+  if (status) { sql += ' AND l.status = ?'; params.push(status); }
+  if (console_id != null) { sql += ' AND l.console_id = ?'; params.push(console_id); }
+  sql += ' GROUP BY major_genre';
+
+  const genres = [];
+  let unknown = 0;
+  let total = 0;
+  for (const row of db.prepare(sql).all(...params)) {
+    total += row.n;
+    if (!row.major_genre) { unknown += row.n; continue; }
+    genres.push({ genre: row.major_genre, n: row.n });
+  }
+  genres.sort((a, b) => a.genre.localeCompare(b.genre));
+  return { genres, unknown, total };
+}
 export function libraryStats() {
   const byStatus = db.prepare('SELECT status, COUNT(*) AS n FROM library GROUP BY status').all();
   const byConsole = db.prepare(`
@@ -920,7 +1095,7 @@ export function resetHashDb() {
   // hash_names/game_hash_sync go too: this is the explicit "clean slate" action,
   // and leaving fetched ROM names behind would mean regions still shown for a
   // database the user just emptied. They are re-fetched by the enrichment job.
-  const counts = wipeTables(['games', 'hashes', 'console_sync', 'hash_names', 'game_hash_sync']);
+  const counts = wipeTables(['games', 'hashes', 'console_sync', 'hash_names', 'game_hash_sync', 'game_genres']);
   clearApiCache('game:');
   // No synchronous VACUUM here — it can be very slow on a large DB and would
   // block the reset endpoint. Freed pages go to the freelist and are reclaimed
@@ -1111,9 +1286,11 @@ const GAME_SORTS = {
   points: 'points DESC, title',
   achievements: 'num_achievements DESC, title',
   title: 'title COLLATE NOCASE, points DESC',
+  // Games without a fetched genre go last instead of leading the list.
+  genre: "CASE WHEN genre_major IS NULL OR genre_major = '' THEN 1 ELSE 0 END, genre_major COLLATE NOCASE, title COLLATE NOCASE",
 };
 export function getGamesByConsole(consoleId, { q, limit = 120, offset = 0, sort } = {}) {
-  let sql = 'SELECT id, console_id, title, image_icon, num_achievements, points, num_leaderboards FROM games WHERE console_id = ?';
+  let sql = 'SELECT id, console_id, title, image_icon, num_achievements, points, num_leaderboards, genre, genre_major FROM games WHERE console_id = ?';
   const params = [consoleId];
   if (q) { sql += ' AND title LIKE ?'; params.push(`%${q}%`); }
   sql += ' ORDER BY ' + (GAME_SORTS[sort] || GAME_SORTS.points) + ' LIMIT ? OFFSET ?';
@@ -1154,7 +1331,7 @@ export function searchGames(q, { limit = 60 } = {}) {
     const whereExpr = tokens.map(() => 'g.title_norm LIKE ?').join(` ${connective} `);
     // params: score likes..., where likes..., limit
     return db.prepare(`
-      SELECT g.id, g.console_id, g.title, g.image_icon, g.num_achievements, g.points,
+      SELECT g.id, g.console_id, g.title, g.image_icon, g.num_achievements, g.points, g.genre, g.genre_major,
              c.name AS console_name, c.short_code AS console_short,
              (${scoreExpr}) AS score
       FROM games g JOIN consoles c ON c.id = g.console_id

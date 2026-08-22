@@ -10,7 +10,7 @@ import { registerRoutes } from './routes.js';
 import { ensureTempDir, sweepTempOnStartup } from './hashing/archive.js';
 import {
   backfillTitleNorm, backfillLibraryTags, restoreHashNames, seedHashNames,
-  reparseHashNames, markTagParserVersion,
+  reparseHashNames, markTagParserVersion, restoreGameGenres, backfillGenreMajor,
   applySavedCredentials, applySavedConfig, autoBackup, getSetting,
 } from './db.js';
 import { initWatch } from './watcher.js';
@@ -32,6 +32,9 @@ async function main() {
   // rebuilds those, and without this every verified region would be lost.
   try { const n = seedHashNames(); if (n) console.log(`[db] adopted ${n} previously fetched ROM names`); } catch (e) { console.warn('[db] hash-name seed failed:', e.message); }
   try { const n = restoreHashNames(); if (n) console.log(`[db] restored ${n} RetroAchievements ROM names`); } catch (e) { console.warn('[db] hash-name restore failed:', e.message); }
+  // Same for genres: `games` is rebuilt on every console sync, game_genres isn't.
+  try { const n = restoreGameGenres(); if (n) console.log(`[db] restored ${n} game genres`); } catch (e) { console.warn('[db] genre restore failed:', e.message); }
+  try { const n = backfillGenreMajor(); if (n) console.log(`[db] classified ${n} games into major genres`); } catch (e) { console.warn('[db] genre classification failed:', e.message); }
   // A parser change invalidates stored region/language values — re-derive them
   // from the names we already have, then remember the version. Both passes are
   // no-ops once the stored version matches.

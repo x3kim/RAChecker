@@ -3,9 +3,9 @@ import {
   Library as LibraryIcon, Search, ScanLine, RefreshCw, Copy, FolderSearch, Dice5,
   Trophy, Star, CheckCircle2, XCircle, Cpu, HelpCircle, Layers, Download, Wand2, AlertTriangle,
   Stethoscope, Trash2, ListMusic, CheckSquare, Play, ChevronDown, FileCode2, FileSpreadsheet,
-  Languages,
+  Languages, Tags,
 } from 'lucide-react';
-import type { AppStatus, ScanItem, ScanStatus, TagFacets } from '../lib/api';
+import type { AppStatus, ScanItem, ScanStatus, TagFacets, GenreFacets } from '../lib/api';
 import { api, imageUrl } from '../lib/api';
 import { ResultsTable } from './ResultsTable';
 import { VersionReport } from './VersionReport';
@@ -29,6 +29,7 @@ function mapRow(r: any): ScanItem {
     matchAchievements: r.match_achievements, matchPoints: r.match_points,
     scannedAt: r.scanned_at, region: r.region ?? null, langs: r.langs ?? null,
     raRegion: r.ra_region ?? null, raLangs: r.ra_langs ?? null, raRomName: r.ra_rom_name ?? null,
+    genre: r.match_genre ?? null, genreMajor: r.match_genre_major ?? null,
   };
 }
 
@@ -77,7 +78,11 @@ export function LibraryView({ status, profile, onOpenGame, goScan, onFindVersion
   const [statusFilter, setStatusFilter] = useState<'all' | ScanStatus>('match');
   const [systemFilter, setSystemFilter] = useState<number | 'all'>('all');
   const [tagFilter, setTagFilter] = useState<string | 'all'>('all');
+  const [genreFilter, setGenreFilter] = useState<string | 'all'>('all');
+  const [majorFilter, setMajorFilter] = useState<string | 'all'>('all');
   const [facets, setFacets] = useState<TagFacets | null>(null);
+  const [genreFacets, setGenreFacets] = useState<GenreFacets | null>(null);
+  const [majorFacets, setMajorFacets] = useState<GenreFacets | null>(null);
   const [priority, setPriority] = useState<string[]>(cachedRegionPriority());
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
@@ -155,12 +160,25 @@ export function LibraryView({ status, profile, onOpenGame, goScan, onFindVersion
     status: statusFilter === 'all' ? undefined : statusFilter,
     console_id: systemFilter === 'all' ? undefined : systemFilter,
   }).then(setFacets).catch(() => setFacets(null));
+  const loadGenreFacets = () => {
+    api.libraryGenres({
+      status: statusFilter === 'all' ? undefined : statusFilter,
+      console_id: systemFilter === 'all' ? undefined : systemFilter,
+      major: majorFilter === 'all' ? undefined : majorFilter,
+    }).then(setGenreFacets).catch(() => setGenreFacets(null));
+    api.libraryMajorGenres({
+      status: statusFilter === 'all' ? undefined : statusFilter,
+      console_id: systemFilter === 'all' ? undefined : systemFilter,
+    }).then(setMajorFacets).catch(() => setMajorFacets(null));
+  };
   const loadRows = () => {
     setLoading(true);
     api.library({
       status: statusFilter === 'all' ? undefined : statusFilter,
       console_id: systemFilter === 'all' ? undefined : systemFilter,
       tag: tagFilter === 'all' ? undefined : tagFilter,
+      genre: genreFilter === 'all' ? undefined : genreFilter,
+      major: majorFilter === 'all' ? undefined : majorFilter,
       q: search.trim() || undefined, limit: 3000,
     }).then((r) => setRows(r.map(mapRow))).catch(() => setRows([])).finally(() => setLoading(false));
   };
@@ -282,10 +300,10 @@ export function LibraryView({ status, profile, onOpenGame, goScan, onFindVersion
     window.addEventListener(REGION_EVENT, h);
     return () => window.removeEventListener(REGION_EVENT, h);
   }, []);
-  useEffect(() => { const t = setTimeout(loadRows, 200); return () => clearTimeout(t); /* eslint-disable-next-line */ }, [statusFilter, systemFilter, tagFilter, search]);
+  useEffect(() => { const t = setTimeout(loadRows, 200); return () => clearTimeout(t); /* eslint-disable-next-line */ }, [statusFilter, systemFilter, tagFilter, genreFilter, majorFilter, search]);
   // The chips describe what the *other* filters left over, so they follow those
   // two but deliberately not the tag filter itself (which would empty them out).
-  useEffect(() => { loadFacets(); /* eslint-disable-next-line */ }, [statusFilter, systemFilter]);
+  useEffect(() => { loadFacets(); loadGenreFacets(); /* eslint-disable-next-line */ }, [statusFilter, systemFilter, majorFilter]);
   useEffect(() => {
     const h = (e: MouseEvent) => { if (exportRef.current && !exportRef.current.contains(e.target as Node)) setExportOpen(false); };
     document.addEventListener('mousedown', h);
@@ -600,6 +618,47 @@ export function LibraryView({ status, profile, onOpenGame, goScan, onFindVersion
         </section>
       )}
 
+      {/* genre — normalized to RA's documented major genres */}
+      {majorFacets && majorFacets.genres.length > 0 && (
+        <section className="panel p-4">
+          <SectionHeader accent="var(--color-neon-amber)" title={t('lib.byGenre')} icon={Tags} />
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setMajorFilter('all')} className="btn !py-1 !px-2.5 text-sm"
+              style={majorFilter === 'all' ? { borderColor: 'var(--color-neon-amber)' } : {}}>{t('common.all')}</button>
+            {majorFacets.genres.map((g) => (
+              <button key={g.genre} onClick={() => { setMajorFilter(majorFilter === g.genre ? 'all' : g.genre); setGenreFilter('all'); }}
+                className="btn !py-1 !px-2.5 text-sm" title={g.genre}
+                style={majorFilter === g.genre ? { borderColor: 'var(--color-neon-amber)', boxShadow: '0 0 0 1px var(--color-neon-amber)' } : {}}>
+                <span className="font-body">{g.genre}</span>
+                <span className="font-mono text-ink-dim">{g.n}</span>
+              </button>
+            ))}
+          </div>
+          {majorFacets.unknown > 0 && (
+            <p className="font-body text-ink-dim text-sm mt-3">{t('lib.genreUnknown', { n: majorFacets.unknown })}</p>
+          )}
+        </section>
+      )}
+
+      {/* sub genre — the raw RetroAchievements genre string, token by token */}
+      {genreFacets && genreFacets.genres.length > 0 && (
+        <section className="panel p-4">
+          <SectionHeader accent="var(--color-neon-purple)" title={t('lib.bySubGenre')} icon={Tags} />
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setGenreFilter('all')} className="btn !py-1 !px-2.5 text-sm"
+              style={genreFilter === 'all' ? { borderColor: 'var(--color-neon-purple)' } : {}}>{t('common.all')}</button>
+            {genreFacets.genres.map((g) => (
+              <button key={g.genre} onClick={() => setGenreFilter(genreFilter === g.genre ? 'all' : g.genre)}
+                className="btn !py-1 !px-2.5 text-sm" title={g.genre}
+                style={genreFilter === g.genre ? { borderColor: 'var(--color-neon-purple)', boxShadow: '0 0 0 1px var(--color-neon-purple)' } : {}}>
+                <span className="font-body">{g.genre}</span>
+                <span className="font-mono text-ink-dim">{g.n}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {rows.length > 0
         ? ((selectMode || mode === 'card')
             ? <LibraryCards rows={sortedRows.slice(0, 800)} shortById={shortById} onOpenGame={onOpenGame}
@@ -650,6 +709,11 @@ function LibraryCards({ rows, shortById, onOpenGame, selectMode, selected, toggl
                   <span className="font-mono text-sm flex items-center gap-2">
                     <span className="text-neon-amber inline-flex items-center gap-1"><Trophy size={11} /> {r.matchAchievements ?? 0}</span>
                     <span className="text-neon-cyan inline-flex items-center gap-1"><Star size={11} /> {r.matchPoints ?? 0}</span>
+                  </span>
+                )}
+                {r.status === 'match' && r.genreMajor && (
+                  <span className="font-mono text-sm text-ink-dim truncate" title={r.genre || r.genreMajor}>
+                    {r.genreMajor}{r.genre && r.genre !== r.genreMajor ? ` · ${r.genre}` : ''}
                   </span>
                 )}
               </div>

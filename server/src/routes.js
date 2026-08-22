@@ -21,10 +21,12 @@ import {
   getLibraryFilesForGame, getOwnedGameIdSet, getGameById, findGamesByTitle,
   getCoverageStats, getRecentSessions, getPlaytimeByGame, playtimeTotals, clearSessions,
   exportSessions, importSessions, libraryTagFacets, hashNameStats,
+  setGameGenre, genreStats, genreFacets, libraryGenreFacets, libraryMajorGenreFacets,
 } from './db.js';
 import {
   syncAll, enrichGameHashes, consoleNeedsSync, newlySupportedSystems,
   enrichHashNames, HASHNAME_INTERVAL_MS,
+  enrichGenres, GENRE_INTERVAL_MS,
 } from './sync.js';
 import { Scanner, checkSingleFile, resolveMatch } from './scanner.js';
 import { hashTarget } from './hashing/index.js';
@@ -119,6 +121,7 @@ function tempBreakdown() {
 let activeScan = null;   // { id, controller, rootPath, sid, listeners, scanner }
 let activeSync = false;
 let hashNameJob = null;  // { scope, done, total, controller }
+let genreJob = null;     // { scope, done, total, controller }
 
 // Outcome of the last few scans, keyed by the client's session id, so a browser
 // whose SSE connection dropped can learn how its run ended instead of starting
@@ -182,6 +185,9 @@ async function buildGameDetail(id, { force = false } = {}) {
   }
   const ext = await getGameExtended(id);
   const hashes = await enrichGameHashes(id).catch(() => []);
+  // The detail payload already carries the genre — persist it so the games
+  // table fills up without the dedicated enrichment job having to ask again.
+  try { setGameGenre(id, ext?.Genre ?? null); } catch { /* non-fatal */ }
   const achRaw = ext.Achievements || {};
   const achievements = Object.values(achRaw)
     .map((a) => ({
@@ -885,12 +891,14 @@ export async function registerRoutes(app) {
 
   // ---- persistent collection (library) ------------------------------------
   app.get('/api/library', async (req) => {
-    const { status, console_id, q, tag, limit, offset } = req.query;
+    const { status, console_id, q, tag, genre, major, limit, offset } = req.query;
     return getLibrary({
       status: status || undefined,
       console_id: console_id != null ? Number(console_id) : undefined,
       q: q || undefined,
       tag: tag || undefined,
+      genre: genre || undefined,
+      major: major || undefined,
       limit: limit ? Number(limit) : 1000,
       offset: offset ? Number(offset) : 0,
     });
@@ -930,10 +938,61 @@ export async function registerRoutes(app) {
     return { ok: true };
   });
 
+  // ---- genre enrichment ---------------------------------------------------
+  // API_GetGameList has no genre field, so genres are fetched one game at a
+  // time (API_GetGame) and stored on `games.genre`.
+  app.get('/api/genres/status', async () => ({
+    ...genreStats(),
+    running: genreJob ? { scope: genreJob.scope, done: genreJob.done, total: genreJob.total } : null,
+    intervalMs: GENRE_INTERVAL_MS,
+  }));
+
+  app.get('/api/genres/facets', async (req) => ({ genres: genreFacets({ owned: req.query.owned === '1' }) }));
+
+  app.get('/api/genres/stream', (req, reply) => {
+    const { send, close } = openSSE(req, reply);
+    const scope = req.query.scope === 'all' ? 'all' : 'collection';
+    if (genreJob) { send('error', { message: 'Genre enrichment is already running.' }); return void close(); }
+    const controller = new AbortController();
+    genreJob = { scope, done: 0, total: 0, controller };
+    enrichGenres({
+      scope,
+      signal: controller.signal,
+      onProgress: (p) => {
+        if (genreJob) { genreJob.done = p.done ?? 0; genreJob.total = p.total ?? 0; }
+        send(p.phase === 'done' ? 'done' : 'progress', p);
+      },
+    })
+      .catch((e) => send('error', { message: String(e.message) }))
+      .finally(() => { genreJob = null; close(); });
+  });
+
+  app.post('/api/genres/cancel', async () => {
+    if (!genreJob) return { ok: false, message: 'Not running.' };
+    genreJob.controller.abort();
+    return { ok: true };
+  });
+
   // Region/language chips for the collection filter — only what is actually owned.
   app.get('/api/library/tags', async (req) => {
     const { status, console_id } = req.query;
     return libraryTagFacets({
+      status: status || undefined,
+      console_id: console_id != null ? Number(console_id) : undefined,
+    });
+  });
+  // Sub-genre chips for the collection filter, counted per file.
+  app.get('/api/library/genres', async (req) => {
+    const { status, console_id, major } = req.query;
+    return libraryGenreFacets({
+      status: status || undefined,
+      console_id: console_id != null ? Number(console_id) : undefined,
+      major: major || undefined,
+    });
+  });
+  app.get('/api/library/major-genres', async (req) => {
+    const { status, console_id } = req.query;
+    return libraryMajorGenreFacets({
       status: status || undefined,
       console_id: console_id != null ? Number(console_id) : undefined,
     });
