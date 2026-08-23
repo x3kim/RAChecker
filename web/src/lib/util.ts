@@ -13,7 +13,7 @@ export function fmtDate(ms?: number | null): string {
   const lang = currentLang();
   if (!ms) return translate(lang, 'time.never');
   const d = new Date(ms);
-  return d.toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+  return d.toLocaleString(lang === 'de' ? 'de-DE' : lang === 'ja' ? 'ja-JP' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 export function fmtAgo(ms?: number | null): string {

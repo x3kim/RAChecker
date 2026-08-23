@@ -17,12 +17,12 @@ export function LanguageGate({ onChosen }: { onChosen: () => void }) {
             <Gamepad2 size={26} className="text-neon-cyan" />
           </span>
           <h1 className="font-display text-base text-glow-cyan">RACHECKER</h1>
-          <p className="font-mono text-base text-ink-dim mt-2">Choose your language · Sprache wählen</p>
-          <div className="grid grid-cols-2 gap-3 mt-5">
+          <p className="font-mono text-base text-ink-dim mt-2">Choose your language · Sprache wählen · 言語を選択</p>
+          <div className="grid grid-cols-3 gap-3 mt-5">
             {LANGS.map((l) => (
               <button key={l.id} onClick={() => pick(l.id as Lang)}
                 className="btn flex-col !py-4 gap-2 items-center hover:border-neon-cyan">
-                <Flag lang={l.id as Lang} size={44} />
+                <Flag lang={l.id as Lang} size={40} />
                 <span className="font-body text-sm text-ink-hi">{l.name}</span>
               </button>
             ))}

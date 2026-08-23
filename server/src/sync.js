@@ -1,11 +1,12 @@
 // Syncs the RetroAchievements hash database into the local SQLite cache.
 // One API call per console mirrors every game + hash; matching is then offline.
 // Re-syncs only when a console's cache is older than the TTL (default 90 days).
-import { getConsoleIDs, getGameList, getGameHashes } from './ra-api.js';
+import { getConsoleIDs, getGameList, getGameHashes, getGame } from './ra-api.js';
 import {
   upsertConsole, replaceConsoleGames, recordSync, getConsoleSync,
   getConsoles, getSetting, setSetting, enrichHash, restoreHashNames,
   markGameHashesFetched, gamesNeedingHashNames, hashNameStats,
+  setGameGenre, restoreGameGenres, gamesNeedingGenre, genreStats,
 } from './db.js';
 import { CONSOLE_BY_ID } from './consoles.js';
 import { config } from './config.js';
@@ -106,6 +107,7 @@ export async function syncConsoleHashes(consoleId, { force = false } = {}) {
     // we already fetched back on them, or a re-sync would silently undo hours of
     // enrichment (and with it every verified region).
     restoreHashNames();
+    restoreGameGenres();
     recordSync({ consoleId, syncedAt: Date.now(), gameCount, hashCount, status: 'ok' });
     return { skipped: false, gameCount, hashCount };
   } catch (e) {
@@ -188,5 +190,43 @@ export async function enrichHashNames({ scope = 'collection', onProgress = () =>
     onProgress({ phase: 'progress', ...summary, gameId });
   }
   onProgress({ phase: 'done', ...summary, ...hashNameStats() });
+  return summary;
+}
+
+// ---- genre enrichment ------------------------------------------------------
+// API_GetGameList carries no genre, so it is one call per game (API_GetGame).
+// Same resumable pattern as the hash names: every finished game is recorded,
+// including ones RA has no genre for, so it is never requested twice.
+export const GENRE_INTERVAL_MS = 250;
+
+export async function fetchGameGenre(gameId, { intervalMs } = {}) {
+  // Cancellation only takes effect between requests; getGame/apiGet do not
+  // receive an abort signal.
+  const info = await getGame(gameId, { intervalMs });
+  return setGameGenre(gameId, info?.Genre ?? null);
+}
+
+/**
+ * @param {'collection'|'all'} scope 'collection' = only games you own a file for
+ */
+export async function enrichGenres({ scope = 'collection', onProgress = () => {}, signal } = {}) {
+  const ids = gamesNeedingGenre(scope);
+  const total = ids.length;
+  const summary = { scope, total, done: 0, genres: 0, errors: 0, cancelled: false };
+  onProgress({ phase: 'start', ...summary, ...genreStats() });
+
+  for (const gameId of ids) {
+    if (signal?.aborted) { summary.cancelled = true; break; }
+    try {
+      const genre = await fetchGameGenre(gameId, { intervalMs: GENRE_INTERVAL_MS });
+      if (genre) summary.genres++;
+    } catch {
+      // Left unmarked so the next run retries this game.
+      summary.errors++;
+    }
+    summary.done++;
+    onProgress({ phase: 'progress', ...summary, gameId });
+  }
+  onProgress({ phase: 'done', ...summary, ...genreStats() });
   return summary;
 }

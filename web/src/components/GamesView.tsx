@@ -157,6 +157,7 @@ export function GamesView({ status, onOpenGame, goSync }: {
           <option value="points">{t('games.sortPoints')}</option>
           <option value="achievements">{t('games.sortAch')}</option>
           <option value="title">{t('games.sortName')}</option>
+          <option value="genre">{t('games.sortGenre')}</option>
         </select>
         <ViewToggle mode={mode} onChange={setMode} />
       </section>
@@ -177,6 +178,7 @@ export function GamesView({ status, onOpenGame, goSync }: {
                 <div className="font-mono text-base flex items-center gap-3 mt-0.5">
                   <span className="text-neon-amber inline-flex items-center gap-1"><Trophy size={12} /> {g.num_achievements}</span>
                   <span className="text-neon-cyan inline-flex items-center gap-1"><Star size={12} /> {g.points}</span>
+                  {g.genre_major && <span className="text-ink-dim truncate" title={g.genre || g.genre_major}>{g.genre_major}</span>}
                 </div>
               </div>
             </button>
@@ -206,6 +208,7 @@ function GameTable({ games, onOpenGame, showConsole = false }: {
             ? <img src={imageUrl(g.image_icon)} width={28} height={28} loading="lazy" className="rounded shrink-0" style={{ border: '1px solid var(--color-crt-line)', objectFit: 'contain' }} alt="" />
             : <span className="shrink-0 grid place-items-center rounded" style={{ width: 28, height: 28, border: '1px solid var(--color-crt-line)' }}><Trophy size={13} className="text-ink-dim" /></span>}
           <span className="font-body text-sm text-ink-hi flex-1 min-w-0 truncate" title={g.title}>{g.title}</span>
+          <span className="font-mono text-sm text-ink-dim hidden md:block w-40 shrink-0 truncate" title={g.genre || g.genre_major || ''}>{g.genre_major || ''}</span>
           {showConsole && (
             <span className="font-mono text-sm text-ink-dim hidden sm:flex items-center gap-1.5 w-44 shrink-0 truncate" title={g.console_name}>
               <ConsoleIcon id={g.console_id} size={13} /> <span className="truncate">{g.console_name}</span>

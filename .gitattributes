@@ -3,3 +3,9 @@
 # Pin the lockfiles to LF so only the real changes show up in review.
 package-lock.json text eol=lf
 mobile/package-lock.json text eol=lf
+
+# Same story one level up: scripts/release.mjs writes both manifests with
+# JSON.stringify(...) + '\n', so every version bump flipped them from CRLF to
+# LF and a two-line change arrived as a 79-line rewrite.
+/package.json text eol=lf
+/web/package.json text eol=lf

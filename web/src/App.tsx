@@ -165,7 +165,7 @@ export function App() {
     { id: 'act-changelog', label: t('cmd.openChangelog'), section: 'actions', icon: History, run: () => setShowChangelog(true) },
     { id: 'act-shortcuts', label: t('cmd.openShortcuts'), section: 'actions', icon: Keyboard, run: () => setShowShortcuts(true) },
     { id: 'act-theme', label: t('cmd.nextTheme'), section: 'actions', icon: Palette, run: nextTheme },
-    { id: 'act-lang', label: t('cmd.toggleLang'), section: 'actions', icon: Languages, run: () => setLang(lang === 'de' ? 'en' : 'de') },
+    { id: 'act-lang', label: t('cmd.toggleLang'), section: 'actions', icon: Languages, run: () => setLang(LANGS[(LANGS.findIndex((l) => l.id === lang) + 1) % LANGS.length].id) },
     { id: 'act-tour', label: t('tour.start'), section: 'actions', icon: Compass, run: () => setShowTour(true) },
   ];
 
