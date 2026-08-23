@@ -4,10 +4,10 @@ import { useI18n } from '../lib/i18n';
 import type { Lang } from '../lib/i18n';
 
 // A step either points at an existing i18n key (titleKey/bodyKey) or carries
-// inline bilingual copy ({ de, en }). New steps use inline text on purpose so
-// the tour can be expanded without adding i18n keys. `target` may differ from
+// inline multilingual copy ({ de, en, ja }). New steps use inline text on purpose
+// so the tour can be expanded without adding i18n keys. `target` may differ from
 // `id` when several steps share one spotlight (e.g. the whole nav bar).
-interface BiText { de: string; en: string }
+interface BiText { de: string; en: string; ja: string }
 interface Step {
   id: string;
   target?: string;
@@ -21,37 +21,41 @@ const STEPS: Step[] = [
   { id: 'logo', titleKey: 'tour.logo.t', bodyKey: 'tour.logo.b' },
   {
     id: 'nav',
-    title: { de: 'Navigation — die fünf Bereiche', en: 'Navigation — the five areas' },
+    title: { de: 'Navigation — die fünf Bereiche', en: 'Navigation — the five areas', ja: 'ナビゲーション — 5つのエリア' },
     body: {
       de: 'Übersicht zeigt deinen Sammlungs-Status. Scannen prüft einen Ordner gegen die Hash-DB. Spiele & Erfolge listet, was Achievements bringt. Entdecken zeigt gratis spielbare Titel, laufende Set-Projekte und Community-Neuigkeiten — immer abgeglichen mit deiner Sammlung. Hash-DB hält die lokale Datenbank aktuell. Einzelne Dateien prüfst du per Drag & Drop in die Seite.',
       en: 'Dashboard shows your collection status. Scan checks a folder against the hash DB. Games & achievements lists what earns achievements. Discover surfaces free-to-play titles, in-progress achievement sets and community news — always matched against your collection. Hash DB keeps the local database current. Check single files by dragging them onto the page.',
+      ja: 'ダッシュボードではコレクションの状態を確認できます。スキャンはフォルダをハッシュDBと照合します。ゲームと実績では実績を獲得できる作品を一覧できます。発見では無料で遊べるタイトル、制作中の実績セット、コミュニティの最新情報を、常にあなたのコレクションと照らして表示します。ハッシュDBはローカルデータベースを最新に保ちます。単体ファイルはページへのドラッグ＆ドロップでチェックできます。',
     },
   },
   {
     id: 'content', target: 'content',
-    title: { de: 'Arbeitsbereich', en: 'Workspace' },
+    title: { de: 'Arbeitsbereich', en: 'Workspace', ja: 'ワークスペース' },
     body: {
       de: 'Hier öffnet sich der gewählte Bereich. Auf der Übersicht siehst du Kacheln mit Statistiken; ein Klick darauf springt direkt zum jeweiligen Detail.',
       en: 'The selected area opens here. On the dashboard you get stat tiles; clicking one jumps straight to its detail view.',
+      ja: '選んだエリアがここに開きます。ダッシュボードには統計タイルが並び、クリックするとその詳細画面へ直接移動します。',
     },
   },
   { id: 'profile', titleKey: 'tour.profile.t', bodyKey: 'tour.profile.b' },
   {
     id: 'more', target: 'more',
-    title: { de: 'Mehr: Sprache, Hilfe & Tour', en: 'More: language, help & tour' },
+    title: { de: 'Mehr: Sprache, Hilfe & Tour', en: 'More: language, help & tour', ja: 'その他: 言語・ヘルプ・ツアー' },
     body: {
       de: 'In diesem Menü liegen Sprache (Deutsch/English), Tastatur-Shortcuts (g + Taste zum Springen, / für Suche, ? für Hilfe), der GitHub-Link und der Neustart dieser Tour. Strg + K öffnet zusätzlich die Befehlspalette: tippen, um Spiele zu suchen, Bereiche zu wechseln oder Aktionen auszuführen.',
       en: 'This menu holds language (German/English), keyboard shortcuts (g + key to jump, / to search, ? for help), the GitHub link and restarting this tour. Ctrl + K also opens the command palette: type to find games, switch areas or run actions.',
+      ja: 'このメニューには言語切替（ドイツ語/英語/日本語）、キーボードショートカット（g + キーで移動、/ で検索、? でヘルプ）、GitHubリンク、このツアーの再生があります。Ctrl + K でコマンドパレットも開けます — 入力してゲーム検索、エリア移動、各種操作が行えます。',
     },
   },
   { id: 'theme', titleKey: 'tour.theme.t', bodyKey: 'tour.theme.b' },
   { id: 'settings', titleKey: 'tour.settings.t', bodyKey: 'tour.settings.b' },
   {
     id: 'status', target: 'status',
-    title: { de: 'Lokal & offline', en: 'Local & offline' },
+    title: { de: 'Lokal & offline', en: 'Local & offline', ja: 'ローカル＆オフライン' },
     body: {
       de: 'Alles läuft auf deinem Rechner — keine Cloud. Die Zahl zeigt, wie viele Hashes deine lokale Datenbank kennt. Lade über die Hash-DB neue Daten, damit Scans aktuelle Erfolge erkennen.',
       en: 'Everything runs on your machine — no cloud. The number shows how many hashes your local database knows. Pull fresh data via the Hash DB so scans recognise current achievements.',
+      ja: 'すべてがあなたのマシン上で動作します — クラウドは使いません。数字はローカルデータベースが保持するハッシュ数です。最新の実績を認識させるには、ハッシュDBからデータを取得してください。',
     },
   },
   { id: 'version', titleKey: 'tour.version.t', bodyKey: 'tour.version.b' },
@@ -70,8 +74,8 @@ export function GuidedTour({ onClose }: { onClose: () => void }) {
   const step = STEPS[i];
   const last = i === STEPS.length - 1;
 
-  // Resolve a step's title/body: prefer i18n key, else inline bilingual text.
-  const pick = (l: Lang, b?: BiText) => (b ? (l === 'de' ? b.de : b.en) : '');
+  // Resolve a step's title/body: prefer i18n key, else inline text.
+  const pick = (l: Lang, b?: BiText) => (b ? b[l] : '');
   const stepTitle = step.titleKey ? t(step.titleKey) : pick(lang, step.title);
   const stepBody = step.bodyKey ? t(step.bodyKey) : pick(lang, step.body);
   const targetId = step.target ?? step.id;
