@@ -21,7 +21,7 @@ function finePct(a: number, b: number, locale: string): string {
 
 export function CoveragePanel() {
   const { t, lang } = useI18n();
-  const locale = lang === 'de' ? 'de-DE' : 'en-US';
+  const locale = lang === 'de' ? 'de-DE' : lang === 'ja' ? 'ja-JP' : 'en-US';
   const [data, setData] = useState<CoverageResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);

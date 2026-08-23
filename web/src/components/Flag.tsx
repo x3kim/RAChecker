@@ -18,6 +18,15 @@ export function Flag({ lang, size = 22, className = '' }: { lang: Lang; size?: n
     );
   }
 
+  if (lang === 'ja') {
+    return (
+      <svg viewBox="0 0 900 600" width={w} height={h} className={className} style={box} aria-hidden="true">
+        <rect width="900" height="600" fill="#ffffff" />
+        <circle cx="450" cy="300" r="180" fill="#BC002D" />
+      </svg>
+    );
+  }
+
   // 'en' → Union Jack (GB). clipPath ids must be unique per render instance,
   // else a second flag on the page clips against the first one's paths.
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');

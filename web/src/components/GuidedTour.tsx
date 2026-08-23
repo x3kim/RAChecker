@@ -71,7 +71,7 @@ export function GuidedTour({ onClose }: { onClose: () => void }) {
   const last = i === STEPS.length - 1;
 
   // Resolve a step's title/body: prefer i18n key, else inline bilingual text.
-  const pick = (l: Lang, b?: BiText) => (b ? b[l] : '');
+  const pick = (l: Lang, b?: BiText) => (b ? (l === 'de' ? b.de : b.en) : '');
   const stepTitle = step.titleKey ? t(step.titleKey) : pick(lang, step.title);
   const stepBody = step.bodyKey ? t(step.bodyKey) : pick(lang, step.body);
   const targetId = step.target ?? step.id;
