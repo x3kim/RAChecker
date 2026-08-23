@@ -53,9 +53,9 @@ if (!ts.includes(`version: '${next}'`)) {
   const stub = `  {
     version: '${next}',
     date: '${today}',
-    title: { de: 'TODO Titel', en: 'TODO title' },
+    title: { de: 'TODO Titel', en: 'TODO title', ja: 'TODO タイトル' },
     changes: [
-      { type: 'improve', de: 'TODO: Änderung beschreiben.', en: 'TODO: describe the change.' },
+      { type: 'improve', de: 'TODO: Änderung beschreiben.', en: 'TODO: describe the change.', ja: 'TODO: 変更内容を記載。' },
     ],
   },
 `;

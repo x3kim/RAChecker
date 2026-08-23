@@ -11,8 +11,8 @@ const TYPE_META: Record<ChangeType, { color: string; icon: any; key: string }> =
 
 export function ChangelogModal({ onClose }: { onClose: () => void }) {
   const { t, lang } = useI18n();
-  // The changelog itself is only written in DE/EN.
-  const bi = lang === 'de' ? 'de' : 'en';
+  // Older entries have no Japanese text — fall back to English.
+  const pick = (e: { de: string; en: string; ja?: string }) => (lang === 'de' ? e.de : lang === 'ja' ? e.ja ?? e.en : e.en);
   return (
     <div className="fixed inset-0 z-[80] grid place-items-center p-4" style={{ background: 'rgba(4,6,12,.8)', backdropFilter: 'blur(5px)' }} onClick={onClose}>
       <div className="panel panel-glow modal-pop w-full max-w-2xl max-h-[86vh] overflow-auto crt-scanlines" onClick={(e) => e.stopPropagation()}>
@@ -29,7 +29,7 @@ export function ChangelogModal({ onClose }: { onClose: () => void }) {
                 {rel.version === APP_VERSION && (
                   <span className="badge" style={{ color: 'var(--color-neon-green)', boxShadow: 'var(--shadow-glow-green)' }}>{t('changelog.current')}</span>
                 )}
-                {rel.title && <span className="font-body text-sm text-ink-mid">{rel.title[bi]}</span>}
+                {rel.title && <span className="font-body text-sm text-ink-mid">{pick(rel.title)}</span>}
                 <span className="font-mono text-sm text-ink-dim ml-auto">{rel.date}</span>
               </div>
               <ul className="flex flex-col gap-2">
@@ -42,7 +42,7 @@ export function ChangelogModal({ onClose }: { onClose: () => void }) {
                         style={{ color: m.color, border: `1px solid ${m.color}`, minWidth: 78, justifyContent: 'center' }}>
                         <Icon size={12} /> {t(m.key)}
                       </span>
-                      <span className="font-body text-sm text-ink-hi leading-snug">{c[bi]}</span>
+                      <span className="font-body text-sm text-ink-hi leading-snug">{pick(c)}</span>
                     </li>
                   );
                 })}
