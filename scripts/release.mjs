@@ -59,7 +59,13 @@ if (!ts.includes(`version: '${next}'`)) {
     ],
   },
 `;
-  ts = ts.replace('export const CHANGELOG: Release[] = [\n', `export const CHANGELOG: Release[] = [\n${stub}`);
+  // version.ts is checked out with CRLF on Windows; a literal '\n' anchor never
+  // matched there, so the stub was silently skipped while this script still
+  // reported inserting it.
+  const anchor = /export const CHANGELOG: Release\[\] = \[(\r?\n)/;
+  const m = anchor.exec(ts);
+  if (!m) throw new Error('CHANGELOG anchor not found in web/src/lib/version.ts');
+  ts = ts.replace(anchor, `export const CHANGELOG: Release[] = [${m[1]}${stub.replace(/\n/g, m[1])}`);
   insertedStub = true;
 }
 writeFileSync(versionTsPath, ts);

@@ -28,7 +28,7 @@ diese Regeln aus der offiziellen **rcheevos**-Bibliothek nach.
 ## Disc-basiert — via RAHasher (extern)
 
 Diese Systeme öffnen das Disc-Image und hashen einen abgeleiteten Bereich (Boot-Executable,
-Volume-Header …). Eine simple Datei-MD5 ist **falsch**. RAChecker delegiert an **RAHasher.exe**
+Volume-Header …). Eine simple Datei-MD5 ist **falsch**. RAChecker delegiert an **RAHasher**
 (unterstützt `.cue/.bin`, `.iso`, `.chd`, `.gdi`, `.pbp`, `.m3u`):
 
 | System | ID | | System | ID |
@@ -43,7 +43,11 @@ Volume-Header …). Eine simple Datei-MD5 ist **falsch**. RAChecker delegiert an
 
 **RAHasher-CLI:** `RAHasher <systemId> <pfad>` → gibt den 32-stelligen Hash auf stdout aus
 (`????…` bei Fehlschlag). Bezug: [RALibretro-Releases](https://github.com/RetroAchievements/RALibretro/releases)
-(`RAHasher-x64-Windows-*.zip`, GPLv3). Auto-Download in den **Einstellungen**.
+(`RAHasher-{x64,x86}-{Windows,Linux}-*.zip`, GPLv3; Linux-Builds seit 1.8.4, brauchen glibc 2.38+).
+Auto-Download in den **Einstellungen**, passend zu Betriebssystem und CPU, mit SHA-256-Prüfung
+gegen den Wert, den GitHub für das Release-Asset veröffentlicht. Ob RAHasher nutzbar ist, wird
+nicht an der Existenz der Datei festgemacht, sondern durch einen Start ohne Argumente: nur die
+Usage-Ausgabe („RAHasher 1.8.4 … Usage:") zählt als lauffähig.
 
 ## Warum „falsche" Versionen keine Erfolge geben
 

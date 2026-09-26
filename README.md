@@ -243,12 +243,18 @@ npx eas build --profile preview --platform android
 **Desktop:** disc-based systems and `.chd` images are hashed with the official
 **RAHasher** tool from RetroAchievements.
 
-→ **Settings → Download RAHasher** fetches the current Windows binary from the
-[RALibretro release](https://github.com/RetroAchievements/RALibretro/releases) into `bin/`.
+→ **Settings → Download RAHasher** fetches the official build for the system RAChecker runs
+on — **Windows or Linux** (x64/x86), Steam Deck included — from the
+[RALibretro release](https://github.com/RetroAchievements/RALibretro/releases) into `bin/`,
+checks its SHA-256 and makes it executable.
 Without it, disc games are marked 🟡 *RAHASHER* — not as an error.
 
-The automatic download is Windows-only. On Linux/macOS, build RAHasher yourself from
-[RALibretro](https://github.com/RetroAchievements/RALibretro) and set `rahasherPath` in Settings.
+Settings only report RAHasher as installed once it has actually started. A Windows
+`RAHasher.exe` on Linux, a file without `chmod +x`, or a Linux build too new for the system's
+glibc (it needs **glibc 2.38+**: SteamOS 3.6+, Ubuntu 24.04+, Debian 13+, Fedora 39+) is named
+as such instead. RetroAchievements publishes no macOS or ARM build — there, build RAHasher from
+[RALibretro](https://github.com/RetroAchievements/RALibretro) (`make -f Makefile.RAHasher`) and
+set `rahasherPath` in Settings.
 
 **Android** doesn't need RAHasher — the disc rules are implemented natively in the app.
 

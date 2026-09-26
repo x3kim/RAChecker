@@ -15,6 +15,11 @@ Tab **Hash-DB** → **Synchronisieren** (oder **Komplett neu** für ein vollstä
 ## 2. (Optional) RAHasher installieren
 Nur nötig für Disc-Systeme (PS1/PS2/PSP/Saturn/Dreamcast/…) und `.chd`.
 Tab **Einstellungen** → **RAHasher herunterladen.** Cartridge-Systeme funktionieren ohne.
+Der Download holt automatisch die offizielle Version für das eigene System — Windows oder Linux
+(auch Steam Deck); unter macOS und auf ARM gibt es keine fertige, dort selbst bauen und den Pfad
+eintragen. Stimmt mit dem eingetragenen RAHasher etwas nicht — Windows-Datei unter Linux,
+fehlendes `chmod +x`, zu alte glibc —, steht der Grund direkt im RAHasher-Feld, statt dass jede
+Disc-Datei scheitert.
 
 Container, die RAHasher nicht öffnet — `.cso`/`.zso`, Dolphins `.rvz`/`.wia` und `.gcz`, das
 `.wbfs` der USB-Loader und die GameCube-/Wii-Variante von `.ciso` — packt RAChecker zum Hashen

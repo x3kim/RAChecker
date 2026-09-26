@@ -41,7 +41,9 @@ import {
 } from './presence.js';
 import { getEmulatorConfig, setEmulatorConfig, emulatorStatus, resolveCore, launchRom, detectEmulator } from './launch.js';
 import { offlineReadiness, exportOfflinePackage, importOfflinePackage, sevenZipCmd } from './offline.js';
-import { isRAHasherAvailable, downloadRAHasher, locateRAHasher, resetRAHasherCache } from './hashing/rahasher.js';
+import {
+  isRAHasherAvailable, downloadRAHasher, locateRAHasher, resetRAHasherCache, probeRAHasher, rahasherDownloadTarget,
+} from './hashing/rahasher.js';
 import { listDir, pathInfo } from './fs-browse.js';
 import { startWatch, stopWatch, watchStatus, getWatchConfig, setWatchConfig } from './watcher.js';
 import { setScheduleConfig, scheduleStatus } from './scheduler.js';
@@ -103,6 +105,20 @@ function tempKind(name) {
     || name.startsWith('cso-')                                       // expanded .cso/.zso
     || name.startsWith('ra-extract') || name.startsWith('extract')) return 'extract'; // archive extraction
   return 'other';
+}
+
+// RAHasher as the Settings panel needs it: whether it runs, and if not why,
+// plus which build the one-click download would fetch for this OS/CPU (null:
+// none exists). There is deliberately no choice: RAHasher runs where the
+// server runs, and only that machine's native build can.
+async function rahasherStatus() {
+  const p = await probeRAHasher();
+  const target = rahasherDownloadTarget();
+  return {
+    available: p.available, path: p.path, version: p.version ?? null,
+    problem: p.problem ?? null, format: p.format ?? null, detail: p.detail ?? null,
+    platform: process.platform, downloadable: target !== null, target,
+  };
 }
 
 // Top-level temp entries with sizes + age, largest first, for the storage panel.
@@ -417,7 +433,7 @@ export async function registerRoutes(app) {
       totals: { games: totalGameCount(), hashes: totalHashCount() },
       consolesSyncedAt: getSetting('consolesSyncedAt', null),
       lastFullSyncAt: getSetting('lastFullSyncAt', null),
-      rahasher: { available: await isRAHasherAvailable(), path: locateRAHasher() },
+      rahasher: await rahasherStatus(),
       watch: {
         active: w.active, enabled: w.enabled, mode: w.mode, intervalMin: w.intervalMin,
         root: w.root, processed: w.processed, scanning: w.scanning,
@@ -1478,15 +1494,22 @@ export async function registerRoutes(app) {
   app.get('/api/rahasher/download/stream', (req, reply) => {
     const { send, close } = openSSE(req, reply);
     downloadRAHasher((p) => send('progress', p))
-      .then((r) => send('done', r))
+      .then((r) => {
+        // A saved path override outranks bin/ in locateRAHasher, so one pointing
+        // at a different (typically the broken) binary would hide the copy that
+        // was just installed. Asking for the download means "use that one".
+        if (config.rahasherPath && config.rahasherPath !== r.path) {
+          config.rahasherPath = '';
+          persistServerConfig({ rahasherPath: '' });
+          resetRAHasherCache();
+          r = { ...r, clearedOverride: true };
+        }
+        send('done', r);
+      })
       .catch((e) => send('error', { message: String(e.message) }))
       .finally(() => close());
   });
-  app.get('/api/rahasher/status', async () => ({
-    available: await isRAHasherAvailable(),
-    path: locateRAHasher(),
-    platform: process.platform,
-  }));
+  app.get('/api/rahasher/status', async () => rahasherStatus());
 
   // =========================================================================
   // Community & discovery (RA feed endpoints, cross-referenced with YOUR ROMs)
@@ -1920,8 +1943,8 @@ export async function registerRoutes(app) {
   });
   // Auto-locate an existing RAHasher (bundled bin/ or PATH). Does not download.
   app.post('/api/rahasher/detect', async () => {
-    const path = locateRAHasher();
-    return { path: path || '', found: Boolean(path && existsSync(path)) };
+    const p = await probeRAHasher();
+    return { path: p.path || '', found: p.available, problem: p.problem ?? null };
   });
   app.post('/api/emulator', async (req) => {
     const b = req.body || {};

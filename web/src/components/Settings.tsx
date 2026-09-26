@@ -437,7 +437,11 @@ export function Settings({ status, refresh, onAuthChange, theme, changeTheme }: 
     setInstalling(true); setInstallMsg(t('set.starting'));
     const es = openStream('/api/rahasher/download/stream', {
       progress: (d) => setInstallMsg(d.message || d.phase || '…'),
-      done: (d) => { setInstallMsg(t('set.installedVersion', { version: d.version ?? '' })); stop(); },
+      done: (d) => {
+        setInstallMsg(t('set.installedVersion', { version: d.version ?? '' }) + (d.clearedOverride ? ' ' + t('set.rahOverrideCleared') : ''));
+        if (d.clearedOverride) setRahasherPath('');
+        stop();
+      },
       error: (d) => { setInstallMsg(t('set.errorPrefix', { msg: d.message || t('set.unknown') })); stop(); },
       __error: () => { setInstallMsg(t('set.connLostShort')); stop(); },
     });
@@ -445,7 +449,18 @@ export function Settings({ status, refresh, onAuthChange, theme, changeTheme }: 
   };
   const stop = () => { setInstalling(false); esRef.current?.close(); esRef.current = null; refresh(); };
 
-  const rahaserOk = status?.rahasher.available;
+  const rah = status?.rahasher;
+  const rahaserOk = rah?.available;
+  const rahWindows = (rah?.platform ?? 'win32') === 'win32';
+  // Why the RAHasher that was found cannot be used — shown instead of a bare
+  // "not installed", so a wrong file is not mistaken for a missing one (#46).
+  const rahFile = rah?.path ? rah.path.split(/[\/]/).pop() || rah.path : 'RAHasher';
+  const rahProblem = !rah || rah.available || !rah.problem || rah.problem === 'missing' ? ''
+    : rah.problem === 'wrong-platform'
+      ? t('set.rahWrongPlatform', { file: rahFile, found: ({ pe: 'Windows', elf: 'Linux', macho: 'macOS' } as Record<string, string>)[rah.format ?? ''] ?? '?' })
+      : rah.problem === 'not-executable'
+        ? t('set.rahNotExecutable', { file: rah.path })
+        : t('set.rahWontRun', { detail: rah.detail || '—' });
 
   const showForm = !loggedIn || editAccount;
 
@@ -907,22 +922,29 @@ export function Settings({ status, refresh, onAuthChange, theme, changeTheme }: 
         <div className="flex items-center gap-3 mt-3 flex-wrap">
           {rahaserOk ? (
             <span className="badge" style={{ color: 'var(--color-neon-green)', boxShadow: 'var(--shadow-glow-green)' }}>
-              <CheckCircle2 size={14} /> {t('set.installed')}
+              <CheckCircle2 size={14} /> {t('set.installed')}{rah?.version ? ` · ${rah.version}` : ''}
             </span>
+          ) : rah?.downloadable === false ? (
+            <span className="font-body text-sm text-ink-mid">{t('set.rahNoBuild')}</span>
           ) : (
             <button className="btn btn-magenta" onClick={installRahasher} disabled={installing}>
-              <HardDriveDownload size={16} /> {installing ? t('set.downloading') : t('set.downloadRahasher')}
+              <HardDriveDownload size={16} /> {installing ? t('set.downloading') : t('set.downloadRahasher')}{!installing && rah?.target ? ` (${rah.target})` : ''}
             </button>
           )}
           {installMsg && <span className="font-mono text-base text-ink-mid">{installMsg}</span>}
         </div>
-        <div className="font-mono text-sm text-ink-dim mt-2 break-all">{t('set.path')} {status?.rahasher.path}</div>
+        {rahProblem && (
+          <div className="font-body text-sm mt-2 flex items-start gap-2 text-neon-amber">
+            <AlertTriangle size={15} className="shrink-0 mt-0.5" /> <span>{rahProblem}</span>
+          </div>
+        )}
+        <div className="font-mono text-sm text-ink-dim mt-2 break-all">{t('set.path')} {rah?.path}</div>
 
         {/* Manual path override (merged here from the old Advanced tab) */}
         <div className="mt-3">
           <label className="font-body text-sm text-ink-hi flex items-center gap-2"><Files size={15} className="text-neon-purple" /> {t('set.rahasherPath')}</label>
           <div className="flex flex-col sm:flex-row gap-2 mt-2">
-            <input className="input flex-1 font-mono" value={rahasherPath} onChange={(e) => setRahasherPath(e.target.value)} placeholder="./bin/RAHasher.exe" />
+            <input className="input flex-1 font-mono" value={rahasherPath} onChange={(e) => setRahasherPath(e.target.value)} placeholder={rahWindows ? './bin/RAHasher.exe' : './bin/RAHasher'} />
             <button className="btn" onClick={() => setRahPicker(true)}><FolderOpen size={16} /> {t('set.choose')}</button>
             <button className="btn" onClick={detectRah}><Sparkles size={16} /> {t('set.autoDetect')}</button>
             <button className="btn btn-primary" onClick={saveRahasherPath}><Save size={16} /> {rahPathSaved ? t('set.saved') : t('set.save')}</button>
@@ -1183,7 +1205,7 @@ export function Settings({ status, refresh, onAuthChange, theme, changeTheme }: 
       {dlPicker && <FolderPicker initialPath={downloadDir || root} onPick={(p) => { setDownloadDir(p); setDlPicker(false); }} onClose={() => setDlPicker(false)} />}
       {corePicker && <FolderPicker initialPath={emuCoreDir} onPick={(p) => { setEmuCoreDir(p); setCorePicker(false); }} onClose={() => setCorePicker(false)} />}
       {emuPicker && <FolderPicker mode="file" ext={['.exe']} initialPath={emuPath} onPick={(p) => { setEmuPath(p); setEmuPicker(false); }} onClose={() => setEmuPicker(false)} />}
-      {rahPicker && <FolderPicker mode="file" ext={['.exe']} initialPath={rahasherPath} onPick={(p) => { setRahasherPath(p); setRahPicker(false); }} onClose={() => setRahPicker(false)} />}
+      {rahPicker && <FolderPicker mode="file" ext={rahWindows ? ['.exe'] : undefined} initialPath={rahasherPath} onPick={(p) => { setRahasherPath(p); setRahPicker(false); }} onClose={() => setRahPicker(false)} />}
     </div>
   );
 }

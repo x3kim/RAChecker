@@ -15,7 +15,7 @@ export interface AppStatus {
   totals: { games: number; hashes: number };
   consolesSyncedAt: number | null;
   lastFullSyncAt: number | null;
-  rahasher: { available: boolean; path: string };
+  rahasher: RahasherStatus;
   watch: {
     active: boolean; enabled?: boolean; mode?: 'interval' | 'events'; intervalMin?: number;
     root: string | null; processed: number; scanning?: boolean;
@@ -51,6 +51,17 @@ export interface HashNameStatus {
   games: number; fetched: number; named: number; owned: number; ownedFetched: number;
   running: { scope: 'collection' | 'all'; done: number; total: number } | null;
   intervalMs: number;
+}
+// Why a RAHasher that was found still cannot be used (#46):
+// wrong-platform = e.g. the Windows .exe on Linux; not-executable = missing
+// chmod +x; wont-run = starts but fails (detail says why, e.g. glibc too old).
+export type RahasherProblem = 'missing' | 'wrong-platform' | 'not-executable' | 'wont-run';
+export interface RahasherStatus {
+  available: boolean; path: string; version?: string | null;
+  problem?: RahasherProblem | null; format?: 'pe' | 'elf' | 'macho' | null; detail?: string | null;
+  platform?: string; downloadable?: boolean;
+  /** what the download button fetches here, e.g. "Linux x64" */
+  target?: string | null;
 }
 export interface GenreStatus {
   games: number; fetched: number; withGenre: number; owned: number; ownedFetched: number;
@@ -395,7 +406,7 @@ export const api = {
       body: JSON.stringify({ path }),
     }),
   game: (id: number, refresh = false) => j<any>(`/api/game/${id}${refresh ? '?refresh=1' : ''}`),
-  rahasherStatus: () => j<{ available: boolean; path: string; platform: string }>('/api/rahasher/status'),
+  rahasherStatus: () => j<RahasherStatus>('/api/rahasher/status'),
   library: (q: { status?: string; console_id?: number; q?: string; tag?: string; genre?: string; major?: string; limit?: number; offset?: number } = {}) => {
     const p = new URLSearchParams();
     if (q.status) p.set('status', q.status);
@@ -521,7 +532,7 @@ export const api = {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ save }),
     }),
   detectRahasher: () =>
-    j<{ path: string; found: boolean }>('/api/rahasher/detect', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }),
+    j<{ path: string; found: boolean; problem: RahasherProblem | null }>('/api/rahasher/detect', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }),
   launch: (p: { path: string; inner?: string; consoleId?: number | null }) =>
     j<LaunchResult>('/api/launch', {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(p),

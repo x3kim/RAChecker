@@ -336,7 +336,7 @@ npm run serve      # builds the frontend + starts the server on :8088</code></pr
         <thead><tr><th>Problem</th><th>Fix</th></tr></thead>
         <tbody>
           <tr><td>Everything "No match"</td><td>Sync the hash DB.</td></tr>
-          <tr><td>Disc games "RAHasher"</td><td>Download RAHasher in Settings, then scan again.</td></tr>
+          <tr><td>Disc games "RAHasher"</td><td>Download RAHasher in Settings — it picks the build for your system (Windows or Linux, Steam Deck included) — then scan again. If Settings names a problem with the RAHasher you entered, such as a Windows <code>.exe</code> on Linux or a missing <code>chmod +x</code>, the download fixes it.</td></tr>
           <tr><td>Network path unreadable</td><td>Connected/mounted in Windows? Type the full UNC path in the picker.</td></tr>
           <tr><td>Port 8088 in use</td><td>Change <code>"port"</code> in <code>server/config.local.json</code>.</td></tr>
           <tr><td>Scan slow</td><td>Disc images and large archives take longer. The file cache makes re-scans fast.</td></tr>
@@ -535,7 +535,7 @@ npm run serve      # baut das Frontend + startet den Server auf :8088</code></pr
         <thead><tr><th>Problem</th><th>Lösung</th></tr></thead>
         <tbody>
           <tr><td>Alles „Kein Match"</td><td>Hash-DB synchronisieren.</td></tr>
-          <tr><td>Disc-Spiele „RAHasher"</td><td>In den Einstellungen RAHasher herunterladen, dann erneut scannen.</td></tr>
+          <tr><td>Disc-Spiele „RAHasher"</td><td>In den Einstellungen RAHasher herunterladen — er nimmt automatisch die Version für dein System (Windows oder Linux, auch Steam Deck) —, dann erneut scannen. Nennen die Einstellungen ein Problem mit dem eingetragenen RAHasher, etwa eine Windows-<code>.exe</code> unter Linux oder fehlendes <code>chmod +x</code>, behebt der Download das.</td></tr>
           <tr><td>Netzwerkpfad nicht lesbar</td><td>In Windows verbunden/gemountet? Im Picker den vollen UNC-Pfad eintippen.</td></tr>
           <tr><td>Port 8088 belegt</td><td>In <code>server/config.local.json</code> den <code>"port"</code> ändern.</td></tr>
           <tr><td>Scan langsam</td><td>Disc-Images und große Archive brauchen länger. Der Datei-Cache macht Re-Scans schnell.</td></tr>
