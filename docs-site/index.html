@@ -271,6 +271,7 @@ npm run serve      # builds the frontend + starts the server on :8088</code></pr
       <ul>
         <li><strong>Collection</strong> — every ROM ever scanned, stored permanently. Filter/sort by status/system, find duplicates and delete extra copies (1G1R cleanup), copy paths, export as CSV or a playlist.</li>
         <li><strong>Region &amp; language</strong> — every file states its region and languages. For a file that matches, they come straight from RetroAchievements: the hash identifies that exact dump, so even a renamed file is read correctly (fetched after each scan for the games you own; the whole database on a button). Only unknown files fall back to the filename (No-Intro, GoodTools, TOSEC), and are marked as guessed. Set your preferred order in Settings → General (e.g. Japanese → Japan → Europe): the collection sorts by it, duplicates mark the copy to keep, and a game's details list which regions RetroAchievements supports and which you own. Nothing is hidden or deleted because of it.</li>
+        <li><strong>Genres</strong> — RetroAchievements never hands the genre out in bulk, so RAChecker fetches it one game at a time in a resumable background job (Settings → General → Genres; automatic for the games you own, the whole database on a button). RA’s own wording is fine-grained (“2D Platforming”, “Turn-Based RPG”), so it is folded onto the 19 major genres RetroAchievements documents — filter the collection by major genre, unfold the sub-genre box for the finer ones, sort the games list by genre. Survives a rebuild of the hash database.</li>
         <li><strong>Collection diff</strong> — after each scan: what's new, newly has achievements, is lost or gone.</li>
         <li><strong>Games</strong> — browse all achievement games per system, sortable by points, achievements or name; opening a game shows box art, all achievements with badges and the compatible ROM versions.</li>
         <li><strong>Profile</strong> — your RA progress: points, mastered sets, completion per game.</li>
@@ -317,7 +318,7 @@ npm run serve      # builds the frontend + starts the server on :8088</code></pr
         <li><kbd>g</kbd> then <kbd>d</kbd>/<kbd>s</kbd>/<kbd>g</kbd>/<kbd>e</kbd>/<kbd>h</kbd> — jump to Dashboard/Scan/Games/Discover/Hash DB.</li>
         <li><kbd>?</kbd> shows all shortcuts, <kbd>Esc</kbd> closes dialogs.</li>
         <li><strong>Drag &amp; drop</strong> — drop a ROM or archive onto the window to check it instantly, without scanning the whole folder.</li>
-        <li>Language and the guided tour live in the <strong>"More" menu</strong> (⋯) top-right.</li>
+        <li>Language (English, German, Japanese) and the guided tour live in the <strong>"More" menu</strong> (⋯) top-right.</li>
       </ul>
 
       <h2 id="en-faq">FAQ</h2>
@@ -469,6 +470,7 @@ npm run serve      # baut das Frontend + startet den Server auf :8088</code></pr
       <ul>
         <li><strong>Sammlung</strong> — alle je gescannten ROMs, dauerhaft gespeichert. Nach Status/System filtern und sortieren, Duplikate finden und Extra-Kopien löschen (1G1R-Aufräumen), Pfade kopieren, als CSV oder Playlist exportieren.</li>
         <li><strong>Region &amp; Sprache</strong> — jede Datei nennt Region und Sprachen. Bei einer Datei, die trifft, kommen sie direkt von RetroAchievements: der Hash identifiziert genau diesen Dump, also wird auch eine umbenannte Datei richtig gelesen (nach jedem Scan für deine Spiele, die ganze Datenbank per Knopfdruck). Nur unbekannte Dateien fallen auf den Dateinamen zurück (No-Intro, GoodTools, TOSEC) und sind als geraten markiert. Wunsch-Reihenfolge unter Einstellungen → Allgemein festlegen (z. B. Japanisch → Japan → Europa): danach sortiert die Sammlung, bei Duplikaten wird die Kopie zum Behalten markiert, und die Spiel-Details zeigen, welche Regionen RetroAchievements unterstützt und welche du hast. Es wird dadurch nichts ausgeblendet oder gelöscht.</li>
+        <li><strong>Genres</strong> — RetroAchievements gibt das Genre nie gesammelt heraus, deshalb holt RAChecker es einzeln pro Spiel in einem abbrechbaren Hintergrund-Durchlauf (Einstellungen → Allgemein → Genres; automatisch für deine Spiele, die ganze Datenbank per Knopfdruck). RAs eigene Bezeichnungen sind sehr fein („2D Platforming“, „Turn-Based RPG“) und werden auf die 19 Hauptgenres zusammengefasst, die RetroAchievements selbst definiert — Sammlung nach Hauptgenre filtern, für die feineren das Sub-Genre-Feld aufklappen, Spieleliste nach Genre sortieren. Überlebt einen Neuaufbau der Hash-Datenbank.</li>
         <li><strong>Sammlung-Diff</strong> — nach jedem Scan: was ist neu, hat jetzt Erfolge, ist verloren oder verschwunden.</li>
         <li><strong>Spiele</strong> — pro System alle Spiele mit Erfolgen durchstöbern, sortierbar nach Punkten, Erfolgen oder Name; ein Spiel öffnen zeigt Box-Art, alle Erfolge mit Badges und die kompatiblen ROM-Versionen.</li>
         <li><strong>Profil</strong> — dein RA-Fortschritt: Punkte, gemeisterte Sets, Completion pro Spiel.</li>
@@ -515,7 +517,7 @@ npm run serve      # baut das Frontend + startet den Server auf :8088</code></pr
         <li><kbd>g</kbd> dann <kbd>d</kbd>/<kbd>s</kbd>/<kbd>g</kbd>/<kbd>e</kbd>/<kbd>h</kbd> — zu Übersicht/Scannen/Spiele/Entdecken/Hash-DB springen.</li>
         <li><kbd>?</kbd> zeigt alle Shortcuts, <kbd>Esc</kbd> schließt Dialoge.</li>
         <li><strong>Drag &amp; Drop</strong> — eine ROM oder ein Archiv ins Fenster ziehen prüft sie sofort, ohne den ganzen Ordner zu scannen.</li>
-        <li>Sprache und die geführte Tour liegen im <strong>„Mehr"-Menü</strong> (⋯) oben rechts.</li>
+        <li>Sprache (Deutsch, Englisch, Japanisch) und die geführte Tour liegen im <strong>„Mehr"-Menü</strong> (⋯) oben rechts.</li>
       </ul>
 
       <h2 id="de-faq">Häufige Fragen</h2>

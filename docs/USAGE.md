@@ -98,6 +98,17 @@ was den Scan bei mehrdeutigen Disc-Images etwas beschleunigt.
   „Chrono Trigger (U) [!].smc", „Elite (1984)(GB).tap". Bestätigte Angaben haben einen durchgezogenen
   Rahmen, geratene einen gestrichelten; Dateien ganz ohne Angabe landen unter „Ohne Angabe" und
   werden nie versteckt.
+- **Genres holen:** Einstellungen → Allgemein → „Genres". RetroAchievements liefert das Genre nur
+  einzeln pro Spiel, nie in der Massen-Abfrage — deshalb ein eigener Durchlauf: „Sammlung holen"
+  (die Spiele, zu denen du eine Datei hast) oder „Ganze Datenbank holen" (dauert, abbrechbar, setzt
+  beim nächsten Mal fort). Einmal geholte Genres liegen lokal und überleben auch einen Neuaufbau der
+  Hash-Datenbank. Spiele, für die RA gar kein Genre hinterlegt hat, werden nicht erneut angefragt.
+- **Nach Genre filtern:** in der Sammlung zwei Boxen. „Nach Genre" zeigt ausschließlich die 19
+  Hauptgenres, die RetroAchievements selbst definiert — alles, was RA feiner benennt („2D
+  Platforming", „Turn-Based RPG", „Sports - Golf"), ist darin einsortiert. „Nach Sub-Genre" ist
+  eingeklappt, weil es Hunderte davon gibt; aufgeklappt zeigt es nur noch die Sub-Genres des gerade
+  gewählten Hauptgenres. In der Spieleliste steht das Genre an jeder Zeile und lässt sich über das
+  Sortier-Dropdown als Sortierung wählen; Spiele ohne geholtes Genre landen dabei am Ende.
 - **Ordner-Watch:** Einstellungen → Überwachung starten; wählbar zwischen Dauer-Watch und
   Intervall-Modus (alle N Minuten kurz prüfen), standardmäßig aus. Neue ROMs werden automatisch geprüft.
 - **Geplanter Scan:** Einstellungen → einmal täglich zu einer festen Uhrzeit automatisch scannen (an/aus).

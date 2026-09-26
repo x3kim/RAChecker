@@ -34,6 +34,7 @@ und bietet eine kleine API. Alles läuft auf `127.0.0.1` — keine Cloud, kein e
 | `ra-api.js` | RA-Web-API-Client mit serialisiertem **Rate-Limiter** + Retry/Backoff |
 | `sync.js` | lädt pro System Spiele+Hashes (Bulk), schreibt in DB, 90-Tage-TTL |
 | `consoles.js` | System-Metadaten: Hash-Methode, Endungen, **Ordnernamen-Aliase** |
+| `genres.js` | faltet RAs feingliedrige Genre-Strings auf die 19 dokumentierten Hauptgenres (exakt → Sub-Genre → Keyword-Fallback); `GENRE_MAP_VERSION` löst ein Neu-Ableiten aus |
 | `hashing/file-hash.js` | rcheevos-Regeln in JS (MD5 + Header/Byteswap) |
 | `hashing/archive.js` | ZIP (in-memory stream) · 7z/RAR (Temp + Cleanup) |
 | `hashing/rahasher.js` | RAHasher-Aufruf + Auto-Download des Windows-Binaries |
@@ -74,6 +75,7 @@ und bietet eine kleine API. Alles läuft auf `127.0.0.1` — keine Cloud, kein e
 | `scans` / `scan_items` | Scan-Historie + Einzelergebnisse |
 | `library` | dauerhafte ROM-Sammlung (Pfad, Hash, Status, Spiel) — zentrale Tabelle des Sammlung-Tabs |
 | `api_cache` | TTL-gecachte RA-API-Antworten (Spiel-Details, Profil, Completion) |
+| `game_genres` | geholte Genres je Spiel, außerhalb von `games` — ein Console-Sync baut `games` neu, `game_genres` überlebt und wird zurückgespielt; Zeile mit `genre NULL` heißt „gefragt, RA hat keins" |
 | `scan_baseline` | Schnappschuss der Sammlung vor einem Scan, Basis für die Sammlung-Diff-Ansicht |
 | `play_sessions` | lokale Spielzeit-Historie aus Rich Presence (Start/letztes Sample je Spiel) |
 | `settings` | persistente Einstellungen (z. B. `romRoot`, `presenceConfig`, `emulatorConfig`, `consoleFirstSeen`) |
@@ -97,6 +99,8 @@ und bietet eine kleine API. Alles läuft auf `127.0.0.1` — keine Cloud, kein e
 | GET | `/api/library` · `/api/library/stats` | Sammlung abrufen / Statistik |
 | GET | `/api/library/diff` | Sammlung-Diff seit letztem Scan |
 | GET | `/api/library/duplicates` | Duplikat-Gruppen (1G1R) |
+| GET | `/api/genres/stream?scope=` · `/status` · POST `/cancel` | **SSE** Genre-Anreicherung (ein `API_GetGame` je Spiel, fortsetzbar) |
+| GET | `/api/library/major-genres` · `/api/library/genres?major=` | Genre-Chips der Sammlung: 19 Hauptgenres bzw. Sub-Genres des gewählten Hauptgenres |
 | POST | `/api/library/delete-files` | Duplikat-Dateien löschen (Sammlung + Datenträger) |
 | GET | `/api/library/health` · POST `/api/library/prune` | fehlende Dateien finden / aus der Sammlung entfernen |
 | POST | `/api/watch/start` · `/stop` · `/config` · GET `/status` | Ordner-Überwachung steuern |

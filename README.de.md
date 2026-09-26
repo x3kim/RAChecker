@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/desktop-0.14-22e0ff" alt="Desktop-Version">
+  <img src="https://img.shields.io/badge/desktop-0.18-22e0ff" alt="Desktop-Version">
   <img src="https://img.shields.io/badge/android-0.7-39ff8b" alt="Android-Version">
   <img src="https://img.shields.io/badge/node-22.5%2B-ffb648" alt="Node 22.5+">
   <img src="https://img.shields.io/badge/lizenz-MIT-9d6bff" alt="MIT-Lizenz">
@@ -186,6 +186,7 @@ nicht anhand von Ordnernamen. Ein korrekt gedumptes ROM trifft, egal wie du sort
 - **Sammlungs-Diff** — nach jedem Scan: was ist neu, neu spielbar, verloren oder weg.
 - **DAT-Abgleich** — No-Intro-/Redump-/logiqx-/ClrMamePro-/MAME-Kataloge importieren und pro Katalog sehen, was du hast und was fehlt (exportierbar). Abgeglichen über echte Prüfsummen, die *ohne Entpacken* direkt aus Archiven gelesen werden — unabhängig vom RetroAchievements-Hash. Inklusive Ansicht für unbekannte Dumps.
 - **Wunsch-Region & Sprache** — jede Datei nennt Region und Sprachen. Bei einer Datei, die trifft, kommen sie **direkt von RetroAchievements**: der Hash identifiziert genau diesen Dump, also wird auch eine umbenannte oder schlampig benannte Datei richtig gelesen (nach jedem Scan automatisch für deine Spiele, die ganze Datenbank per Knopfdruck). Nur Dateien, die RetroAchievements nicht kennt, fallen auf den Dateinamen zurück (No-Intro, GoodTools, TOSEC, Übersetzungs-Tags) — und sind als solche markiert. Leg deine Reihenfolge fest (z. B. *Japanisch → Japan → Europa*): danach sortiert die Sammlung, bei Duplikaten wird die Kopie zum Behalten markiert, und die Spiel-Details zeigen, welche Regionen RetroAchievements unterstützt und welche davon du schon hast. Filtern nach jeder Region oder Sprache. Es wird dadurch nie etwas ausgeblendet oder gelöscht.
+- **Genres** — RetroAchievements kennt das Genre jedes Spiels, gibt es aber nie gesammelt heraus. RAChecker holt es deshalb einzeln pro Spiel in einem jederzeit abbrechbaren Hintergrund-Durchlauf (Einstellungen → Allgemein → Genres; automatisch für deine Spiele, die ganze Datenbank per Knopfdruck). RAs eigene Bezeichnungen sind sehr fein — *2D Platforming*, *Turn-Based RPG*, *Sports - Golf* —, deshalb werden sie auf die **19 Hauptgenres zusammengefasst, die RetroAchievements selbst definiert**, und beides bleibt erhalten: Sammlung nach Hauptgenre filtern, für die feineren das Sub-Genre-Feld aufklappen, und die Spieleliste nach Genre sortieren. Einmal geholt, überlebt es auch einen Neuaufbau der Hash-Datenbank.
 - **Duplikate (1G1R)** — dasselbe Spiel in mehreren Dateien wird gruppiert; Extra-Kopien direkt löschbar, deine Wunsch-Region bleibt.
 - **Passende Version finden** — bei einem Fehltreffer wird der Dateiname dem Spiel zugeordnet und die akzeptierten Versionen + RAPatches-Links werden gezeigt.
 - **RA-Weltabdeckung** — welchen Anteil aller RA-Spiele, -Erfolge und -Punkte deine Sammlung abdeckt, pro System.
@@ -205,7 +206,7 @@ nicht anhand von Ordnernamen. Ein korrekt gedumptes ROM trifft, egal wie du sort
 
 - **Befehlspalette** (`Strg`/`Cmd`+`K`) und Tastenkürzel (`g`+Taste zum Navigieren, `/` Suche, `?` Hilfe).
 - **Geführte Tour** durch die Oberfläche.
-- **Deutsch & Englisch**, vollständig übersetzt.
+- **Deutsch, Englisch & Japanisch**, vollständig übersetzt.
 - **6 Themes** (CRT Cyan, Amber Terminal, Synthwave, Matrix, Game Boy, Hell) + 2 geheime Freischaltungen, 3 Schriften, optionaler Aurora-Hintergrund.
 - **Komplett offline** — Schriften sind mitgeliefert, es wird nichts von einem CDN geladen.
 
@@ -302,7 +303,7 @@ RAChecker/
 │  ├─ scanner.js                    rekursiver Scan + System-Erkennung
 │  ├─ sync.js  ra-api.js            Hash-DB-Sync + API-Client
 │  ├─ hashing/                      Datei-Hashes, Archive, RAHasher
-│  └─ …                             DB, Routen, Watcher, Scheduler, Presence, Launch
+│  └─ …                             DB, Routen, Genres, Watcher, Scheduler, Presence, Launch
 ├─ web/                             Frontend (Vite + React + Tailwind)
 ├─ mobile/                          Android-App (Expo / React Native)
 │  └─ src/{disc,archive,lzma}/      Disc-, 7z- und LZMA-Leser fürs Gerät

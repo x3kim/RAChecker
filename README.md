@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/desktop-0.14-22e0ff" alt="Desktop version">
+  <img src="https://img.shields.io/badge/desktop-0.18-22e0ff" alt="Desktop version">
   <img src="https://img.shields.io/badge/android-0.7-39ff8b" alt="Android version">
   <img src="https://img.shields.io/badge/node-22.5%2B-ffb648" alt="Node 22.5+">
   <img src="https://img.shields.io/badge/license-MIT-9d6bff" alt="MIT license">
@@ -184,6 +184,7 @@ not by folder names. A correctly dumped ROM matches no matter how you sort your 
 - **Collection diff** — after each scan: what's new, newly playable, lost or gone.
 - **DAT completeness check** — import No-Intro/Redump/logiqx/ClrMamePro/MAME catalogs and see per catalog what you have and what's missing (exportable). Matched by real checksums read straight from archives *without* extraction, independent of the RetroAchievements hash. Includes an *unknown dumps* view.
 - **Preferred region & language** — every file states its region and languages. For a file that matches, they come **straight from RetroAchievements**: the hash identifies that exact dump, so a renamed or sloppily named file is read correctly anyway (fetched automatically after each scan for the games you own; the whole database on a button). Only files RetroAchievements does not know fall back to the filename (No-Intro, GoodTools, TOSEC, translation tags), and those are marked as such. Put your preference in order (e.g. *Japanese → Japan → Europe*) and the collection sorts by it, duplicates mark the copy to keep, and a game's detail window lists which regions RetroAchievements supports and which of them you already own. Filter by any region or language. Nothing is ever hidden or deleted because of it.
+- **Genres** — RetroAchievements knows the genre of every game it hosts but never hands it out in bulk, so RAChecker fetches it one game at a time in a resumable background job (Settings → General → Genres; automatic for the games you own, the whole database on a button). RA's own wording is fine-grained — *2D Platforming*, *Turn-Based RPG*, *Sports - Golf* — so it is folded onto the **19 major genres RetroAchievements documents**, and both are kept: filter the collection by major genre, unfold the sub-genre box for the finer ones, and sort the games list by genre. Once fetched it survives a rebuild of the hash database.
 - **Duplicates (1G1R)** — the same game across multiple files is grouped; extra copies deletable, keeping your preferred region.
 - **Find the right version** — on a miss, match the filename to the game and show accepted versions + RAPatches links.
 - **RA world coverage** — what share of all RA games, achievements and points your collection covers, per system.
@@ -203,7 +204,7 @@ not by folder names. A correctly dumped ROM matches no matter how you sort your 
 
 - **Command palette** (`Ctrl`/`Cmd`+`K`) and keyboard shortcuts (`g`+key to navigate, `/` search, `?` help).
 - **Guided tour** through the UI.
-- **English & German**, fully translated.
+- **English, German & Japanese**, fully translated.
 - **6 themes** (CRT Cyan, Amber Terminal, Synthwave, Matrix, Game Boy, Light) + 2 secret unlocks, 3 fonts, optional aurora background.
 - **Fully offline UI** — fonts are bundled; nothing is loaded from any CDN.
 
@@ -299,7 +300,7 @@ RAChecker/
 │  ├─ scanner.js                    recursive scan + system detection
 │  ├─ sync.js  ra-api.js            hash-DB sync + API client
 │  ├─ hashing/                      file hashes, archives, RAHasher
-│  └─ …                             db, routes, watcher, scheduler, presence, launch
+│  └─ …                             db, routes, genres, watcher, scheduler, presence, launch
 ├─ web/                             frontend (Vite + React + Tailwind)
 ├─ mobile/                          Android app (Expo / React Native)
 │  └─ src/{disc,archive,lzma}/      on-device disc, 7z and LZMA readers
