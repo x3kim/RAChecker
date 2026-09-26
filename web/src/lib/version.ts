@@ -1,6 +1,6 @@
 // Single source of truth for the app version + changelog. The footer version
 // chip opens a modal rendering CHANGELOG; package.json is kept in sync manually.
-export const APP_VERSION = '0.18.0';
+export const APP_VERSION = '0.19.0';
 
 // GitHub repository — linked from the header (GitHub icon in the "More" menu).
 export const REPO_URL = 'https://github.com/x3kim/RAChecker';
@@ -16,6 +16,16 @@ export interface Release { version: string; date: string; title?: { de: string; 
 
 // Newest first. Dates are ISO (YYYY-MM-DD).
 export const CHANGELOG: Release[] = [
+  {
+    version: '0.19.0',
+    date: '2026-09-26',
+    title: { de: 'RAHasher unter Linux und Steam Deck', en: 'RAHasher on Linux and Steam Deck', ja: 'Linux・Steam DeckでのRAHasher' },
+    changes: [
+      { type: 'feature', de: '„RAHasher herunterladen“ holt jetzt automatisch die offizielle Version für das System, auf dem RAChecker läuft — Windows oder Linux (x64/x86), Steam Deck inklusive. Der Button zeigt vorher an, welche es wird, die Prüfsumme wird kontrolliert und die Datei ausführbar gemacht. Danke an Quemandoacromo für die Meldung (#46).', en: '"Download RAHasher" now fetches the official build for the system RAChecker runs on — Windows or Linux (x64/x86), Steam Deck included. The button says which one beforehand, the checksum is verified and the file is made executable. Thanks to Quemandoacromo for the report (#46).', ja: '「RAHasherをダウンロード」は、RAChecker が動作しているシステム向けの公式ビルド（Windows または Linux、x64/x86、Steam Deck を含む）を自動で取得するようになりました。取得する版はボタンに事前表示され、チェックサムを検証し、実行権限も付与します。報告してくれた Quemandoacromo さんに感謝します（#46）。' },
+      { type: 'fix', de: 'Die Einstellungen meldeten RAHasher als „installiert“, sobald die Datei existierte — auch die Windows-Version auf Linux, die dort nie läuft. Jetzt wird RAHasher probeweise gestartet, und ein Problem wird beim Namen genannt: falsches Betriebssystem, fehlendes chmod +x oder eine zu alte glibc.', en: 'Settings reported RAHasher as "installed" as soon as the file existed — even the Windows build on Linux, which can never run there. RAHasher is now actually started to check, and a problem is named: wrong operating system, missing chmod +x, or a glibc that is too old.', ja: '設定画面では、ファイルが存在するだけで RAHasher を「インストール済み」と表示していました（Linux 上の Windows 版のように、実行できない場合でも）。現在は実際に起動して確認し、問題があれば「OSが違う」「chmod +x がない」「glibc が古い」などと具体的に表示します。' },
+      { type: 'fix', de: 'Konnte RAHasher gar nicht starten, wurden Disc-Dateien beim Scan dauerhaft als Fehler markiert. Sie bleiben jetzt offen und werden mit „Offene Disc-Dateien neu prüfen“ nachgeholt, sobald ein funktionierender RAHasher da ist.', en: 'When RAHasher could not start at all, a scan marked disc files as errors for good. They now stay pending and are picked up by "Re-check pending disc files" once a working RAHasher is in place.', ja: 'RAHasher が起動できない場合、スキャンでディスクファイルがエラーとして確定していました。現在は保留のまま残り、動作する RAHasher を用意すれば「保留中のディスクファイルを再チェック」で処理されます。' },
+    ],
+  },
   {
     version: '0.18.0',
     date: '2026-08-23',
