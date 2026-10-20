@@ -20,13 +20,13 @@
     "expo-system-ui": "~57.0.1",
     "fflate": "^0.8.3",
     "fzstd": "^0.1.1",
-    "js-md5": "^0.8.3",
-    "react": "19.2.3",
-    "react-native": "0.86.0",
-    "react-native-safe-area-context": "~5.7.0"
+    "js-md5": "^0.9.2",
+    "react": "19.3.1",
+    "react-native": "0.88.0",
+    "react-native-safe-area-context": "~5.10.1"
   },
   "devDependencies": {
-    "@types/react": "~19.2.2",
+    "@types/react": "~19.3.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
